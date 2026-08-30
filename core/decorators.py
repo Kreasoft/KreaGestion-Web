@@ -12,6 +12,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def empresa_id_desde_sesion(request):
+    """Id de empresa activa. El selector global usa empresa_activa_id; varios módulos aún leen empresa_activa."""
+    return request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
+
+
+def persistir_empresa_activa(request, empresa):
+    """Deja la empresa activa en request, sesión (ambas claves) para que el cambio no se pierda."""
+    if not empresa:
+        return
+    request.empresa = empresa
+    request.session['empresa_activa_id'] = empresa.id
+    request.session['empresa_activa'] = empresa.id
+    request.session.modified = True
+
+
 def requiere_empresa(view_func):
     """
     Decorador centralizado que verifica y asigna empresa al request.
@@ -38,17 +53,17 @@ def requiere_empresa(view_func):
         # CASO 1: Superusuario
         if request.user.is_superuser:
             logger.debug(f"[SUPERUSER] Acceso de superusuario a {view_func.__name__}")
-            
-            # Intentar obtener de sesión
-            empresa_id = request.session.get('empresa_activa')
-            
-            if empresa_id:
-                try:
-                    empresa = Empresa.objects.get(id=empresa_id)
-                    logger.debug(f"[SUPERUSER] Empresa desde sesión: {empresa.nombre}")
-                except Empresa.DoesNotExist:
-                    logger.warning(f"[SUPERUSER] Empresa ID {empresa_id} en sesión no existe")
-                    empresa = None
+
+            empresa = getattr(request, 'empresa', None)
+            if not empresa:
+                empresa_id = empresa_id_desde_sesion(request)
+                if empresa_id:
+                    try:
+                        empresa = Empresa.objects.get(id=empresa_id)
+                        logger.debug(f"[SUPERUSER] Empresa desde sesión: {empresa.nombre}")
+                    except Empresa.DoesNotExist:
+                        logger.warning(f"[SUPERUSER] Empresa ID {empresa_id} en sesión no existe")
+                        empresa = None
             
             # Si no hay empresa en sesión, buscar empresa por defecto
             if not empresa:
@@ -70,11 +85,7 @@ def requiere_empresa(view_func):
                     messages.error(request, 'No hay empresas registradas en el sistema.')
                     return redirect('empresas:empresa_create')
             
-            # Guardar en sesión de forma robusta
-            if empresa:
-                request.session['empresa_activa'] = empresa.id
-                request.session.modified = True
-                request.empresa = empresa
+            persistir_empresa_activa(request, empresa)
         
         # CASO 2: Usuario normal
         else:

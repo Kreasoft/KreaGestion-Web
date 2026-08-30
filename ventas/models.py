@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
@@ -6,6 +7,7 @@ from decimal import Decimal
 from empresas.models import Empresa, Sucursal
 from clientes.models import Cliente
 from articulos.models import Articulo
+from facturacion_electronica.ind_traslado import IND_TRASLADO_CHOICES
 
 
 def print(*args, **kwargs):
@@ -37,7 +39,21 @@ class Vendedor(models.Model):
         verbose_name="% Comisión"
     )
     activo = models.BooleanField(default=True, verbose_name="Activo")
-    
+    telefono_app = models.CharField(
+        max_length=15,
+        blank=True,
+        default="",
+        verbose_name="Celular app",
+        help_text="Celular chileno del vendedor, ej. +56 9 63697225",
+    )
+    app_movil_activa = models.BooleanField(
+        default=False,
+        verbose_name="App móvil activa",
+        help_text="Si está activo, ese celular puede vender en la app",
+    )
+    app_movil_activado_en = models.DateTimeField(null=True, blank=True)
+    app_movil_revocado_en = models.DateTimeField(null=True, blank=True)
+
     # Auditoría
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_modificacion = models.DateTimeField(auto_now=True)
@@ -47,9 +63,21 @@ class Vendedor(models.Model):
         verbose_name_plural = "Vendedores"
         ordering = ['nombre']
         unique_together = ['empresa', 'codigo']
-    
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empresa', 'telefono_app'],
+                condition=~Q(telefono_app=''),
+                name='uniq_vendedor_telefono_app',
+            ),
+        ]
+
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
+
+    @property
+    def telefono_app_display(self):
+        from .telefono_app import formatear_telefono_cl
+        return formatear_telefono_cl(self.telefono_app)
 
 
 class FormaPago(models.Model):
@@ -134,7 +162,7 @@ class Venta(models.Model):
         help_text="Sucursal donde se realizó la venta"
     )
     numero_venta = models.CharField(max_length=20, verbose_name="Número de Venta")
-    fecha = models.DateField(default=timezone.now, verbose_name="Fecha")
+    fecha = models.DateField(default=timezone.localdate, verbose_name="Fecha")
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Cliente")
     vendedor = models.ForeignKey('Vendedor', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vendedor")
     forma_pago = models.ForeignKey('FormaPago', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Forma de Pago")
@@ -151,17 +179,8 @@ class Venta(models.Model):
     # NO puede ser 'vale' porque un vale no se convierte en otro vale
     tipo_documento_planeado = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='boleta', verbose_name="Tipo de Documento Planeado", help_text="Tipo de documento que se generará al procesar este vale (factura, boleta, guía o cotización)")
     
-    # Tipo de despacho (solo para guías) - Motivo de Traslado según SII
-    TIPO_DESPACHO_CHOICES = [
-        ('1', 'Venta'),
-        ('2', 'Venta por efectuar (anticipada)'),
-        ('3', 'Consignación'),
-        ('4', 'Devolución'),
-        ('5', 'Traslado interno'),
-        ('6', 'Transformación de productos'),
-        ('7', 'Entrega gratuita'),
-        ('8', 'Otros'),
-    ]
+    # Tipo de despacho (solo para guías) - IndTraslado según SII
+    TIPO_DESPACHO_CHOICES = IND_TRASLADO_CHOICES
     tipo_despacho = models.CharField(max_length=2, choices=TIPO_DESPACHO_CHOICES, null=True, blank=True, verbose_name="Tipo de Despacho")
 
     # Totales
@@ -182,6 +201,12 @@ class Venta(models.Model):
     # Información de pago
     monto_pagado = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Monto Pagado")
     saldo_pendiente = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Saldo Pendiente")
+    fecha_vencimiento = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Vencimiento",
+        help_text="Se calcula con los días de pago del cliente. Sin plazo, vence el mismo día de emisión.",
+    )
 
     # Auditoría
     usuario_creacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='ventas_creadas', verbose_name="Usuario Creación")
@@ -192,7 +217,18 @@ class Venta(models.Model):
         verbose_name = "Venta"
         verbose_name_plural = "Ventas"
         ordering = ['-fecha_creacion']
-        unique_together = ['empresa', 'tipo_documento', 'numero_venta']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empresa', 'tipo_documento', 'numero_venta'],
+                condition=models.Q(tipo_documento__in=['factura', 'boleta', 'guia']),
+                name='venta_folio_oficial_unico',
+            ),
+            models.UniqueConstraint(
+                fields=['empresa', 'tipo_documento', 'estacion_trabajo', 'numero_venta'],
+                condition=models.Q(tipo_documento__in=['ticket', 'vale', 'cotizacion']),
+                name='venta_ticket_unico_por_estacion',
+            ),
+        ]
     
     @property
     def dte_asociado(self):
@@ -237,6 +273,14 @@ class Venta(models.Model):
                 # Si no es cuenta corriente, el monto pagado debe ser igual al total
                 self.monto_pagado = self.total
                 self.saldo_pendiente = Decimal('0.00')
+
+        if not self.fecha_vencimiento and self.fecha:
+            from core.fechas import calcular_fecha_vencimiento
+            dias = getattr(self.cliente, 'plazo_pago', 0) if self.cliente_id else 0
+            self.fecha_vencimiento = calcular_fecha_vencimiento(self.fecha, dias)
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = list(update_fields) + ['fecha_vencimiento']
 
         super().save(*args, **kwargs)
 
@@ -335,6 +379,20 @@ class VentaDetalle(models.Model):
     def save(self, *args, **kwargs):
         # Calcular precio total
         self.precio_total = self.cantidad * self.precio_unitario
+
+        if self.venta and (self.precio_unitario or 0) <= 0:
+            from facturacion_electronica.validacion_envio import (
+                documento_exige_precio,
+                tipo_dte_y_traslado_desde_venta,
+            )
+            tipo_dte, traslado = tipo_dte_y_traslado_desde_venta(self.venta)
+            if tipo_dte and documento_exige_precio(tipo_dte, traslado):
+                from django.core.exceptions import ValidationError
+                nombre = getattr(self.articulo, 'nombre', None) or 'producto'
+                raise ValidationError(
+                    f'El producto "{nombre}" no tiene precio. '
+                    'No se puede grabar en un vale o documento que se transforma en DTE.'
+                )
         
         # Calcular impuesto específico si el artículo lo tiene
         if self.articulo.impuesto_especifico:
@@ -353,6 +411,15 @@ class EstacionTrabajo(models.Model):
     """Modelo para gestionar estaciones de trabajo del POS"""
     
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    sucursal = models.ForeignKey(
+        Sucursal,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="Sucursal",
+        related_name='estaciones_trabajo',
+        help_text="Sucursal donde opera esta estación",
+    )
     numero = models.CharField(max_length=10, verbose_name="Número de Estación")
     nombre = models.CharField(max_length=100, verbose_name="Nombre de la Estación")
     descripcion = models.TextField(blank=True, verbose_name="Descripción")

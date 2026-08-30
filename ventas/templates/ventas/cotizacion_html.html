@@ -464,15 +464,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 </head>
 <body>
-    <div class="no-print action-buttons">
-        <button class="back-btn" onclick="safeCloseWindow()">
-            <i class="fas fa-arrow-left"></i> VOLVER
-        </button>
-        <button class="print-btn" onclick="window.print()">
-            <i class="fas fa-print"></i> IMPRIMIR
-        </button>
-    </div>
-    
+    {% include "includes/visor_acciones.html" %}
     <div class="quotation-container">
         <!-- Header -->
         <div class="quotation-header">
@@ -502,7 +494,7 @@
                 <h3>Detalles de Emisión</h3>
                 <div class="info-item">
                     <span class="info-label">Fecha de Emisión:</span>
-                    <span class="info-value">{{ cotizacion.fecha|date:"d/m/Y" }}</span>
+                    <span class="info-value">{{ cotizacion.fecha|date:"d-m-Y" }}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Vendedor:</span>
@@ -541,7 +533,7 @@
         
         <!-- Validity -->
         <div class="validity">
-            <strong>DOCUMENTO VÁLIDO POR 30 DÍAS - HASTA: {{ cotizacion.fecha|add:30|date:"d/m/Y" }}</strong>
+            <strong>DOCUMENTO VÁLIDO POR 30 DÍAS - HASTA: {{ cotizacion.fecha|add:30|date:"d-m-Y" }}</strong>
         </div>
         
         <!-- Products -->
@@ -626,19 +618,14 @@
         <!-- Footer -->
         <div class="quotation-footer">
             <p><strong>{{ cotizacion.empresa.razon_social }}</strong> - Documento informativo sin valor tributario directo.</p>
-            <p>Generado el {{ "now"|date:"d/m/Y H:i" }}</p>
+            <p>Generado el {{ "now"|date:"d-m-Y H:i" }}</p>
         </div>
     </div>
     
+    {% include "includes/cerrar_visor.html" %}
     <script>
         function safeCloseWindow() {
-            if (window.opener && window.opener !== window && !window.opener.closed) {
-                try { window.close(); return; } catch (e) {}
-            }
-            const refererUrl = sessionStorage.getItem('cotizacion_referer');
-            if (refererUrl) { window.location.href = refererUrl; return; }
-            if (window.history.length > 1) { window.history.back(); return; }
-            window.location.href = '/ventas/cotizaciones/';
+            cerrarVisor({ fallbackUrl: "{% url 'ventas:cotizacion_list' %}" });
         }
         
         window.onload = function() {

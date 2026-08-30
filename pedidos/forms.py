@@ -20,7 +20,7 @@ class OrdenPedidoForm(forms.ModelForm):
         fields = [
             'cliente', 'bodega', 'fecha_pedido', 'fecha_entrega_estimada',
             'numero_oc_cliente', 'fecha_oc_cliente', 'condiciones_pago',
-            'observaciones', 'estado'
+            'observaciones'
         ]
         widgets = {
             'cliente': forms.Select(attrs={'class': 'form-select form-select-sm'}),
@@ -31,7 +31,6 @@ class OrdenPedidoForm(forms.ModelForm):
             'fecha_oc_cliente': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'condiciones_pago': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 30 días'}),
             'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 3, 'placeholder': 'Observaciones adicionales'}),
-            'estado': forms.Select(attrs={'class': 'form-select form-select-sm'}),
         }
 
 
@@ -63,6 +62,14 @@ class ItemOrdenPedidoForm(forms.ModelForm):
         if impuesto is None:
             return 19
         return impuesto
+
+    def has_changed(self):
+        """Una fila nueva sin artículo es solo el renglón disponible para agregar otro ítem."""
+        if self.is_bound and not self.instance.pk:
+            articulo = self.data.get(self.add_prefix('articulo'))
+            if not articulo:
+                return False
+        return super().has_changed()
     
     class Meta:
         model = ItemOrdenPedido
@@ -111,7 +118,12 @@ class BusquedaPedidoForm(forms.Form):
     
     estado = forms.ChoiceField(
         required=False,
-        choices=[('', 'Todos los estados')] + OrdenPedido.ESTADO_CHOICES,
+        choices=[
+            ('', 'Todos'),
+            ('confirmada', 'Pendiente'),
+            ('completada', 'Completada'),
+            ('cancelada', 'Cancelada'),
+        ],
         widget=forms.Select(attrs={'class': 'form-select form-select-sm'})
     )
     

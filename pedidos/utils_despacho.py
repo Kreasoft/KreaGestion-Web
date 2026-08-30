@@ -6,6 +6,46 @@ from facturacion_electronica.models import DocumentoTributarioElectronico, Archi
 from facturacion_electronica.dte_generator import DTEXMLGenerator
 from facturacion_electronica.firma_electronica import FirmadorDTE
 from facturacion_electronica.pdf417_generator import PDF417Generator
+from facturacion_electronica.ted_sii import construir_ted
+from facturacion_electronica.dte_service import DTEService
+
+
+def _finalizar_xml_dte_despacho(dte, xml_sin_firmar, item_glosa='Documento Tributario'):
+    """Alinea montos del XML, inserta TED con el mismo total y firma."""
+    empresa = dte.empresa
+    totales = DTEXMLGenerator.extraer_totales_xml(xml_sin_firmar)
+    if totales.get('total') or totales.get('neto'):
+        dte.monto_neto = totales['neto']
+        dte.monto_iva = totales['iva']
+        dte.monto_exento = totales.get('exento') or 0
+        dte.monto_total = totales['total']
+
+    service = DTEService(empresa)
+    ted_xml = construir_ted(
+        dte.rut_emisor,
+        dte.tipo_dte,
+        dte.folio,
+        dte.fecha_emision.strftime('%Y-%m-%d'),
+        dte.rut_receptor,
+        dte.razon_social_receptor,
+        int(dte.monto_total or 0),
+        (item_glosa or 'Documento Tributario')[:40],
+        dte.caf_utilizado,
+    )
+    xml_con_ted = service._insertar_ted_y_tmstfirma(xml_sin_firmar, ted_xml)
+    firmador = FirmadorDTE(empresa.certificado_digital.path, empresa.password_certificado)
+    xml_firmado = firmador.firmar_xml(xml_con_ted)
+    pdf417_data = firmador.generar_datos_pdf417(ted_xml)
+
+    dte.xml_dte = xml_sin_firmar
+    dte.xml_firmado = xml_firmado
+    dte.timbre_electronico = ted_xml
+    dte.datos_pdf417 = pdf417_data
+    dte.estado_sii = 'generado'
+    dte.save()
+    PDF417Generator.guardar_pdf417_en_dte(dte)
+    return dte
+
 
 def actualizar_estado_pedido_despachado(orden_despacho):
     """
@@ -63,7 +103,11 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
         monto_iva = 0
         monto_exento = 0
         
-        for item_despacho in orden_despacho.items.all():
+        items_emitibles = orden_despacho.items.filter(cantidad__gt=0)
+        if not items_emitibles.exists():
+            raise ValueError("No hay productos con cantidad mayor a 0 para emitir la guía.")
+
+        for item_despacho in items_emitibles:
             item_pedido = item_despacho.item_pedido
             cantidad = item_despacho.cantidad
             precio_unitario = item_pedido.precio_unitario
@@ -88,6 +132,10 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
 
         # Crear el DTE
         cliente = orden_despacho.orden_pedido.cliente
+        service = DTEService(orden_despacho.empresa)
+        tipo_traslado = service._resolver_tipo_traslado_guia(orden_despacho=orden_despacho)
+        chofer = getattr(orden_despacho, 'chofer', None)
+        vehiculo = getattr(orden_despacho, 'vehiculo', None)
         dte = DocumentoTributarioElectronico.objects.create(
             empresa=orden_despacho.empresa,
             tipo_dte='52',
@@ -96,6 +144,11 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
             usuario_creacion=usuario,
             estado_sii='NoEnviado',
             caf_utilizado=caf_disponible,
+            tipo_traslado=tipo_traslado,
+            chofer=chofer,
+            vehiculo=vehiculo,
+            nombre_chofer=(chofer.nombre if chofer else '') or '',
+            patente_transporte=(vehiculo.patente if vehiculo else '') or '',
             # Montos
             monto_neto=int(monto_neto),
             monto_iva=int(monto_iva),
@@ -105,109 +158,28 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
             rut_receptor=cliente.rut,
             razon_social_receptor=cliente.nombre,
             giro_receptor=getattr(cliente, 'giro', ''),
-            direccion_receptor=cliente.direccion or '',
+            direccion_receptor=(orden_despacho.direccion_entrega or cliente.direccion or '')[:200],
             comuna_receptor=cliente.comuna if isinstance(cliente.comuna, str) else '',
+            ciudad_receptor=getattr(cliente, 'ciudad', '') or '',
             # Datos del emisor (se llenan desde la empresa)
             rut_emisor=orden_despacho.empresa.rut,
             razon_social_emisor=orden_despacho.empresa.razon_social,
             giro_emisor=getattr(orden_despacho.empresa, 'giro', ''),
         )
 
-        # Crear los detalles del DTE y vincular con los items de despacho
-        for item_despacho in orden_despacho.items.all():
-            articulo = item_despacho.item_pedido.articulo
-            unidad = articulo.unidad_medida.simbolo if articulo.unidad_medida else 'UN'
-            
-            
-            # Vincular la guía de despacho con el item
+        for item_despacho in items_emitibles:
             item_despacho.guia_despacho = dte
-            item_despacho.save()
+            item_despacho.save(update_fields=['guia_despacho'])
 
         # --- PROCESAMIENTO COMPLETO DEL DTE ---
         empresa = orden_despacho.empresa
         
-        # 1. Generar XML - Pasar la orden de despacho directamente para que pueda obtener los items
-        generator = DTEXMLGenerator(empresa, orden_despacho, dte.tipo_dte, dte.folio, dte.caf_utilizado)
+        # Generar XML desde el DTE para usar solo las líneas de esta guía
+        generator = DTEXMLGenerator(empresa, dte, dte.tipo_dte, dte.folio, dte.caf_utilizado)
         xml_sin_firmar = generator.generar_xml()
-
-        # 2. Firmar XML
-        firmador = FirmadorDTE(empresa.certificado_digital.path, empresa.password_certificado)
-        xml_firmado = firmador.firmar_xml(xml_sin_firmar)
-
-        # 3. Generar TED (Timbre Electrónico)
-        ted_xml = None
-        pdf417_data = None
-        
-        # Intentar usar DTEBox para timbrar si está habilitado
-        if getattr(empresa, 'dtebox_habilitado', False):
-            try:
-                from facturacion_electronica.dtebox_service import DTEBoxService
-                dtebox = DTEBoxService(empresa)
-                print(f"Solicitando timbre a DTEBox para Guía {dte.folio}...")
-                res_dtebox = dtebox.timbrar_dte(xml_firmado)
-                if res_dtebox['success'] and res_dtebox.get('ted'):
-                    ted_xml = res_dtebox['ted']
-                    print("[OK] Timbre obtenido exitosamente desde DTEBox")
-            except Exception as e_dtebox:
-                print(f"[WARN] Error al timbrar con DTEBox: {e_dtebox}. Intentando local...")
-
-        # Si no se obtuvo de DTEBox, generar localmente
-        if not ted_xml:
-            print("Generando timbre localmente (Offline)...")
-            dte_data = {
-                'rut_emisor': dte.rut_emisor,
-                'tipo_dte': dte.tipo_dte,
-                'folio': dte.folio,
-                'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'),
-                'rut_receptor': dte.rut_receptor,
-                'razon_social_receptor': dte.razon_social_receptor,
-                'monto_total': dte.monto_total,
-                'item_1': orden_despacho.items.first().item_pedido.articulo.nombre if orden_despacho.items.exists() else 'Guía de Despacho'
-            }
-            
-            # Extraer datos reales del CAF
-            datos_caf = {'modulo': '', 'exponente': ''}
-            try:
-                from facturacion_electronica.dte_service import DTEService
-                # Solo necesitamos un objeto fake para usar _parsear_datos_caf
-                service_temp = DTEService(empresa)
-                datos_parsed = service_temp._parsear_datos_caf(dte.caf_utilizado)
-                datos_caf['modulo'] = datos_parsed.get('M', 'MODULO_ERROR')
-                datos_caf['exponente'] = datos_parsed.get('E', 'EXPONENTE_ERROR')
-            except Exception as e_caf:
-                print(f"Error parseando CAF: {e_caf}")
-                datos_caf['modulo'] = 'ERROR'
-                datos_caf['exponente'] = 'ERROR'
-
-            caf_data = {
-                'rut_emisor': dte.caf_utilizado.empresa.rut,
-                'razon_social': dte.caf_utilizado.empresa.razon_social_sii or dte.caf_utilizado.empresa.razon_social,
-                'tipo_documento': dte.caf_utilizado.tipo_documento,
-                'folio_desde': dte.caf_utilizado.folio_desde,
-                'folio_hasta': dte.caf_utilizado.folio_hasta,
-                'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'),
-                'modulo': datos_caf['modulo'],
-                'exponente': datos_caf['exponente'],
-                'firma': dte.caf_utilizado.firma_electronica
-            }
-            
-            ted_xml = firmador.generar_ted(dte_data, caf_data)
-
-        # 4. Generar datos para PDF417
-        pdf417_data = firmador.generar_datos_pdf417(ted_xml)
-
-        # 5. Actualizar DTE
-        dte.xml_dte = xml_sin_firmar
-        dte.xml_firmado = xml_firmado
-        dte.timbre_electronico = ted_xml
-        dte.datos_pdf417 = pdf417_data
-        dte.estado_sii = 'generado'
-        dte.save()
-
-        # 6. Generar imagen del timbre
-        PDF417Generator.guardar_pdf417_en_dte(dte)
-
-        return dte
+        primer_item = items_emitibles.select_related('item_pedido__articulo').first()
+        item_glosa = primer_item.item_pedido.articulo.nombre if primer_item and primer_item.item_pedido else 'Guía de Despacho'
+        return _finalizar_xml_dte_despacho(dte, xml_sin_firmar, item_glosa)
 
 def generar_factura_desde_orden_despacho(orden_despacho, usuario):
     """
@@ -241,7 +213,11 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
         monto_iva = 0
         monto_exento = 0
         
-        for item_despacho in orden_despacho.items.all():
+        items_emitibles = orden_despacho.items.filter(cantidad__gt=0)
+        if not items_emitibles.exists():
+            raise ValueError("No hay productos con cantidad mayor a 0 para emitir la factura.")
+
+        for item_despacho in items_emitibles:
             item_pedido = item_despacho.item_pedido
             cantidad = item_despacho.cantidad
             precio_unitario = item_pedido.precio_unitario
@@ -291,44 +267,13 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
             giro_emisor=getattr(orden_despacho.empresa, 'giro', ''),
         )
 
-        # Crear los detalles del DTE y vincular con los items de despacho
-        for item_despacho in orden_despacho.items.all():
-            articulo = item_despacho.item_pedido.articulo
-            unidad = articulo.unidad_medida.simbolo if articulo.unidad_medida else 'UN'
-            
-            
-            # Vincular la factura con el item
+        for item_despacho in items_emitibles:
             item_despacho.factura = dte
-            item_despacho.save()
+            item_despacho.save(update_fields=['factura'])
 
-        # --- PROCESAMIENTO COMPLETO DEL DTE ---
         empresa = orden_despacho.empresa
-        
-        # 1. Generar XML - Pasar la orden de despacho directamente para que pueda obtener los items
-        generator = DTEXMLGenerator(empresa, orden_despacho, dte.tipo_dte, dte.folio, dte.caf_utilizado)
+        generator = DTEXMLGenerator(empresa, dte, dte.tipo_dte, dte.folio, dte.caf_utilizado)
         xml_sin_firmar = generator.generar_xml()
-
-        # 2. Firmar XML
-        firmador = FirmadorDTE(empresa.certificado_digital.path, empresa.password_certificado)
-        xml_firmado = firmador.firmar_xml(xml_sin_firmar)
-
-        # 3. Generar TED
-        dte_data = {'rut_emisor': dte.rut_emisor, 'tipo_dte': dte.tipo_dte, 'folio': dte.folio, 'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'), 'rut_receptor': dte.rut_receptor, 'razon_social_receptor': dte.razon_social_receptor, 'monto_total': dte.monto_total, 'item_1': orden_despacho.items.first().item_pedido.articulo.nombre if orden_despacho.items.exists() else 'Factura Electrónica'}
-        caf_data = {'rut_emisor': dte.caf_utilizado.empresa.rut, 'razon_social': dte.caf_utilizado.empresa.razon_social_sii, 'tipo_documento': dte.caf_utilizado.tipo_documento, 'folio_desde': dte.caf_utilizado.folio_desde, 'folio_hasta': dte.caf_utilizado.folio_hasta, 'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'), 'modulo': 'MODULO_PLACEHOLDER', 'exponente': 'EXPONENTE_PLACEHOLDER', 'firma': dte.caf_utilizado.firma_electronica}
-        ted_xml = firmador.generar_ted(dte_data, caf_data)
-
-        # 4. Generar datos para PDF417
-        pdf417_data = firmador.generar_datos_pdf417(ted_xml)
-
-        # 5. Actualizar DTE
-        dte.xml_dte = xml_sin_firmar
-        dte.xml_firmado = xml_firmado
-        dte.timbre_electronico = ted_xml
-        dte.datos_pdf417 = pdf417_data
-        dte.estado_sii = 'generado'
-        dte.save()
-
-        # 6. Generar imagen del timbre
-        PDF417Generator.guardar_pdf417_en_dte(dte)
-
-        return dte
+        primer_item = items_emitibles.select_related('item_pedido__articulo').first()
+        item_glosa = primer_item.item_pedido.articulo.nombre if primer_item and primer_item.item_pedido else 'Factura Electrónica'
+        return _finalizar_xml_dte_despacho(dte, xml_sin_firmar, item_glosa)

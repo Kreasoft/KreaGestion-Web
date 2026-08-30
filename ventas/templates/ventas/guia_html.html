@@ -281,6 +281,7 @@
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     <div class="guia-container">
         <!-- Header -->
         <div class="guia-header">
@@ -309,7 +310,7 @@
             </div>
             <div class="info-row">
                 <span class="info-label">Fecha:</span>
-                <span>{{ venta.fecha|date:"d/m/Y" }} {{ venta.fecha_creacion|date:"H:i" }}</span>
+                <span>{{ venta.fecha|date:"d-m-Y" }} {{ venta.fecha_creacion|date:"H:i" }}</span>
             </div>
             {% if venta.estacion_trabajo %}
             <div class="info-row">
@@ -348,10 +349,10 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed;">
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 2px 2px 0; vertical-align: bottom;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 2px 3px 0; vertical-align: bottom;">
                         <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
                     </td>
-                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 2px 0; vertical-align: bottom;">
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 3px 0; vertical-align: bottom;">
                         ${{ detalle.precio_total|format_price }}
                     </td>
                 </tr>
@@ -449,30 +450,15 @@
             {% if venta.observaciones %}
             <p style="font-size: 8px; margin-bottom: 5px;"><strong>Observaciones:</strong> {{ venta.observaciones }}</p>
             {% endif %}
-            <p>Guía generada el {{ venta.fecha_creacion|date:"d/m/Y H:i" }}</p>
+            <p>Guía generada el {{ venta.fecha_creacion|date:"d-m-Y H:i" }}</p>
             <p style="margin-top: 5px;">Este documento es válido como comprobante de despacho</p>
         </div>
     </div>
 
-    <!-- Botón de impresión (solo visible en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()" class="btn btn-secondary">
-            <i class="fas fa-print me-2"></i>Imprimir Guía de Despacho
-        </button>
-        <button
-            onclick="safeCloseWindow()"
-            class="btn btn-secondary ms-2">
-            <i class="fas fa-arrow-left me-2"></i>Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         function safeCloseWindow() {
-            if (document.referrer && document.referrer.indexOf(window.location.host) !== -1) {
-                window.history.back();
-            } else {
-                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
         }
 
         // Generar código de barras

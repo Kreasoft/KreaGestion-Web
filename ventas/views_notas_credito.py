@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 
 from core.decorators import requiere_empresa
-from .models import NotaCredito, NotaCreditoDetalle, Venta, VentaDetalle
+from .models import NotaCredito, NotaCreditoDetalle, NotaDebito, NotaDebitoDetalle, Venta, VentaDetalle
 from .forms import NotaCreditoForm, NotaCreditoDetalleFormSet
 from clientes.models import Cliente
 from bodegas.models import Bodega
@@ -219,6 +219,10 @@ def ajax_buscar_documento_afectado(request):
         fecha = None
         cliente = ''
         rut_cliente = ''
+        direccion_cliente = ''
+        comuna_cliente = ''
+        ciudad_cliente = ''
+        giro_cliente = ''
         cliente_id = None
         bodega_id = None
         bodega_nombre = ''
@@ -263,6 +267,10 @@ def ajax_buscar_documento_afectado(request):
                     cliente_obj = documento.cliente
                     cliente = cliente_obj.nombre if cliente_obj else ''
                     rut_cliente = cliente_obj.rut if cliente_obj else ''
+                    direccion_cliente = cliente_obj.direccion if cliente_obj else ''
+                    comuna_cliente = cliente_obj.comuna if cliente_obj else ''
+                    ciudad_cliente = getattr(cliente_obj, 'ciudad', '') if cliente_obj else ''
+                    giro_cliente = getattr(cliente_obj, 'giro', '') if cliente_obj else ''
                     cliente_id = cliente_obj.id if cliente_obj else None
                     monto_total = Decimal(documento.total or 0)
 
@@ -305,13 +313,73 @@ def ajax_buscar_documento_afectado(request):
                fecha = documento.fecha_emision
                cliente = documento.razon_social_receptor
                rut_cliente = documento.rut_receptor
+               direccion_cliente = documento.direccion_receptor or ''
+               comuna_cliente = documento.comuna_receptor or ''
+               ciudad_cliente = documento.ciudad_receptor or ''
+               giro_cliente = documento.giro_receptor or ''
                monto_total = Decimal(documento.monto_total or 0)
+
+               cliente_match = Cliente.objects.filter(
+                   empresa=request.empresa,
+                   rut=documento.rut_receptor
+               ).first()
+               if not cliente_match and cliente:
+                   cliente_match = Cliente.objects.filter(
+                       empresa=request.empresa,
+                       nombre__iexact=cliente
+                   ).first()
+               if cliente_match:
+                   cliente_id = cliente_match.id
+                   direccion_cliente = cliente_match.direccion or direccion_cliente
+                   comuna_cliente = cliente_match.comuna or comuna_cliente
+                   ciudad_cliente = getattr(cliente_match, 'ciudad', '') or ciudad_cliente
+                   giro_cliente = getattr(cliente_match, 'giro', '') or giro_cliente
+
+               if tipo_doc == '61':
+                   nota_credito = documento.notas_credito.first()
+                   if nota_credito:
+                       if nota_credito.cliente:
+                           cliente_id = nota_credito.cliente.id
+                           cliente = nota_credito.cliente.nombre or cliente
+                           rut_cliente = nota_credito.cliente.rut or rut_cliente
+                           direccion_cliente = nota_credito.cliente.direccion or direccion_cliente
+                           comuna_cliente = nota_credito.cliente.comuna or comuna_cliente
+                           ciudad_cliente = getattr(nota_credito.cliente, 'ciudad', '') or ciudad_cliente
+                           giro_cliente = getattr(nota_credito.cliente, 'giro', '') or giro_cliente
+                       if nota_credito.bodega:
+                           bodega_id = nota_credito.bodega.id
+                           bodega_nombre = str(nota_credito.bodega)
+                       if nota_credito.vendedor:
+                           vendedor_id = nota_credito.vendedor.id
+                           vendedor_nombre = nota_credito.vendedor.nombre
+
+               elif tipo_doc == '56':
+                   nota_debito = documento.notas_debito.first()
+                   if nota_debito:
+                       if nota_debito.cliente:
+                           cliente_id = nota_debito.cliente.id
+                           cliente = nota_debito.cliente.nombre or cliente
+                           rut_cliente = nota_debito.cliente.rut or rut_cliente
+                           direccion_cliente = nota_debito.cliente.direccion or direccion_cliente
+                           comuna_cliente = nota_debito.cliente.comuna or comuna_cliente
+                           ciudad_cliente = getattr(nota_debito.cliente, 'ciudad', '') or ciudad_cliente
+                           giro_cliente = getattr(nota_debito.cliente, 'giro', '') or giro_cliente
+                       if nota_debito.bodega:
+                           bodega_id = nota_debito.bodega.id
+                           bodega_nombre = str(nota_debito.bodega)
+                       if nota_debito.vendedor:
+                           vendedor_id = nota_debito.vendedor.id
+                           vendedor_nombre = nota_debito.vendedor.nombre
 
                venta_relacionada = documento.venta
                if venta_relacionada:
                    venta_id = venta_relacionada.id
                    if venta_relacionada.cliente:
                        cliente_id = venta_relacionada.cliente.id
+                       direccion_cliente = venta_relacionada.cliente.direccion or direccion_cliente
+                       comuna_cliente = venta_relacionada.cliente.comuna or comuna_cliente
+                       ciudad_cliente = getattr(venta_relacionada.cliente, 'ciudad', '') or ciudad_cliente
+                       giro_cliente = getattr(venta_relacionada.cliente, 'giro', '') or giro_cliente
                    # Obtener bodega desde la venta relacionada
                    bodega_obj = None
                    if hasattr(venta_relacionada, 'bodega') and venta_relacionada.bodega:
@@ -393,6 +461,10 @@ def ajax_buscar_documento_afectado(request):
             'cliente': cliente,
             'cliente_id': cliente_id,
             'rut_cliente': rut_cliente,
+            'direccion_cliente': direccion_cliente,
+            'comuna_cliente': comuna_cliente,
+            'ciudad_cliente': ciudad_cliente,
+            'giro_cliente': giro_cliente,
             'venta_id': venta_id,
             'bodega_id': bodega_id,
             'bodega_nombre': bodega_nombre,
@@ -424,13 +496,39 @@ def cargar_items_documento_afectado(tipo_doc, numero_doc, empresa):
     Función auxiliar para cargar items de un documento afectado
     """
     try:
-        if tipo_doc in ['33', '39', '52']:  # Documentos electrónicos
+        if tipo_doc in ['33', '39', '52', '56', '61']:  # Documentos electrónicos
             # Buscar en DTEs
             documento = DocumentoTributarioElectronico.objects.get(
                 empresa=empresa,
                 tipo_dte=tipo_doc,
                 folio=numero_doc
             )
+
+            if tipo_doc == '61':
+                nota_credito = documento.notas_credito.first()
+                if nota_credito:
+                    items = NotaCreditoDetalle.objects.filter(nota_credito=nota_credito).select_related('articulo')
+                    return [{
+                        'articulo_id': item.articulo.id,
+                        'codigo': item.codigo or item.articulo.codigo,
+                        'nombre': item.descripcion or item.articulo.nombre,
+                        'cantidad': float(item.cantidad),
+                        'precio_unitario': float(item.precio_unitario),
+                        'descuento': float(item.descuento or 0),
+                    } for item in items]
+
+            if tipo_doc == '56':
+                nota_debito = documento.notas_debito.first()
+                if nota_debito:
+                    items = NotaDebitoDetalle.objects.filter(nota_debito=nota_debito).select_related('articulo')
+                    return [{
+                        'articulo_id': item.articulo.id,
+                        'codigo': item.codigo or item.articulo.codigo,
+                        'nombre': item.descripcion or item.articulo.nombre,
+                        'cantidad': float(item.cantidad),
+                        'precio_unitario': float(item.precio_unitario),
+                        'descuento': float(item.descuento or 0),
+                    } for item in items]
 
             # Obtener items de la venta relacionada
             venta = documento.venta
@@ -485,6 +583,30 @@ def cargar_items_documento_afectado(tipo_doc, numero_doc, empresa):
         # Fallback a Venta si no existe DTE
         TIPO_DOC_MAP = {'33': 'factura', '39': 'boleta', '52': 'guia'}
         try:
+            if tipo_doc == '61':
+                nota_credito = NotaCredito.objects.get(empresa=empresa, numero=numero_doc)
+                items = NotaCreditoDetalle.objects.filter(nota_credito=nota_credito).select_related('articulo')
+                return [{
+                    'articulo_id': it.articulo.id,
+                    'codigo': it.codigo or it.articulo.codigo,
+                    'nombre': it.descripcion or it.articulo.nombre,
+                    'cantidad': float(it.cantidad),
+                    'precio_unitario': float(it.precio_unitario),
+                    'descuento': float(it.descuento or 0),
+                } for it in items]
+
+            if tipo_doc == '56':
+                nota_debito = NotaDebito.objects.get(empresa=empresa, numero=numero_doc)
+                items = NotaDebitoDetalle.objects.filter(nota_debito=nota_debito).select_related('articulo')
+                return [{
+                    'articulo_id': it.articulo.id,
+                    'codigo': it.codigo or it.articulo.codigo,
+                    'nombre': it.descripcion or it.articulo.nombre,
+                    'cantidad': float(it.cantidad),
+                    'precio_unitario': float(it.precio_unitario),
+                    'descuento': float(it.descuento or 0),
+                } for it in items]
+
             tipo_nombre = TIPO_DOC_MAP.get(tipo_doc, tipo_doc)
             venta = Venta.objects.get(
                 empresa=empresa,
@@ -806,7 +928,7 @@ def notacredito_print(request, pk):
                     </div>
                 </div>
             </div>
-            <div class="fecha-emision"><strong>Fecha:</strong> {{ nota.fecha|date:"d/m/Y" }}</div>
+            <div class="fecha-emision"><strong>Fecha:</strong> {{ nota.fecha|date:"d-m-Y" }}</div>
             <div class="receptor-section">
                 <div class="receptor-grid">
                     <div class="receptor-row">
@@ -829,7 +951,7 @@ def notacredito_print(request, pk):
                     </div>
                     <div class="referencia-row">
                         <div class="referencia-cell"><span class="referencia-label">Fecha Doc:</span></div>
-                        <div class="referencia-cell">{{ nota.fecha_doc_afectado|date:"d/m/Y" }}</div>
+                        <div class="referencia-cell">{{ nota.fecha_doc_afectado|date:"d-m-Y" }}</div>
                         <div class="referencia-cell"><span class="referencia-label">Motivo:</span></div>
                         <div class="referencia-cell">{{ nota.motivo|default:"Anulación de documento." }}</div>
                     </div>

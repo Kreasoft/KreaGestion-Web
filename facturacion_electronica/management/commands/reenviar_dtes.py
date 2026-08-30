@@ -10,7 +10,7 @@ from empresas.models import Empresa
 
 
 class Command(BaseCommand):
-    help = 'Reenvía DTEs pendientes de envío al SII/DTEBox'
+    help = 'Reenvía DTEs pendientes de envío al SII'
 
     def add_arguments(self, parser):
         parser.add_argument(

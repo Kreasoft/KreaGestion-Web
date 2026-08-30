@@ -31,21 +31,19 @@ urlpatterns = [
     # DTEs - Lista y detalle
     path('dte/', views_dte.dte_list, name='dte_list'),
     path('dte/<int:pk>/', views_dte.dte_detail, name='dte_detail'),
+    path('dte/<int:dte_id>/descargar-pdf/', views_dte.descargar_pdf_dte, name='descargar_pdf_dte'),
+    path('dte/<int:dte_id>/descargar-xml/', views_dte.descargar_xml_dte, name='descargar_xml_dte'),
+    path('dte/<int:dte_id>/enviar-email/', views_dte.enviar_dte_email, name='enviar_dte_email'),
     
     # DTEs - Generación y envío
     path('venta/<int:venta_id>/generar-dte/', views_dte.generar_dte_venta, name='generar_dte_venta'),
     path('dte/<int:dte_id>/enviar/', views_dte.enviar_dte_sii, name='enviar_dte'),
     path('dte/<int:dte_id>/consultar-estado/', views_dte.consultar_estado_dte, name='consultar_estado_dte'),
     path('dte/<int:dte_id>/ver-factura/', views_dte.ver_factura_electronica, name='ver_factura_electronica'),
+    path('dte/<int:dte_id>/ver/', views_dte.ver_factura_electronica, name='ver_dte'),
     path('nota-credito/<int:notacredito_id>/ver/', views_dte.ver_notacredito_electronica, name='ver_notacredito_electronica'),
     path('nota-debito/<int:notadebito_id>/ver/', views_dte.ver_notadebito_electronica, name='ver_notadebito_electronica'),
-    
-    # DTEBox - Prueba
-    path('dte/<int:dte_id>/probar-dtebox/', views_dte.probar_dtebox, name='probar_dtebox'),
-    path('dtebox/probar-xml-ejemplo/', views_dte.probar_dtebox_xml_ejemplo, name='probar_dtebox_xml_ejemplo'),
-    path('dte/<int:dte_id>/descargar-pdf-gdexpress/', views_dte.descargar_pdf_gdexpress, name='descargar_pdf_gdexpress'),
     path('dte/<int:dte_id>/regenerar-xml/', views_dte.regenerar_xml_dte, name='regenerar_xml_dte'),
-    path('dte/<int:dte_id>/enviar-gdexpress/', views_dte.enviar_gdexpress_directo, name='enviar_gdexpress_directo'),
     path('dte/sincronizar-pendientes/', views_dte.sincronizar_pendientes_sii, name='sincronizar_pendientes_sii'),
     
     # Monitor de envíos

@@ -4,8 +4,44 @@
 
 {% block title %}{% if receta %}Editar{% else %}Nueva{% endif %} Receta{% endblock %}
 
-{% block extra_css %}
+{% block extra_head %}
 <style>
+
+    .stone-header-premium { padding: 8px 16px !important; border-bottom: 2px solid #D4C4A8 !important; }
+    .header-icon-box { width: 34px !important; height: 34px !important; font-size: 0.95rem !important; border-radius: 8px !important; }
+    .header-text h1 { font-size: 1.45rem !important; color: var(--color-piedra-texto, #5D4037) !important; }
+    .header-text p { font-size: 0.75rem !important; }
+    .stat-card { min-height: 52px !important; }
+    .stat-content { padding: 6px 10px !important; }
+    .stat-value { font-size: 1.15rem !important; }
+    .stat-icon-full { font-size: 2rem !important; }
+    .stat-icon { font-size: 1.6rem !important; }
+    .stone-filter-box { padding: 8px 10px !important; margin-bottom: 8px !important; border-radius: 8px !important; }
+    .form-control-stone, .form-select-stone,
+    input[type="text"], input[type="number"], input[type="date"], textarea, select,
+    .form-control, .form-select {
+        padding: 2px 8px !important; font-size: 0.75rem !important; min-height: 26px !important; height: 28px !important;
+        border: 1px solid #D4C4A8 !important; border-radius: 6px !important;
+    }
+    textarea.form-control, textarea.form-control-stone, textarea { height: auto !important; min-height: 52px !important; }
+    .form-control-stone:focus, .form-select-stone:focus,
+    input:focus, textarea:focus, select:focus, .form-control:focus, .form-select:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.18) !important; outline: none !important;
+    }
+    .form-check-input:checked { background-color: #6F5B44 !important; border-color: #6F5B44 !important; }
+    .form-check-input:focus { box-shadow: 0 0 0 0.2rem rgba(111,91,68,0.25) !important; border-color: #6F5B44 !important; }
+    .btn-action-primary, .header-btn.btn-action-primary {
+        background: var(--color-verde-oliva, #8B8B3A) !important; border: 1px solid #6F6F2E !important; color: #fff !important;
+        font-size: 0.75rem !important; font-weight: 700 !important; padding: 4px 12px !important;
+    }
+    .header-btn { font-size: 0.75rem !important; padding: 4px 10px !important; color: #5D4037 !important; }
+    .modal-header, .modal-header-stone, .stone-modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .single-card-container { margin-top: 0 !important; margin-bottom: 8px !important; }
+    .table-piedra tbody tr { height: 32px !important; }
+    .table-piedra tbody td { padding: 2px 8px !important; font-size: 0.75rem !important; }
+    .table-piedra thead th { padding: 6px 8px !important; font-size: 0.65rem !important; }
+
     /* Ocultar top-bar */
     .top-bar {
         display: none !important;
@@ -33,14 +69,14 @@
 
 {% block content %}
 
-<div class="container-fluid">
+<div class="container-fluid" style="padding: 8px 12px;">
     <!-- Header terroso -->
-    <div class="d-flex justify-content-between align-items-center mb-2" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); padding: 12px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div class="d-flex justify-content-between align-items-center mb-2" style="background: var(--gradient-piedra, linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%)); padding: 8px 16px; border-radius: 8px; border: 1px solid #D4C4A8;">
         <div>
-            <h2 class="mb-0" style="color: white; font-size: 1.3rem;">
+            <h2 class="mb-0" style="color: var(--color-piedra-texto, #5D4037); font-size: 1.45rem;">
                 <i class="fas fa-flask me-2"></i>{% if receta %}Editar{% else %}Nueva{% endif %} Receta de Producción
             </h2>
-            <p class="mb-0 mt-1" style="color: rgba(255,255,255,0.85); font-size: 0.85rem;">
+            <p class="mb-0 mt-1" style="color: var(--color-piedra-texto, #5D4037); opacity: 0.75; font-size: 0.75rem;">
                 {% if receta %}
                 Modifica los datos de la receta, insumos y cantidades necesarias para la producción
                 {% else %}
@@ -48,7 +84,7 @@
                 {% endif %}
             </p>
         </div>
-        <a href="{% url 'produccion:receta_list' %}" class="btn" style="background: #6F5B44; color: white; padding: 6px 14px; border: none;">
+        <a href="{% url 'produccion:receta_list' %}" class="btn" style="background: rgba(93,64,55,0.12); border: 1px solid rgba(93,64,55,0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
             <i class="fas fa-arrow-left me-2"></i>Volver
         </a>
     </div>
@@ -58,7 +94,7 @@
         
         <!-- Tarjeta única compacta -->
         <div class="card" style="border: 1px solid #D4A574; border-radius: 8px;">
-            <div class="card-body" style="padding: 20px;">
+            <div class="card-body" style="padding: 8px 10px;">
                 <!-- Información básica -->
                 <div class="row mb-3">
                     <div class="col-md-3">
@@ -127,7 +163,7 @@
                         {% for insumo in receta.insumos.all %}
                         <div class="row mb-1 insumo-row align-items-center">
                             <div class="col-md-7">
-                                <select name="insumo_articulo[]" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" required>
+                                <select name="insumo_articulo[]" class="form-select" style="height: 28px; font-size: 0.75rem; padding: 2px 8px;" required>
                                     <option value="">Buscar insumo...</option>
                                     {% for ins in insumos %}
                                     <option value="{{ ins.id|stringformat:'d' }}" {% if ins.id == insumo.articulo_id %}selected{% endif %}>{{ ins.codigo }} - {{ ins.nombre }}</option>
@@ -135,10 +171,10 @@
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <input type="number" name="insumo_cantidad[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" step="0.01" min="0" value="{{ insumo.cantidad|unlocalize }}" required>
+                                <input type="number" name="insumo_cantidad[]" class="form-control" style="height: 28px; font-size: 0.75rem; padding: 2px 8px;" step="0.01" min="0" value="{{ insumo.cantidad|unlocalize }}" required>
                             </div>
                             <div class="col-md-2">
-                                <input type="text" name="insumo_notas[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" value="{{ insumo.notas }}" placeholder="Opcional">
+                                <input type="text" name="insumo_notas[]" class="form-control" style="height: 28px; font-size: 0.75rem; padding: 2px 8px;" value="{{ insumo.notas }}" placeholder="Opcional">
                             </div>
                             <div class="col-md-1">
                                 <button type="button" class="btn btn-danger btn-sm w-100" style="height: 32px; padding: 0; font-size: 0.75rem;" onclick="eliminarInsumo(this)">
@@ -149,7 +185,10 @@
                         {% endfor %}
                     {% endif %}
                     </div>
-                    <button type="button" class="btn btn-sm" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; border: none; padding: 6px 14px;" onclick="agregarInsumo()">
+                    <button type="button" class="btn btn-sm me-1" data-articulos-f10 title="Buscar artículos (F10)" style="background: transparent; border: 1px solid #D4C4A8; color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                        <i class="fas fa-search me-1"></i>F10
+                    </button>
+                    <button type="button" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-size: 0.75rem; font-weight: 700;" onclick="agregarInsumo()">
                         <i class="fas fa-plus me-2"></i>Agregar Insumo
                     </button>
                 </div>
@@ -165,10 +204,10 @@
                         </label>
                     </div>
                     <div>
-                        <a href="{% url 'produccion:receta_list' %}" class="btn btn-sm" style="background: #6F5B44; color: white; padding: 8px 16px; border: none;">
+                        <a href="{% url 'produccion:receta_list' %}" class="btn btn-sm" style="background: rgba(93,64,55,0.12); border: 1px solid rgba(93,64,55,0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
                             <i class="fas fa-times me-2"></i>Cancelar
                         </a>
-                        <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #C8A882 0%, #B8956A 100%); color: white; padding: 8px 20px; border: none; font-weight: 600;" onclick="limpiarProductoFinal();">
+                        <button type="submit" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-size: 0.75rem; font-weight: 700;" onclick="limpiarProductoFinal();">
                             <i class="fas fa-save me-2"></i>Guardar
                         </button>
                     </div>
@@ -283,15 +322,15 @@ function agregarInsumo() {
     }
     
     row.innerHTML = '<div class="col-md-7">' +
-        '<select name="insumo_articulo[]" class="form-select" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" required>' +
+        '<select name="insumo_articulo[]" class="form-select" style="height: 28px; font-size: 0.75rem; padding: 2px 8px;" required>' +
         optionsHtml +
         '</select>' +
         '</div>' +
         '<div class="col-md-2">' +
-        '<input type="number" name="insumo_cantidad[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" step="0.01" min="0" required>' +
+        '<input type="number" name="insumo_cantidad[]" class="form-control" style="height: 28px; font-size: 0.75rem; padding: 2px 8px;" step="0.01" min="0" required>' +
         '</div>' +
         '<div class="col-md-2">' +
-        '<input type="text" name="insumo_notas[]" class="form-control" style="height: 32px; font-size: 0.75rem; padding: 4px 8px;" placeholder="Opcional">' +
+        '<input type="text" name="insumo_notas[]" class="form-control" style="height: 28px; font-size: 0.75rem; padding: 2px 8px;" placeholder="Opcional">' +
         '</div>' +
         '<div class="col-md-1">' +
         '<button type="button" class="btn btn-danger btn-sm w-100" style="height: 32px; padding: 0; font-size: 0.75rem;" onclick="eliminarInsumo(this)">' +

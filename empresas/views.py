@@ -513,6 +513,7 @@ def seleccionar_empresa(request):
 				empresa = Empresa.objects.get(id=empresa_id)
 				# Guardar la empresa seleccionada en la sesión
 				request.session['empresa_activa_id'] = empresa.id
+				request.session['empresa_activa'] = empresa.id
 				request.session.modified = True  # Forzar guardado
 				
 				# Crear respuesta con cookie

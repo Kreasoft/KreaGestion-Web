@@ -33,50 +33,52 @@ def generar_hoja_ruta_automatica(dte, venta, empresa):
         return None
     
     ruta = cliente.ruta
-    
-    # Obtener vehículo, chofer y acompañante de la ruta (no de la venta)
-    if not ruta.vehiculo or not ruta.chofer:
-        print(f"[HOJA RUTA] Ruta {ruta.codigo} no tiene vehículo o chofer asignado, no se genera hoja de ruta")
-        return None
-    
     vehiculo = ruta.vehiculo
-    chofer = ruta.chofer
-    acompanante = ruta.acompanante  # Puede ser None
+    if not vehiculo:
+        print(f"[HOJA RUTA] Ruta {ruta.codigo} no tiene vehículo, no se genera hoja de ruta")
+        return None
+
+    # Chofer y acompañante van en el vehículo / se pueden cambiar; no agrupan la hoja.
+    chofer = getattr(vehiculo, 'chofer', None) or ruta.chofer
+    acompanante = ruta.acompanante
     fecha = venta.fecha
-    
-    # Buscar si ya existe una hoja de ruta para esta combinación (misma ruta, vehículo, chofer, acompañante y fecha)
-    # Las hojas de ruta se agrupan por día, vehículo y chofer
+
     hoja_ruta = HojaRuta.objects.filter(
         empresa=empresa,
         ruta=ruta,
         vehiculo=vehiculo,
-        chofer=chofer,
-        acompanante=acompanante,  # Incluir acompañante en el filtro
         fecha=fecha,
         estado__in=['pendiente', 'en_ruta']
     ).first()
-    
+
     if hoja_ruta:
-        # Agregar la factura a la hoja de ruta existente
+        campos = []
+        if chofer and hoja_ruta.chofer_id != chofer.id:
+            hoja_ruta.chofer = chofer
+            campos.append('chofer')
+        if hoja_ruta.acompanante_id != getattr(acompanante, 'id', None):
+            hoja_ruta.acompanante = acompanante
+            campos.append('acompanante')
+        if campos:
+            hoja_ruta.save(update_fields=campos)
         hoja_ruta.facturas.add(dte)
         print(f"[HOJA RUTA] Factura {dte.folio} agregada a hoja de ruta existente: {hoja_ruta.numero_ruta}")
     else:
-        # Crear nueva hoja de ruta con los datos de la ruta
         hoja_ruta = HojaRuta.objects.create(
             empresa=empresa,
             ruta=ruta,
             vehiculo=vehiculo,
             chofer=chofer,
-            acompanante=acompanante,  # Asignar acompañante de la ruta
+            acompanante=acompanante,
             fecha=fecha,
             estado='pendiente',
             creado_por=venta.usuario_creacion
         )
-        
-        # Agregar la factura
         hoja_ruta.facturas.add(dte)
-        
-        print(f"[HOJA RUTA] Nueva hoja de ruta creada: {hoja_ruta.numero_ruta} para factura {dte.folio} (Ruta: {ruta.codigo}, Vehículo: {vehiculo.patente}, Chofer: {chofer.nombre})")
+        print(
+            f"[HOJA RUTA] Nueva hoja de ruta creada: {hoja_ruta.numero_ruta} "
+            f"para factura {dte.folio} (Ruta: {ruta.codigo}, Vehículo: {vehiculo.patente})"
+        )
     
     return hoja_ruta
 

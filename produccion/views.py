@@ -480,9 +480,9 @@ def orden_detail_json(request, pk):
         'producto_nombre': orden.receta.producto_final.nombre,
         'responsable': orden.responsable,
         'lote_produccion': orden.lote_produccion,
-        'fecha_planificada': orden.fecha_planificada.strftime('%d/%m/%Y') if orden.fecha_planificada else None,
-        'fecha_inicio': orden.fecha_inicio.strftime('%d/%m/%Y %H:%M') if orden.fecha_inicio else None,
-        'fecha_fin': orden.fecha_fin.strftime('%d/%m/%Y %H:%M') if orden.fecha_fin else None,
+        'fecha_planificada': orden.fecha_planificada.strftime('%d-%m-%Y') if orden.fecha_planificada else None,
+        'fecha_inicio': orden.fecha_inicio.strftime('%d-%m-%Y %H:%M') if orden.fecha_inicio else None,
+        'fecha_fin': orden.fecha_fin.strftime('%d-%m-%Y %H:%M') if orden.fecha_fin else None,
         'cantidad_planificada': str(orden.cantidad_planificada),
         'cantidad_producida': str(orden.cantidad_producida),
         'merma_real': str(orden.merma_real),
@@ -1070,6 +1070,9 @@ def reporte_produccion(request):
     fecha_desde = request.GET.get('fecha_desde', '')
     fecha_hasta = request.GET.get('fecha_hasta', '')
     estado = request.GET.get('estado', '')
+
+    if request.GET.get('export') == 'excel':
+        return exportar_reporte_produccion_excel(request)
     
     # Filtrar órdenes
     ordenes = OrdenProduccion.objects.filter(empresa=request.empresa).select_related('receta', 'sucursal')
@@ -1260,20 +1263,30 @@ def exportar_reporte_produccion_excel(request):
     
     for orden in ordenes:
         row += 1
+        receta_nombre = orden.receta.nombre if orden.receta_id else ''
+        fecha = orden.fecha_planificada.strftime('%d-%m-%Y') if orden.fecha_planificada else ''
+        try:
+            costo = float(orden.costo_total or 0)
+        except (TypeError, ValueError, ZeroDivisionError, ArithmeticError):
+            costo = 0
+        try:
+            eficiencia = float(orden.porcentaje_completado or 0)
+        except (TypeError, ValueError, ZeroDivisionError, ArithmeticError):
+            eficiencia = 0
         ws.cell(row=row, column=1, value=f"OP-{orden.numero_orden}").border = border
-        ws.cell(row=row, column=2, value=orden.receta.nombre).border = border
-        ws.cell(row=row, column=3, value=orden.fecha_planificada.strftime('%d/%m/%Y')).border = border
-        ws.cell(row=row, column=4, value=float(orden.cantidad_planificada)).border = border
-        ws.cell(row=row, column=5, value=float(orden.cantidad_producida)).border = border
-        ws.cell(row=row, column=6, value=float(orden.merma_real)).border = border
-        ws.cell(row=row, column=7, value=f"{float(orden.porcentaje_completado):.0f}%").border = border
+        ws.cell(row=row, column=2, value=receta_nombre).border = border
+        ws.cell(row=row, column=3, value=fecha).border = border
+        ws.cell(row=row, column=4, value=float(orden.cantidad_planificada or 0)).border = border
+        ws.cell(row=row, column=5, value=float(orden.cantidad_producida or 0)).border = border
+        ws.cell(row=row, column=6, value=float(orden.merma_real or 0)).border = border
+        ws.cell(row=row, column=7, value=f"{eficiencia:.0f}%").border = border
         ws.cell(row=row, column=8, value=orden.get_estado_display()).border = border
-        ws.cell(row=row, column=9, value=float(orden.costo_total)).border = border
+        ws.cell(row=row, column=9, value=costo).border = border
         
-        total_planificado += orden.cantidad_planificada
-        total_producido += orden.cantidad_producida
-        total_merma += orden.merma_real
-        total_costo += orden.costo_total
+        total_planificado += orden.cantidad_planificada or 0
+        total_producido += orden.cantidad_producida or 0
+        total_merma += orden.merma_real or 0
+        total_costo += costo
     
     # Totales
     row += 1
@@ -1343,7 +1356,7 @@ def exportar_orden_excel(request, pk):
         ('Receta:', orden.receta.nombre),
         ('Producto Final:', orden.receta.producto_final.nombre),
         ('Cantidad a Producir:', f"{orden.cantidad_planificada} {str(orden.receta.producto_final.unidad_medida)}"),
-        ('Fecha Planificada:', orden.fecha_planificada.strftime('%d/%m/%Y')),
+        ('Fecha Planificada:', orden.fecha_planificada.strftime('%d-%m-%Y')),
         ('Responsable:', orden.responsable or '-'),
         ('Estado:', orden.get_estado_display()),
     ]
@@ -1497,7 +1510,7 @@ def exportar_reporte_produccion_pdf(request):
         data.append([
             f"OP-{orden.numero_orden}",
             orden.receta.nombre[:20],
-            orden.fecha_planificada.strftime('%d/%m/%Y'),
+            orden.fecha_planificada.strftime('%d-%m-%Y'),
             f"{float(orden.cantidad_planificada):.0f}",
             f"{float(orden.cantidad_producida):.0f}",
             f"{float(orden.merma_real):.0f}",

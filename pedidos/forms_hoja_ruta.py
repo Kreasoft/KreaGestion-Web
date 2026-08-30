@@ -10,7 +10,7 @@ from .models_transporte import Vehiculo, Chofer
 class HojaRutaForm(forms.ModelForm):
     """
     Formulario para crear y editar hojas de ruta
-    Las hojas de ruta son por día, con vehículo, chofer y acompañante editables
+    Las hojas de ruta se agrupan por día, ruta y vehículo; chofer y acompañante son editables
     """
     
     class Meta:
@@ -21,31 +21,31 @@ class HojaRutaForm(forms.ModelForm):
         ]
         widgets = {
             'ruta': forms.Select(attrs={
-                'class': 'form-control',
+                'class': 'form-select form-select-sm',
                 'required': True
             }),
             'fecha': forms.DateInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'type': 'date',
                 'required': True
             }),
             'vehiculo': forms.Select(attrs={
-                'class': 'form-control',
+                'class': 'form-select form-select-sm',
                 'required': True
             }),
             'chofer': forms.Select(attrs={
-                'class': 'form-control',
+                'class': 'form-select form-select-sm',
                 'required': True
             }),
             'acompanante': forms.Select(attrs={
-                'class': 'form-control'
+                'class': 'form-select form-select-sm'
             }),
             'estado': forms.Select(attrs={
-                'class': 'form-control'
+                'class': 'form-select form-select-sm'
             }),
             'observaciones': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
+                'class': 'form-control form-control-sm',
+                'rows': 2,
                 'placeholder': 'Observaciones adicionales...'
             }),
         }

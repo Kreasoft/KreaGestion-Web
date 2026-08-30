@@ -124,6 +124,27 @@ class Empresa(models.Model):
     region = models.CharField(max_length=100, verbose_name="Región")
     telefono = models.CharField(max_length=20, verbose_name="Teléfono")
     email = models.EmailField(verbose_name="Email")
+    smtp_host = models.CharField(
+        max_length=120,
+        blank=True,
+        default='smtp.gmail.com',
+        verbose_name="Servidor SMTP",
+        help_text="Ej: smtp.gmail.com",
+    )
+    smtp_puerto = models.PositiveIntegerField(default=587, verbose_name="Puerto SMTP")
+    smtp_usuario = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name="Usuario SMTP",
+        help_text="Normalmente el mismo Gmail que envía los documentos",
+    )
+    smtp_password = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="Contraseña SMTP",
+        help_text="Gmail: use una contraseña de aplicación, no la clave de la cuenta",
+    )
+    smtp_usar_tls = models.BooleanField(default=True, verbose_name="SMTP usa TLS")
     sitio_web = models.URLField(blank=True, null=True, verbose_name="Sitio Web")
     
     # Configuración de la empresa
@@ -284,71 +305,7 @@ class Empresa(models.Model):
         blank=True,
         verbose_name="Email de Contacto SII"
     )
-    
-    # Configuración API DTE
-    api_url = models.URLField(
-        blank=True,
-        null=True,
-        verbose_name="API URL",
-        help_text="URL del servicio API para envío de documentos electrónicos"
-    )
-    api_key = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name="API KEY",
-        help_text="Clave API para autenticación en el servicio de documentos electrónicos"
-    )
-    
-    # Configuración DTEBox (Timbraje Offline)
-    dtebox_habilitado = models.BooleanField(
-        default=False,
-        verbose_name="DTEBox Habilitado",
-        help_text="Activar timbraje offline mediante DTEBox"
-    )
-    dtebox_url = models.URLField(
-        blank=True,
-        null=True,
-        verbose_name="DTEBox URL",
-        help_text="URL del servidor DTEBox (ej: http://192.168.1.100/api/Core.svc/core/SendDocumentAsXML)"
-    )
-    dtebox_auth_key = models.CharField(
-        max_length=255,
-        blank=True,
-        null=True,
-        verbose_name="DTEBox Auth Key",
-        help_text="Llave de autenticación para DTEBox"
-    )
-    dtebox_ambiente = models.CharField(
-        max_length=1,
-        choices=[('T', 'Homologación (T)'), ('P', 'Producción (P)')],
-        default='T',
-        blank=True,
-        verbose_name="Ambiente DTEBox",
-        help_text="T para Homologación, P para Producción"
-    )
-    dtebox_pdf417_columns = models.IntegerField(
-        default=5,
-        blank=True,
-        null=True,
-        verbose_name="PDF417 Columns",
-        help_text="Número de columnas para el código PDF417"
-    )
-    dtebox_pdf417_level = models.IntegerField(
-        default=2,
-        blank=True,
-        null=True,
-        verbose_name="PDF417 Level",
-        help_text="Nivel del código PDF417"
-    )
-    dtebox_pdf417_type = models.IntegerField(
-        default=1,
-        blank=True,
-        null=True,
-        verbose_name="PDF417 Type",
-        help_text="Tipo del código PDF417"
-    )
-    
+
     # Configuración de Alertas CAF
     alerta_folios_minimos = models.IntegerField(
         default=10,
@@ -517,6 +474,10 @@ class Empresa(models.Model):
     def get_email_dte(self):
         """Retorna el email para DTEs (usa intercambio si existe, sino el normal)"""
         return self.email_intercambio if self.email_intercambio else self.email
+
+    def smtp_esta_configurado(self):
+        from utilidades.utils import datos_smtp
+        return bool(datos_smtp(self)['listo'])
     
     def _crear_sucursal_principal(self):
         """Crea automáticamente la sucursal principal y bodega principal"""

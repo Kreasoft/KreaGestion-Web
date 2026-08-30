@@ -5,10 +5,13 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
 from django.http import JsonResponse, HttpResponse
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 from django.utils import timezone
-from datetime import datetime
+from datetime import datetime, timedelta
+from calendar import monthrange
+from urllib.parse import urlencode
 import json
 from decimal import Decimal
 from openpyxl import Workbook
@@ -19,7 +22,27 @@ from documentos.models import DocumentoCompra
 from proveedores.models import Proveedor
 from empresas.models import Empresa
 from bodegas.models import Bodega
-from core.decorators import requiere_empresa
+from core.decorators import requiere_empresa, empresa_id_desde_sesion, persistir_empresa_activa
+from core.fechas import parse_fecha
+
+
+def _empresa_de_request(request):
+    """Empresa activa: la del request, o la de sesión (ambas claves)."""
+    empresa = getattr(request, 'empresa', None)
+    if empresa:
+        return empresa
+    if request.user.is_superuser:
+        empresa_id = empresa_id_desde_sesion(request)
+        if empresa_id:
+            try:
+                return Empresa.objects.get(id=empresa_id)
+            except Empresa.DoesNotExist:
+                pass
+        return Empresa.objects.first()
+    try:
+        return request.user.perfil.empresa
+    except Exception:
+        return None
 
 
 def parse_monto_chileno(value):
@@ -47,11 +70,108 @@ def parse_monto_chileno(value):
     return Decimal(text)
 
 
-def _documentos_proveedor_filtrados(empresa, search='', estado_pago=''):
+def _href_filtro_cc(search='', estado_pago='', vencimiento_desde='', vencimiento_hasta=''):
+    params = {}
+    if search:
+        params['search'] = search
+    if estado_pago:
+        params['estado_pago'] = estado_pago
+    if vencimiento_desde:
+        params['vencimiento_desde'] = vencimiento_desde
+    if vencimiento_hasta:
+        params['vencimiento_hasta'] = vencimiento_hasta
+    qs = urlencode(params)
+    return f'?{qs}' if qs else '?'
+
+
+def _filtros_cuenta_corriente(request):
+    """Filtros comunes: búsqueda, estado y rango de vencimiento."""
+    search = (request.GET.get('search') or '').strip()
+    estado_pago = (request.GET.get('estado_pago') or request.GET.get('estado') or '').strip()
+    if estado_pago in ('con_deuda', 'al_dia'):
+        estado_pago = ''
+    desde = parse_fecha(request.GET.get('vencimiento_desde'))
+    hasta = parse_fecha(request.GET.get('vencimiento_hasta'))
+    if desde and hasta and hasta < desde:
+        desde, hasta = hasta, desde
+    hoy = timezone.localdate()
+    hoy_s = hoy.strftime('%Y-%m-%d')
+    ayer_s = (hoy - timedelta(days=1)).strftime('%Y-%m-%d')
+    mes_inicio = hoy.replace(day=1).strftime('%Y-%m-%d')
+    mes_fin = hoy.replace(day=monthrange(hoy.year, hoy.month)[1]).strftime('%Y-%m-%d')
+    desde_s = desde.strftime('%Y-%m-%d') if desde else ''
+    hasta_s = hasta.strftime('%Y-%m-%d') if hasta else ''
+
+    def _preset(ident, label, p_desde, p_hasta):
+        return {
+            'id': ident,
+            'label': label,
+            'href': _href_filtro_cc(search, estado_pago, p_desde, p_hasta),
+            'activo': desde_s == p_desde and hasta_s == p_hasta,
+        }
+
+    return {
+        'search': search,
+        'estado_pago': estado_pago,
+        'vencimiento_desde': desde,
+        'vencimiento_hasta': hasta,
+        'vencimiento_desde_str': desde_s,
+        'vencimiento_hasta_str': hasta_s,
+        'today': hoy,
+        'presets_vencimiento': [
+            _preset('hoy', 'Hoy', hoy_s, hoy_s),
+            _preset('7d', '7 días', hoy_s, (hoy + timedelta(days=7)).strftime('%Y-%m-%d')),
+            _preset('15d', '15 días', hoy_s, (hoy + timedelta(days=15)).strftime('%Y-%m-%d')),
+            _preset('30d', '30 días', hoy_s, (hoy + timedelta(days=30)).strftime('%Y-%m-%d')),
+            _preset('mes', 'Este mes', mes_inicio, mes_fin),
+            _preset('vencidos', 'Vencidos', '', ayer_s),
+        ],
+        'querystring': request.GET.urlencode(),
+    }
+
+
+def _ctx_filtros_cc(filtros):
+    return {
+        'search': filtros['search'],
+        'estado_pago': filtros['estado_pago'],
+        'vencimiento_desde_str': filtros['vencimiento_desde_str'],
+        'vencimiento_hasta_str': filtros['vencimiento_hasta_str'],
+        'today': filtros['today'],
+        'presets_vencimiento': filtros['presets_vencimiento'],
+        'querystring': filtros['querystring'],
+    }
+
+
+def _filtrar_por_vencimiento(qs, vencimiento_desde=None, vencimiento_hasta=None):
+    if not vencimiento_desde and not vencimiento_hasta:
+        return qs
+    qs = qs.filter(fecha_vencimiento__isnull=False)
+    if vencimiento_desde:
+        qs = qs.filter(fecha_vencimiento__gte=vencimiento_desde)
+    if vencimiento_hasta:
+        qs = qs.filter(fecha_vencimiento__lte=vencimiento_hasta)
+    return qs
+
+
+def _en_rango_vencimiento(fecha_vencimiento, vencimiento_desde=None, vencimiento_hasta=None):
+    if not vencimiento_desde and not vencimiento_hasta:
+        return True
+    if not fecha_vencimiento:
+        return False
+    if vencimiento_desde and fecha_vencimiento < vencimiento_desde:
+        return False
+    if vencimiento_hasta and fecha_vencimiento > vencimiento_hasta:
+        return False
+    return True
+
+
+def _documentos_proveedor_filtrados(empresa, search='', estado_pago='', vencimiento_desde=None, vencimiento_hasta=None):
+    hoy = timezone.now().date()
     documentos = DocumentoCompra.objects.filter(
         empresa=empresa,
-        en_cuenta_corriente=True
-    ).select_related('proveedor').order_by('proveedor__nombre', 'fecha_emision', 'numero_documento')
+        en_cuenta_corriente=True,
+        estado_documento='activo',
+    ).select_related('proveedor')
 
     if search:
         documentos = documentos.filter(
@@ -60,10 +180,21 @@ def _documentos_proveedor_filtrados(empresa, search='', estado_pago=''):
             Q(proveedor__rut__icontains=search)
         )
 
-    if estado_pago:
-        documentos = documentos.filter(estado_pago=estado_pago)
+    if estado_pago in ('pagado', 'pagada'):
+        documentos = documentos.filter(Q(saldo_pendiente__lte=0) | Q(estado_pago='pagada'))
+    elif estado_pago == 'vencida':
+        documentos = documentos.filter(saldo_pendiente__gt=0, fecha_vencimiento__lt=hoy)
+    elif estado_pago == 'parcial':
+        documentos = documentos.filter(saldo_pendiente__gt=0, monto_pagado__gt=0)
+    elif estado_pago in ('credito', 'pendiente'):
+        documentos = documentos.filter(saldo_pendiente__gt=0).filter(
+            Q(fecha_vencimiento__isnull=True) | Q(fecha_vencimiento__gte=hoy)
+        ).filter(Q(monto_pagado__isnull=True) | Q(monto_pagado__lte=0))
+    else:
+        documentos = documentos.filter(saldo_pendiente__gt=0)
 
-    return documentos
+    documentos = _filtrar_por_vencimiento(documentos, vencimiento_desde, vencimiento_hasta)
+    return documentos.order_by('fecha_vencimiento', 'fecha_emision', 'numero_documento')
 
 
 def _stats_documentos_proveedor(documentos):
@@ -78,36 +209,116 @@ def _stats_documentos_proveedor(documentos):
     }
 
 
-def _movimientos_cliente_filtrados(empresa, search='', estado_pago=''):
+def _pesos(valor):
+    """Redondea a pesos enteros para mostrar y comparar saldos."""
+    return int(round(Decimal(str(valor or 0))))
+
+
+def _dte_de_venta_cc(venta):
+    """DTE tributario de la venta (no el ticket de caja)."""
+    if not venta:
+        return None
+    dte = getattr(venta, 'dte', None)
+    if dte:
+        return dte
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    dte = DocumentoTributarioElectronico.objects.filter(venta=venta).order_by('-id').first()
+    if dte:
+        return dte
+    from caja.models import VentaProcesada
+    vp = (
+        VentaProcesada.objects.filter(venta_final=venta)
+        .select_related('dte_generado')
+        .order_by('-id')
+        .first()
+    )
+    if vp and vp.dte_generado_id:
+        return vp.dte_generado
+    vp = (
+        VentaProcesada.objects.filter(venta_preventa=venta)
+        .select_related('dte_generado')
+        .order_by('-id')
+        .first()
+    )
+    if vp and vp.dte_generado_id:
+        return vp.dte_generado
+    return None
+
+
+def _url_ver_documento_cc(venta):
+    """Copia tributaria A4, sin usar la impresora térmica de la empresa."""
+    if venta:
+        return reverse('tesoreria:ver_documento_cc', args=[venta.id])
+    return ''
+
+
+def _anotar_saldos_movimiento_cliente(mov):
+    """Saldo = total del documento (venta) − pagos HABER aplicados, en pesos."""
+    from .models import MovimientoCuentaCorrienteCliente
+
+    venta = getattr(mov, 'venta', None)
+    if venta is not None:
+        monto_factura = Decimal(str(venta.total or 0))
+    else:
+        monto_factura = Decimal(str(mov.monto or 0))
+
+    total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
+        cuenta_corriente=mov.cuenta_corriente,
+        venta=mov.venta,
+        tipo_movimiento='haber',
+    ).aggregate(total=Sum('monto'))['total']
+    total_pagado = Decimal(str(total_pagado_result or 0))
+
+    if venta is not None:
+        pagado_venta = Decimal(str(venta.monto_pagado or 0))
+        if pagado_venta > total_pagado:
+            total_pagado = pagado_venta
+
+    saldo = monto_factura - total_pagado
+    if saldo < 0:
+        saldo = Decimal('0')
+
+    if monto_factura > 0 and total_pagado >= monto_factura:
+        mov.estado_pago = 'pagado'
+    elif total_pagado > 0:
+        mov.estado_pago = 'parcial'
+    else:
+        mov.estado_pago = 'pendiente'
+
+    from core.fechas import calcular_fecha_vencimiento
+
+    fecha_venc = getattr(venta, 'fecha_vencimiento', None) if venta is not None else None
+    if not fecha_venc and venta is not None and getattr(venta, 'fecha', None):
+        dias = getattr(venta.cliente, 'plazo_pago', 0) if getattr(venta, 'cliente_id', None) else 0
+        fecha_venc = calcular_fecha_vencimiento(venta.fecha, dias)
+    mov.fecha_vencimiento = fecha_venc
+    hoy = timezone.now().date()
+    if mov.estado_pago != 'pagado' and mov.fecha_vencimiento and mov.fecha_vencimiento < hoy:
+        mov.estado_pago = 'vencido'
+        mov.dias_vencido = (hoy - mov.fecha_vencimiento).days
+    elif mov.fecha_vencimiento:
+        mov.dias_vencido = (mov.fecha_vencimiento - hoy).days
+    else:
+        mov.dias_vencido = None
+
+    mov.monto_display = _pesos(monto_factura)
+    mov.total_pagado = _pesos(total_pagado)
+    mov.saldo_pendiente_factura = _pesos(saldo)
+    mov.url_documento = _url_ver_documento_cc(venta)
+    return mov
+
+
+def _movimientos_cliente_filtrados(empresa, search='', estado_pago='', vencimiento_desde=None, vencimiento_hasta=None):
     from .models import MovimientoCuentaCorrienteCliente
 
     movimientos_base = MovimientoCuentaCorrienteCliente.objects.filter(
         cuenta_corriente__empresa=empresa,
         tipo_movimiento='debe'
-    ).select_related('cuenta_corriente', 'cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
+    ).select_related(
+        'cuenta_corriente', 'cuenta_corriente__cliente', 'venta', 'venta__cliente', 'venta__dte'
+    ).order_by('-fecha_movimiento')
 
-    movimientos = []
-    for mov in movimientos_base:
-        total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
-            cuenta_corriente=mov.cuenta_corriente,
-            venta=mov.venta,
-            tipo_movimiento='haber'
-        ).aggregate(total=Sum('monto'))['total']
-
-        total_pagado = Decimal(str(total_pagado_result)) if total_pagado_result else Decimal('0')
-        monto_factura = Decimal(str(mov.monto))
-
-        if total_pagado >= monto_factura:
-            mov.estado_pago = 'pagado'
-        elif total_pagado > 0:
-            mov.estado_pago = 'parcial'
-        else:
-            mov.estado_pago = 'pendiente'
-
-        mov.monto_display = int(monto_factura)
-        mov.total_pagado = int(total_pagado)
-        mov.saldo_pendiente_factura = int(monto_factura - total_pagado)
-        movimientos.append(mov)
+    movimientos = [_anotar_saldos_movimiento_cliente(mov) for mov in movimientos_base]
 
     if search:
         search_lower = search.lower()
@@ -120,9 +331,24 @@ def _movimientos_cliente_filtrados(empresa, search='', estado_pago=''):
             )
         ]
 
-    if estado_pago:
-        movimientos = [mov for mov in movimientos if mov.estado_pago == estado_pago]
+    if estado_pago in ('pagado', 'pagada'):
+        movimientos = [mov for mov in movimientos if mov.estado_pago == 'pagado']
+    elif estado_pago == 'vencido':
+        movimientos = [mov for mov in movimientos if mov.estado_pago == 'vencido']
+    elif estado_pago == 'parcial':
+        movimientos = [mov for mov in movimientos if mov.estado_pago == 'parcial']
+    elif estado_pago in ('pendiente', 'credito'):
+        movimientos = [mov for mov in movimientos if mov.estado_pago == 'pendiente']
+    else:
+        movimientos = [mov for mov in movimientos if mov.estado_pago != 'pagado' and mov.saldo_pendiente_factura > 0]
 
+    if vencimiento_desde or vencimiento_hasta:
+        movimientos = [
+            mov for mov in movimientos
+            if _en_rango_vencimiento(mov.fecha_vencimiento, vencimiento_desde, vencimiento_hasta)
+        ]
+
+    movimientos.sort(key=lambda m: (m.fecha_vencimiento is None, m.fecha_vencimiento or timezone.now().date()))
     return movimientos
 
 
@@ -134,6 +360,7 @@ def _stats_movimientos_cliente(movimientos):
         'total_saldo': sum(m.saldo_pendiente_factura for m in movimientos),
         'total_pendiente': sum(m.saldo_pendiente_factura for m in movimientos if m.estado_pago == 'pendiente'),
         'total_parcial': sum(m.saldo_pendiente_factura for m in movimientos if m.estado_pago == 'parcial'),
+        'total_vencido': sum(m.saldo_pendiente_factura for m in movimientos if m.estado_pago == 'vencido'),
     }
 
 
@@ -141,54 +368,20 @@ def _stats_movimientos_cliente(movimientos):
 @requiere_empresa
 def cuenta_corriente_proveedor_list(request):
     """Lista de cuentas corrientes de proveedores"""
-    # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
-        empresa_id = request.session.get('empresa_activa')
-        if empresa_id:
-            try:
-                empresa = Empresa.objects.get(id=empresa_id)
-            except Empresa.DoesNotExist:
-                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-        else:
-            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-        
-        if not empresa:
-            empresa = Empresa.objects.first()
-        
-        if not empresa:
-            messages.error(request, 'No hay empresas configuradas en el sistema.')
-            return redirect('dashboard')
-            
-        # Guardar empresa en sesión
-        request.session['empresa_activa'] = empresa.id
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('dashboard')
-    
-    # Filtros
-    search = request.GET.get('search', '')
-    estado_pago = request.GET.get('estado_pago', '')
-    
-    # Obtener documentos pendientes de pago por defecto
-    documentos_query = DocumentoCompra.objects.filter(
-        empresa=empresa,
-        en_cuenta_corriente=True
-    ).select_related('proveedor')
-    
-    # Aplicar filtros
-    if search:
-        documentos_query = documentos_query.filter(
-            Q(numero_documento__icontains=search) |
-            Q(proveedor__nombre__icontains=search) |
-            Q(proveedor__rut__icontains=search)
-        )
-    
-    if estado_pago:
-        documentos_query = documentos_query.filter(estado_pago=estado_pago)
+    empresa = _empresa_de_request(request)
+    if not empresa:
+        messages.error(request, 'No hay empresas configuradas en el sistema.')
+        return redirect('dashboard')
+    persistir_empresa_activa(request, empresa)
+
+    filtros = _filtros_cuenta_corriente(request)
+    documentos_query = _documentos_proveedor_filtrados(
+        empresa,
+        search=filtros['search'],
+        estado_pago=filtros['estado_pago'],
+        vencimiento_desde=filtros['vencimiento_desde'],
+        vencimiento_hasta=filtros['vencimiento_hasta'],
+    )
     
     # Agregar información de pagos a cada documento
     for documento in documentos_query:
@@ -210,10 +403,8 @@ def cuenta_corriente_proveedor_list(request):
     context = {
         'page_obj': page_obj,
         'stats': stats,
-        'search': search,
-        'estado_pago': estado_pago,
         'empresa': empresa,
-        'today': timezone.now().date(),
+        **_ctx_filtros_cc(filtros),
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_list.html', context)
@@ -224,17 +415,20 @@ def cuenta_corriente_proveedor_list(request):
 def cuenta_corriente_proveedor_print(request):
     """Reporte imprimible de cuenta corriente de proveedores."""
     empresa = request.empresa
-    search = request.GET.get('search', '')
-    estado_pago = request.GET.get('estado_pago', '')
-    documentos = _documentos_proveedor_filtrados(empresa, search, estado_pago)
+    filtros = _filtros_cuenta_corriente(request)
+    documentos = _documentos_proveedor_filtrados(
+        empresa,
+        search=filtros['search'],
+        estado_pago=filtros['estado_pago'],
+        vencimiento_desde=filtros['vencimiento_desde'],
+        vencimiento_hasta=filtros['vencimiento_hasta'],
+    )
 
     context = {
         'empresa': empresa,
         'documentos': documentos,
         'stats': _stats_documentos_proveedor(documentos),
-        'search': search,
-        'estado_pago': estado_pago,
-        'today': timezone.now().date(),
+        **_ctx_filtros_cc(filtros),
         'generated_at': timezone.now(),
         'titulo_reporte': 'Cuenta Corriente Proveedores',
         'subtitulo_reporte': 'Documentos de compra y saldos por pagar',
@@ -247,50 +441,19 @@ def cuenta_corriente_proveedor_print(request):
 @requiere_empresa
 def exportar_cuenta_corriente_proveedor_excel(request):
     """Exportar cuentas corrientes de proveedores a Excel con formato profesional"""
-    # Obtener la empresa del usuario
-    if request.user.is_superuser:
-        empresa_id = request.session.get('empresa_activa')
-        if empresa_id:
-            try:
-                empresa = Empresa.objects.get(id=empresa_id)
-            except Empresa.DoesNotExist:
-                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-        else:
-            empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-        
-        if not empresa:
-            empresa = Empresa.objects.first()
-    else:
-        try:
-            empresa = request.user.perfil.empresa
-        except:
-            empresa = Empresa.objects.first()
-    
+    empresa = _empresa_de_request(request)
     if not empresa:
         return HttpResponse('No hay empresa configurada', status=400)
-    
-    # Filtros
-    search = request.GET.get('search', '')
-    estado_pago = request.GET.get('estado_pago', '')
-    
-    # Obtener documentos pendientes de pago
-    documentos_query = DocumentoCompra.objects.filter(
-        empresa=empresa,
-        en_cuenta_corriente=True
-    ).select_related('proveedor')
-    
-    # Aplicar filtros
-    if search:
-        documentos_query = documentos_query.filter(
-            Q(numero_documento__icontains=search) |
-            Q(proveedor__nombre__icontains=search) |
-            Q(proveedor__rut__icontains=search)
-        )
-    
-    if estado_pago:
-        documentos_query = documentos_query.filter(estado_pago=estado_pago)
-    
-    documentos_list = list(documentos_query.order_by('-fecha_emision'))
+
+    filtros = _filtros_cuenta_corriente(request)
+    documentos_query = _documentos_proveedor_filtrados(
+        empresa,
+        search=filtros['search'],
+        estado_pago=filtros['estado_pago'],
+        vencimiento_desde=filtros['vencimiento_desde'],
+        vencimiento_hasta=filtros['vencimiento_hasta'],
+    )
+    documentos_list = list(documentos_query)
     
     # Crear workbook
     wb = Workbook()
@@ -314,7 +477,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     )
     
     # Título principal
-    ws.merge_cells('A1:I1')
+    ws.merge_cells('A1:J1')
     cell_title = ws['A1']
     cell_title.value = f"CUENTA CORRIENTE PROVEEDORES - {empresa.nombre.upper()}"
     cell_title.font = title_font
@@ -323,9 +486,9 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     ws.row_dimensions[1].height = 35
     
     # Información de la empresa y fecha
-    ws.merge_cells('A2:I2')
+    ws.merge_cells('A2:J2')
     cell_info = ws['A2']
-    cell_info.value = f"Fecha de exportación: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell_info.value = f"Fecha de exportación: {datetime.now().strftime('%d-%m-%Y %H:%M')}"
     cell_info.font = subtitle_font
     cell_info.alignment = Alignment(horizontal='center')
     ws.row_dimensions[2].height = 20
@@ -335,7 +498,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     
     # Encabezados
     headers = [
-        '#', 'N° Documento', 'Proveedor', 'RUT Proveedor', 'Fecha Emisión',
+        '#', 'N° Documento', 'Proveedor', 'RUT Proveedor', 'Fecha Emisión', 'Fecha Vencimiento',
         'Total Documento', 'Monto Pagado', 'Saldo Pendiente', 'Estado'
     ]
     
@@ -376,14 +539,20 @@ def exportar_cuenta_corriente_proveedor_excel(request):
         ws.cell(row=row_num, column=4).font = data_font
         
         # Fecha Emisión
-        fecha_str = doc.fecha_emision.strftime('%d/%m/%Y') if doc.fecha_emision else '-'
+        fecha_str = doc.fecha_emision.strftime('%d-%m-%Y') if doc.fecha_emision else '-'
         ws.cell(row=row_num, column=5, value=fecha_str).border = border
         ws.cell(row=row_num, column=5).alignment = Alignment(horizontal='center')
         ws.cell(row=row_num, column=5).font = data_font
+
+        venc_str = doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else '-'
+        cell_venc = ws.cell(row=row_num, column=6, value=venc_str)
+        cell_venc.border = border
+        cell_venc.alignment = Alignment(horizontal='center')
+        cell_venc.font = data_font
         
         # Total Documento
         monto_total = float(doc.total_documento or 0)
-        cell_monto = ws.cell(row=row_num, column=6, value=monto_total)
+        cell_monto = ws.cell(row=row_num, column=7, value=monto_total)
         cell_monto.number_format = '$#,##0'
         cell_monto.border = border
         cell_monto.alignment = Alignment(horizontal='right')
@@ -392,7 +561,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
         
         # Monto Pagado
         pagado = float(doc.monto_pagado or 0)
-        cell_pagado = ws.cell(row=row_num, column=7, value=pagado)
+        cell_pagado = ws.cell(row=row_num, column=8, value=pagado)
         cell_pagado.number_format = '$#,##0'
         cell_pagado.border = border
         cell_pagado.alignment = Alignment(horizontal='right')
@@ -401,7 +570,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
         
         # Saldo Pendiente
         pendiente = float(doc.saldo_pendiente or 0)
-        cell_pendiente = ws.cell(row=row_num, column=8, value=pendiente)
+        cell_pendiente = ws.cell(row=row_num, column=9, value=pendiente)
         cell_pendiente.number_format = '$#,##0'
         cell_pendiente.border = border
         cell_pendiente.alignment = Alignment(horizontal='right')
@@ -428,7 +597,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
             else:
                 estado_texto = 'Pendiente'
         
-        cell_estado = ws.cell(row=row_num, column=9, value=estado_texto)
+        cell_estado = ws.cell(row=row_num, column=10, value=estado_texto)
         cell_estado.border = border
         cell_estado.alignment = Alignment(horizontal='center')
         
@@ -453,7 +622,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
         row_num += 1
     
     # Fila de totales
-    ws.merge_cells(f'A{row_num}:E{row_num}')
+    ws.merge_cells(f'A{row_num}:F{row_num}')
     cell_total_label = ws[f'A{row_num}']
     cell_total_label.value = 'TOTALES'
     cell_total_label.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
@@ -462,7 +631,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     cell_total_label.border = border
     
     # Total Documento
-    cell_total_doc = ws.cell(row=row_num, column=6, value=total_documento)
+    cell_total_doc = ws.cell(row=row_num, column=7, value=total_documento)
     cell_total_doc.number_format = '$#,##0'
     cell_total_doc.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
     cell_total_doc.fill = header_fill
@@ -470,7 +639,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     cell_total_doc.border = border
     
     # Total Pagado
-    cell_total_pagado = ws.cell(row=row_num, column=7, value=total_pagado)
+    cell_total_pagado = ws.cell(row=row_num, column=8, value=total_pagado)
     cell_total_pagado.number_format = '$#,##0'
     cell_total_pagado.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
     cell_total_pagado.fill = header_fill
@@ -478,7 +647,7 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     cell_total_pagado.border = border
     
     # Total Pendiente
-    cell_total_pendiente = ws.cell(row=row_num, column=8, value=total_pendiente)
+    cell_total_pendiente = ws.cell(row=row_num, column=9, value=total_pendiente)
     cell_total_pendiente.number_format = '$#,##0'
     cell_total_pendiente.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
     cell_total_pendiente.fill = header_fill
@@ -486,8 +655,8 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     cell_total_pendiente.border = border
     
     # Celda vacía para estado
-    ws.cell(row=row_num, column=9).border = border
-    ws.cell(row=row_num, column=9).fill = header_fill
+    ws.cell(row=row_num, column=10).border = border
+    ws.cell(row=row_num, column=10).fill = header_fill
     
     ws.row_dimensions[row_num].height = 25
     
@@ -500,7 +669,8 @@ def exportar_cuenta_corriente_proveedor_excel(request):
     ws.column_dimensions['F'].width = 15
     ws.column_dimensions['G'].width = 15
     ws.column_dimensions['H'].width = 18
-    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['I'].width = 18
+    ws.column_dimensions['J'].width = 15
     
     # Preparar respuesta
     response = HttpResponse(
@@ -583,116 +753,45 @@ def cuenta_corriente_proveedor_detail_print(request, proveedor_id):
 
 @login_required
 @requiere_empresa
+def ver_documento_cc(request, venta_id):
+    """Copia A4 del DTE. No usa la impresora térmica configurada en la empresa."""
+    from ventas.models import Venta
+    from facturacion_electronica.views_dte import ver_factura_electronica
+
+    venta = get_object_or_404(Venta, pk=venta_id, empresa=request.empresa)
+    dte = _dte_de_venta_cc(venta)
+    if not dte:
+        messages.error(request, 'Esta venta no tiene factura electrónica para mostrar.')
+        return redirect('tesoreria:cuenta_corriente_cliente_list')
+    return ver_factura_electronica(request, dte.pk, forzar_a4=True)
+
+
+@login_required
+@requiere_empresa
 def cuenta_corriente_cliente_list(request):
     """Lista de cuentas corrientes de clientes"""
     # La empresa ya está configurada por el decorador @requiere_empresa
     empresa = request.empresa
-    
-    # Obtener MOVIMIENTOS individuales de cuenta corriente (cada factura)
-    from .models import DocumentoCliente, CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente
-    from clientes.models import Cliente
-    from ventas.models import Venta
-    
-    # Filtros
-    search = request.GET.get('search', '')
-    estado_pago = request.GET.get('estado_pago', '')
-    
-    # Mostrar movimientos DEBE (facturas a crédito) individuales
-    from django.db.models import Sum, Q, Case, When, Value, CharField
-    
-    # Obtener todos los movimientos de tipo 'debe' de la empresa
-    movimientos_query = MovimientoCuentaCorrienteCliente.objects.filter(
-        cuenta_corriente__empresa=empresa,
-        tipo_movimiento='debe'
-    ).select_related('cuenta_corriente', 'cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
-    
-    # Anotar cada movimiento con el total pagado
-    from decimal import Decimal
-    
-    movimientos_list = []
-    for mov in movimientos_query:
-        # Calcular total pagado para esta factura
-        total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
-            cuenta_corriente=mov.cuenta_corriente,
-            venta=mov.venta,
-            tipo_movimiento='haber'
-        ).aggregate(total=Sum('monto'))['total']
-        
-        # Convertir a Decimal para evitar problemas de tipo
-        total_pagado = Decimal(str(total_pagado_result)) if total_pagado_result else Decimal('0')
-        monto_factura = Decimal(str(mov.monto))
-        
-        # Determinar estado
-        if total_pagado >= monto_factura:
-            mov.estado_pago = 'pagado'
-        elif total_pagado > 0:
-            mov.estado_pago = 'parcial'
-        else:
-            mov.estado_pago = 'pendiente'
-        
-        # Convertir a enteros para evitar problemas de formato
-        mov.monto_display = int(monto_factura)
-        mov.total_pagado = int(total_pagado)
-        mov.saldo_pendiente_factura = int(monto_factura - total_pagado)
-        movimientos_list.append(mov)
-    
-    # Convertir de vuelta a queryset-like para paginación
-    class MovimientosList(list):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-        
-        def filter(self, **kwargs):
-            result = list(self)
-            if 'estado' in kwargs:
-                estado = kwargs['estado']
-                result = [m for m in result if m.estado_pago == estado]
-            return MovimientosList(result)
-        
-        def aggregate(self, **kwargs):
-            if 'monto__sum' in kwargs:
-                return {'monto__sum': sum(m.monto for m in self)}
-            return {}
-        
-        def count(self):
-            return len(self)
-    
-    movimientos_query = MovimientosList(movimientos_list)
-    
-    # Aplicar filtro de búsqueda
-    if search:
-        filtered_list = []
-        for mov in movimientos_query:
-            if (search.lower() in mov.cuenta_corriente.cliente.nombre.lower() or
-                search.lower() in mov.cuenta_corriente.cliente.rut.lower() or
-                (mov.venta and search in mov.venta.numero_venta)):
-                filtered_list.append(mov)
-        movimientos_query = MovimientosList(filtered_list)
-    
-    # Filtrar por estado de pago
-    if estado_pago:
-        movimientos_query = MovimientosList([m for m in movimientos_query if m.estado_pago == estado_pago])
-    
-    # Paginación
-    from django.core.paginator import Paginator
-    paginator = Paginator(list(movimientos_query), 20)
+    filtros = _filtros_cuenta_corriente(request)
+    movimientos_list = _movimientos_cliente_filtrados(
+        empresa,
+        search=filtros['search'],
+        estado_pago=filtros['estado_pago'],
+        vencimiento_desde=filtros['vencimiento_desde'],
+        vencimiento_hasta=filtros['vencimiento_hasta'],
+    )
+
+    paginator = Paginator(movimientos_list, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Estadísticas
-    stats = {
-        'total_documentos': len(movimientos_list),
-        'total_pendiente': sum(m.saldo_pendiente_factura for m in movimientos_list if m.estado_pago == 'pendiente'),
-        'total_pagado': sum(m.total_pagado for m in movimientos_list if m.estado_pago == 'pagado'),
-        'total_parcial': sum(m.saldo_pendiente_factura for m in movimientos_list if m.estado_pago == 'parcial'),
-    }
+
+    stats = _stats_movimientos_cliente(movimientos_list)
     
     context = {
         'empresa': empresa,
         'page_obj': page_obj,
         'stats': stats,
-        'search': search,
-        'estado_pago': estado_pago,
-        'today': timezone.now().date(),
+        **_ctx_filtros_cc(filtros),
     }
     
     return render(request, 'tesoreria/cuenta_corriente_cliente_list.html', context)
@@ -703,17 +802,20 @@ def cuenta_corriente_cliente_list(request):
 def cuenta_corriente_cliente_print(request):
     """Reporte imprimible de cuenta corriente de clientes."""
     empresa = request.empresa
-    search = request.GET.get('search', '')
-    estado_pago = request.GET.get('estado_pago', '')
-    movimientos = _movimientos_cliente_filtrados(empresa, search, estado_pago)
+    filtros = _filtros_cuenta_corriente(request)
+    movimientos = _movimientos_cliente_filtrados(
+        empresa,
+        search=filtros['search'],
+        estado_pago=filtros['estado_pago'],
+        vencimiento_desde=filtros['vencimiento_desde'],
+        vencimiento_hasta=filtros['vencimiento_hasta'],
+    )
 
     context = {
         'empresa': empresa,
         'movimientos': movimientos,
         'stats': _stats_movimientos_cliente(movimientos),
-        'search': search,
-        'estado_pago': estado_pago,
-        'today': timezone.now().date(),
+        **_ctx_filtros_cc(filtros),
         'generated_at': timezone.now(),
         'titulo_reporte': 'Cuenta Corriente Clientes',
         'subtitulo_reporte': 'Documentos de venta y saldos por cobrar',
@@ -727,55 +829,14 @@ def cuenta_corriente_cliente_print(request):
 def exportar_cuenta_corriente_cliente_excel(request):
     """Exportar cuentas corrientes de clientes a Excel con formato profesional"""
     empresa = request.empresa
-    
-    # Obtener los mismos datos que la vista de lista
-    from .models import MovimientoCuentaCorrienteCliente
-    
-    search = request.GET.get('search', '')
-    estado_pago = request.GET.get('estado_pago', '')
-    
-    # Obtener todos los movimientos de tipo 'debe' de la empresa
-    movimientos_query = MovimientoCuentaCorrienteCliente.objects.filter(
-        cuenta_corriente__empresa=empresa,
-        tipo_movimiento='debe'
-    ).select_related('cuenta_corriente', 'cuenta_corriente__cliente', 'venta').order_by('-fecha_movimiento')
-    
-    # Aplicar filtros
-    if search:
-        movimientos_query = movimientos_query.filter(
-            Q(cuenta_corriente__cliente__nombre__icontains=search) |
-            Q(cuenta_corriente__cliente__rut__icontains=search) |
-            Q(venta__numero_venta__icontains=search)
-        )
-    
-    # Procesar movimientos igual que en la vista de lista
-    movimientos_list = []
-    for mov in movimientos_query:
-        total_pagado_result = MovimientoCuentaCorrienteCliente.objects.filter(
-            cuenta_corriente=mov.cuenta_corriente,
-            venta=mov.venta,
-            tipo_movimiento='haber'
-        ).aggregate(total=Sum('monto'))['total']
-        
-        total_pagado = Decimal(str(total_pagado_result)) if total_pagado_result else Decimal('0')
-        monto_factura = Decimal(str(mov.monto))
-        
-        if total_pagado >= monto_factura:
-            estado_pago_mov = 'pagado'
-        elif total_pagado > 0:
-            estado_pago_mov = 'parcial'
-        else:
-            estado_pago_mov = 'pendiente'
-        
-        # Aplicar filtro de estado si existe
-        if estado_pago and estado_pago_mov != estado_pago:
-            continue
-        
-        mov.estado_pago = estado_pago_mov
-        mov.monto_display = int(monto_factura)
-        mov.total_pagado = int(total_pagado)
-        mov.saldo_pendiente_factura = int(monto_factura - total_pagado)
-        movimientos_list.append(mov)
+    filtros = _filtros_cuenta_corriente(request)
+    movimientos_list = _movimientos_cliente_filtrados(
+        empresa,
+        search=filtros['search'],
+        estado_pago=filtros['estado_pago'],
+        vencimiento_desde=filtros['vencimiento_desde'],
+        vencimiento_hasta=filtros['vencimiento_hasta'],
+    )
     
     # Crear workbook
     wb = Workbook()
@@ -799,7 +860,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
     )
     
     # Título principal
-    ws.merge_cells('A1:I1')
+    ws.merge_cells('A1:J1')
     cell_title = ws['A1']
     cell_title.value = f"CUENTA CORRIENTE CLIENTES - {empresa.nombre.upper()}"
     cell_title.font = title_font
@@ -808,9 +869,9 @@ def exportar_cuenta_corriente_cliente_excel(request):
     ws.row_dimensions[1].height = 35
     
     # Información de la empresa y fecha
-    ws.merge_cells('A2:I2')
+    ws.merge_cells('A2:J2')
     cell_info = ws['A2']
-    cell_info.value = f"Fecha de exportación: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    cell_info.value = f"Fecha de exportación: {datetime.now().strftime('%d-%m-%Y %H:%M')}"
     cell_info.font = subtitle_font
     cell_info.alignment = Alignment(horizontal='center')
     ws.row_dimensions[2].height = 20
@@ -820,7 +881,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
     
     # Encabezados
     headers = [
-        '#', 'N° Factura', 'Cliente', 'RUT Cliente', 'Fecha',
+        '#', 'N° Factura', 'Cliente', 'RUT Cliente', 'Fecha Emisión', 'Fecha Vencimiento',
         'Monto Total', 'Total Pagado', 'Saldo Pendiente', 'Estado'
     ]
     
@@ -862,14 +923,20 @@ def exportar_cuenta_corriente_cliente_excel(request):
         ws.cell(row=row_num, column=4).font = data_font
         
         # Fecha
-        fecha_str = mov.fecha_movimiento.strftime('%d/%m/%Y') if mov.fecha_movimiento else '-'
+        fecha_str = mov.fecha_movimiento.strftime('%d-%m-%Y') if mov.fecha_movimiento else '-'
         ws.cell(row=row_num, column=5, value=fecha_str).border = border
         ws.cell(row=row_num, column=5).alignment = Alignment(horizontal='center')
         ws.cell(row=row_num, column=5).font = data_font
+
+        venc_str = mov.fecha_vencimiento.strftime('%d-%m-%Y') if mov.fecha_vencimiento else '-'
+        cell_venc = ws.cell(row=row_num, column=6, value=venc_str)
+        cell_venc.border = border
+        cell_venc.alignment = Alignment(horizontal='center')
+        cell_venc.font = data_font
         
         # Monto Total
         monto_total = mov.monto_display
-        cell_monto = ws.cell(row=row_num, column=6, value=monto_total)
+        cell_monto = ws.cell(row=row_num, column=7, value=monto_total)
         cell_monto.number_format = '$#,##0'
         cell_monto.border = border
         cell_monto.alignment = Alignment(horizontal='right')
@@ -878,7 +945,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
         
         # Total Pagado
         pagado = mov.total_pagado
-        cell_pagado = ws.cell(row=row_num, column=7, value=pagado)
+        cell_pagado = ws.cell(row=row_num, column=8, value=pagado)
         cell_pagado.number_format = '$#,##0'
         cell_pagado.border = border
         cell_pagado.alignment = Alignment(horizontal='right')
@@ -887,7 +954,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
         
         # Saldo Pendiente
         pendiente = mov.saldo_pendiente_factura
-        cell_pendiente = ws.cell(row=row_num, column=8, value=pendiente)
+        cell_pendiente = ws.cell(row=row_num, column=9, value=pendiente)
         cell_pendiente.number_format = '$#,##0'
         cell_pendiente.border = border
         cell_pendiente.alignment = Alignment(horizontal='right')
@@ -901,10 +968,11 @@ def exportar_cuenta_corriente_cliente_excel(request):
         estado_texto = {
             'pagado': 'Pagado',
             'parcial': 'Parcial',
-            'pendiente': 'Pendiente'
+            'pendiente': 'Pendiente',
+            'vencido': 'Vencido',
         }.get(mov.estado_pago, mov.estado_pago.title())
         
-        cell_estado = ws.cell(row=row_num, column=9, value=estado_texto)
+        cell_estado = ws.cell(row=row_num, column=10, value=estado_texto)
         cell_estado.border = border
         cell_estado.alignment = Alignment(horizontal='center')
         
@@ -924,7 +992,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
         row_num += 1
     
     # Fila de totales
-    ws.merge_cells(f'A{row_num}:E{row_num}')
+    ws.merge_cells(f'A{row_num}:F{row_num}')
     cell_total_label = ws[f'A{row_num}']
     cell_total_label.value = 'TOTALES'
     cell_total_label.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
@@ -933,7 +1001,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
     cell_total_label.border = border
     
     # Total Monto
-    cell_total_monto = ws.cell(row=row_num, column=6, value=total_monto)
+    cell_total_monto = ws.cell(row=row_num, column=7, value=total_monto)
     cell_total_monto.number_format = '$#,##0'
     cell_total_monto.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
     cell_total_monto.fill = header_fill
@@ -941,7 +1009,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
     cell_total_monto.border = border
     
     # Total Pagado
-    cell_total_pagado = ws.cell(row=row_num, column=7, value=total_pagado)
+    cell_total_pagado = ws.cell(row=row_num, column=8, value=total_pagado)
     cell_total_pagado.number_format = '$#,##0'
     cell_total_pagado.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
     cell_total_pagado.fill = header_fill
@@ -949,7 +1017,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
     cell_total_pagado.border = border
     
     # Total Pendiente
-    cell_total_pendiente = ws.cell(row=row_num, column=8, value=total_pendiente)
+    cell_total_pendiente = ws.cell(row=row_num, column=9, value=total_pendiente)
     cell_total_pendiente.number_format = '$#,##0'
     cell_total_pendiente.font = Font(name='Poppins', size=11, bold=True, color="FFFFFF")
     cell_total_pendiente.fill = header_fill
@@ -957,8 +1025,8 @@ def exportar_cuenta_corriente_cliente_excel(request):
     cell_total_pendiente.border = border
     
     # Celda vacía para estado
-    ws.cell(row=row_num, column=9).border = border
-    ws.cell(row=row_num, column=9).fill = header_fill
+    ws.cell(row=row_num, column=10).border = border
+    ws.cell(row=row_num, column=10).fill = header_fill
     
     ws.row_dimensions[row_num].height = 25
     
@@ -968,10 +1036,11 @@ def exportar_cuenta_corriente_cliente_excel(request):
     ws.column_dimensions['C'].width = 35
     ws.column_dimensions['D'].width = 15
     ws.column_dimensions['E'].width = 12
-    ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['F'].width = 16
     ws.column_dimensions['G'].width = 15
-    ws.column_dimensions['H'].width = 18
-    ws.column_dimensions['I'].width = 15
+    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['I'].width = 18
+    ws.column_dimensions['J'].width = 15
     
     # Preparar respuesta
     response = HttpResponse(
@@ -1087,22 +1156,9 @@ def registrar_pago(request):
 def obtener_formas_pago(request):
     """Obtener formas de pago disponibles para la empresa"""
     try:
-        # Obtener la empresa del usuario
-        if request.user.is_superuser:
-            # Para superusuarios, usar empresa de sesión o Kreasoft por defecto
-            empresa_id = request.session.get('empresa_activa')
-            if empresa_id:
-                try:
-                    empresa = Empresa.objects.get(id=empresa_id)
-                except Empresa.DoesNotExist:
-                    empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-            else:
-                empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-            
-            if not empresa:
-                empresa = Empresa.objects.first()
-        else:
-            empresa = request.user.perfil.empresa
+        empresa = _empresa_de_request(request)
+        if not empresa:
+            empresa = Empresa.objects.first()
         
         from ventas.models import FormaPago
         
@@ -1147,9 +1203,8 @@ def cambiar_empresa_activa(request):
                 return JsonResponse({'error': 'ID de empresa requerido'}, status=400)
             
             empresa = Empresa.objects.get(id=empresa_id)
-            request.session['empresa_activa'] = empresa.id
-            
-            return JsonResponse({
+            persistir_empresa_activa(request, empresa)
+            response = JsonResponse({
                 'success': True,
                 'message': f'Empresa cambiada a: {empresa.nombre}',
                 'empresa': {
@@ -1157,6 +1212,14 @@ def cambiar_empresa_activa(request):
                     'nombre': empresa.nombre
                 }
             })
+            response.set_cookie(
+                'empresa_activa_id',
+                empresa.id,
+                max_age=30 * 24 * 60 * 60,
+                httponly=True,
+                samesite='Lax'
+            )
+            return response
             
         except Empresa.DoesNotExist:
             return JsonResponse({'error': 'Empresa no encontrada'}, status=404)
@@ -1169,7 +1232,7 @@ def cambiar_empresa_activa(request):
         'id': emp.id,
         'nombre': emp.nombre,
         'rut': emp.rut,
-        'activa': request.session.get('empresa_activa') == emp.id
+        'activa': empresa_id_desde_sesion(request) == emp.id
     } for emp in empresas]
     
     return JsonResponse({'empresas': empresas_data})
@@ -1179,29 +1242,64 @@ def cambiar_empresa_activa(request):
 def historial_pagos_documento(request, documento_id):
     """Obtener historial de pagos de un documento"""
     try:
-        from documentos.models import HistorialPagoDocumento
-        
         documento = get_object_or_404(DocumentoCompra, pk=documento_id)
-        pagos = documento.historial_pagos.all().order_by('-fecha_pago')
-        
+        pagos = documento.historial_pagos.all().select_related('registrado_por').prefetch_related('formas_pago__forma_pago').order_by('-fecha_pago')
+
         pagos_data = []
         total_pagado = 0
-        
+
         for pago in pagos:
             formas = []
             for fp in pago.formas_pago.all():
-                formas.append(fp.forma_pago.nombre)
-            
+                refs = []
+                if fp.numero_transferencia:
+                    refs.append(f'N° transf. {fp.numero_transferencia}')
+                if fp.banco_transferencia:
+                    refs.append(fp.banco_transferencia)
+                if fp.numero_cheque:
+                    refs.append(f'Cheque {fp.numero_cheque}')
+                if fp.banco_cheque:
+                    refs.append(fp.banco_cheque)
+                if fp.fecha_vencimiento_cheque:
+                    refs.append(f'Vence {fp.fecha_vencimiento_cheque.strftime("%d-%m-%Y")}')
+                if fp.numero_tarjeta:
+                    refs.append(f'Tarjeta {fp.numero_tarjeta}')
+                if fp.codigo_autorizacion:
+                    refs.append(f'Aut. {fp.codigo_autorizacion}')
+                if fp.observaciones:
+                    refs.append(fp.observaciones)
+                nombre = fp.forma_pago.nombre if fp.forma_pago else 'Sin forma'
+                formas.append({
+                    'nombre': nombre,
+                    'monto': str(fp.monto),
+                    'detalle': ' · '.join(refs) if refs else 'Sin número ni banco registrado',
+                })
+
+            usuario = ''
+            if pago.registrado_por:
+                usuario = pago.registrado_por.get_full_name() or pago.registrado_por.username
+
             pagos_data.append({
-                'fecha': pago.fecha_pago.strftime('%d/%m/%Y'),
+                'id': pago.id,
+                'fecha': pago.fecha_pago.strftime('%d-%m-%Y %H:%M') if pago.fecha_pago else '',
                 'monto': str(pago.monto_total_pagado),
-                'forma_pago': ', '.join(formas) if formas else 'N/A'
+                'forma_pago': ', '.join(f['nombre'] for f in formas) if formas else 'Sin forma de pago',
+                'formas': formas,
+                'observaciones': pago.observaciones or '',
+                'registrado_por': usuario,
             })
-            total_pagado += float(pago.monto_total_pagado)
-        
+            total_pagado += float(pago.monto_total_pagado or 0)
+
         return JsonResponse({
             'pagos': pagos_data,
-            'total_pagado': total_pagado
+            'total_pagado': total_pagado,
+            'documento': {
+                'numero': documento.numero_documento,
+                'proveedor': documento.proveedor.nombre if documento.proveedor else '',
+                'total': str(documento.total_documento or 0),
+                'pagado': str(documento.monto_pagado or 0),
+                'saldo': str(documento.saldo_pendiente or 0),
+            },
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -1229,10 +1327,10 @@ def detalle_pago(request, pago_id):
         data = {
             'pago': {
                 'id': pago.id,
-                'fecha_pago': pago.fecha_pago.strftime('%d/%m/%Y %H:%M'),
+                'fecha_pago': pago.fecha_pago.strftime('%d-%m-%Y %H:%M'),
                 'monto_total_pagado': str(pago.monto_total_pagado),
                 'observaciones': pago.observaciones,
-                'registrado_por': pago.registrado_por.get_full_name() or pago.registrado_por.username
+                'registrado_por': (pago.registrado_por.get_full_name() or pago.registrado_por.username) if pago.registrado_por else ''
             },
             'documento': {
                 'numero_documento': pago.documento_compra.numero_documento,
@@ -1242,17 +1340,18 @@ def detalle_pago(request, pago_id):
             },
             'formas_pago': [{
                 'id': fp.id,
-                'forma_pago': fp.forma_pago.nombre,
-                'codigo': fp.forma_pago.codigo,
+                'forma_pago_id': fp.forma_pago_id,
+                'forma_pago': fp.forma_pago.nombre if fp.forma_pago else '',
+                'codigo': fp.forma_pago.codigo if fp.forma_pago else '',
                 'monto': str(fp.monto),
-                'numero_cheque': fp.numero_cheque,
-                'banco_cheque': fp.banco_cheque,
-                'fecha_vencimiento_cheque': fp.fecha_vencimiento_cheque.strftime('%d/%m/%Y') if fp.fecha_vencimiento_cheque else None,
-                'numero_transferencia': fp.numero_transferencia,
-                'banco_transferencia': fp.banco_transferencia,
-                'numero_tarjeta': fp.numero_tarjeta,
-                'codigo_autorizacion': fp.codigo_autorizacion,
-                'observaciones': fp.observaciones
+                'numero_cheque': fp.numero_cheque or '',
+                'banco_cheque': fp.banco_cheque or '',
+                'fecha_vencimiento_cheque': fp.fecha_vencimiento_cheque.strftime('%Y-%m-%d') if fp.fecha_vencimiento_cheque else '',
+                'numero_transferencia': fp.numero_transferencia or '',
+                'banco_transferencia': fp.banco_transferencia or '',
+                'numero_tarjeta': fp.numero_tarjeta or '',
+                'codigo_autorizacion': fp.codigo_autorizacion or '',
+                'observaciones': fp.observaciones or ''
             } for fp in formas_pago]
         }
         
@@ -1269,6 +1368,7 @@ def editar_pago(request, pago_id):
         return JsonResponse({'error': 'Método no permitido'}, status=405)
     
     try:
+        from django.db import transaction
         from documentos.models import HistorialPagoDocumento, FormaPagoPago
         from ventas.models import FormaPago
         
@@ -1294,60 +1394,52 @@ def editar_pago(request, pago_id):
         
         if nuevo_monto_total <= 0:
             return JsonResponse({'error': 'El monto debe ser mayor a 0'}, status=400)
-        
-        # Revertir el pago anterior del documento
-        documento = pago.documento_compra
-        documento.monto_pagado -= pago.monto_total_pagado
-        documento.calcular_totales()
-        documento.save()
 
-        if nuevo_monto_total > documento.saldo_pendiente:
-            return JsonResponse({'error': 'El monto excede el saldo pendiente'}, status=400)
-        
-        # Eliminar formas de pago anteriores
-        pago.formas_pago.all().delete()
-        
-        # Actualizar el pago principal
-        pago.monto_total_pagado = nuevo_monto_total
-        pago.observaciones = observaciones
-        pago.save()
-        
-        # Crear las nuevas formas de pago
-        for forma_data in formas_pago:
-            forma_pago_obj = FormaPago.objects.get(
-                id=forma_data.get('forma_pago_id'),
-                empresa=documento.empresa,
-                activo=True
-            )
-            
-            forma_pago = FormaPagoPago.objects.create(
-                pago=pago,
-                forma_pago=forma_pago_obj,
-                monto=parse_monto_chileno(forma_data['monto']),
-                numero_cheque=forma_data.get('numero_cheque', ''),
-                banco_cheque=forma_data.get('banco_cheque', ''),
-                numero_transferencia=forma_data.get('numero_transferencia', ''),
-                banco_transferencia=forma_data.get('banco_transferencia', ''),
-                numero_tarjeta=forma_data.get('numero_tarjeta', ''),
-                codigo_autorizacion=forma_data.get('codigo_autorizacion', ''),
-                observaciones=forma_data.get('observaciones', '')
-            )
-            
-            # Manejar fecha de vencimiento de cheque
-            if forma_pago_obj.requiere_cheque and forma_data.get('fecha_vencimiento_cheque'):
-                try:
-                    from datetime import datetime
-                    fecha_vencimiento = datetime.strptime(forma_data['fecha_vencimiento_cheque'], '%Y-%m-%d').date()
-                    forma_pago.fecha_vencimiento_cheque = fecha_vencimiento
-                    forma_pago.save()
-                except ValueError:
-                    pass
-        
-        # Aplicar el nuevo pago al documento
-        documento.monto_pagado += nuevo_monto_total
-        documento.calcular_totales()
-        documento.save()
-        
+        documento = pago.documento_compra
+        max_permitido = (documento.saldo_pendiente or Decimal('0')) + (pago.monto_total_pagado or Decimal('0'))
+        if nuevo_monto_total > max_permitido:
+            return JsonResponse({
+                'error': f'El monto excede el total de este documento (${max_permitido:,.0f})'
+            }, status=400)
+
+        with transaction.atomic():
+            documento.monto_pagado = (documento.monto_pagado or Decimal('0')) - (pago.monto_total_pagado or Decimal('0'))
+            pago.formas_pago.all().delete()
+            pago.monto_total_pagado = nuevo_monto_total
+            pago.observaciones = observaciones
+            pago.save()
+
+            for forma_data in formas_pago:
+                forma_pago_obj = FormaPago.objects.get(
+                    id=forma_data.get('forma_pago_id'),
+                    empresa=documento.empresa
+                )
+
+                forma_pago = FormaPagoPago.objects.create(
+                    pago=pago,
+                    forma_pago=forma_pago_obj,
+                    monto=parse_monto_chileno(forma_data['monto']),
+                    numero_cheque=forma_data.get('numero_cheque', ''),
+                    banco_cheque=forma_data.get('banco_cheque', ''),
+                    numero_transferencia=forma_data.get('numero_transferencia', ''),
+                    banco_transferencia=forma_data.get('banco_transferencia', ''),
+                    numero_tarjeta=forma_data.get('numero_tarjeta', ''),
+                    codigo_autorizacion=forma_data.get('codigo_autorizacion', ''),
+                    observaciones=forma_data.get('observaciones', '')
+                )
+
+                if forma_pago_obj.requiere_cheque and forma_data.get('fecha_vencimiento_cheque'):
+                    try:
+                        fecha_vencimiento = datetime.strptime(forma_data['fecha_vencimiento_cheque'], '%Y-%m-%d').date()
+                        forma_pago.fecha_vencimiento_cheque = fecha_vencimiento
+                        forma_pago.save()
+                    except ValueError:
+                        pass
+
+            documento.monto_pagado += nuevo_monto_total
+            documento.calcular_totales()
+            documento.save()
+
         return JsonResponse({
             'success': True,
             'message': f'Pago actualizado exitosamente por ${nuevo_monto_total:,.0f}',
@@ -1397,9 +1489,14 @@ def documento_pendiente_proveedor_create(request):
     
     if request.method == 'POST':
         try:
+            from core.fechas import calcular_fecha_vencimiento, parse_fecha
             proveedor_id = request.POST.get('proveedor')
             proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
             total = int(parse_monto_chileno(request.POST.get('total', 0)))
+            fecha_emision = parse_fecha(request.POST.get('fecha_emision'))
+            fecha_vencimiento = parse_fecha(request.POST.get('fecha_vencimiento')) or calcular_fecha_vencimiento(
+                fecha_emision, proveedor.plazo_pago
+            )
             
             documento = DocumentoCompra.objects.create(
                 empresa=empresa,
@@ -1407,8 +1504,8 @@ def documento_pendiente_proveedor_create(request):
                 bodega=Bodega.objects.filter(empresa=empresa).first(),
                 tipo_documento=request.POST.get('tipo_documento'),
                 numero_documento=request.POST.get('numero_documento'),
-                fecha_emision=request.POST.get('fecha_emision'),
-                fecha_vencimiento=request.POST.get('fecha_vencimiento'),
+                fecha_emision=fecha_emision,
+                fecha_vencimiento=fecha_vencimiento,
                 total_documento=total,
                 saldo_pendiente=Decimal(total),
                 en_cuenta_corriente=True,
@@ -1434,15 +1531,20 @@ def documento_pendiente_proveedor_edit(request, pk):
     
     if request.method == 'POST':
         try:
+            from core.fechas import calcular_fecha_vencimiento, parse_fecha
             proveedor_id = request.POST.get('proveedor')
             proveedor = get_object_or_404(Proveedor, pk=proveedor_id, empresa=empresa)
             total = int(parse_monto_chileno(request.POST.get('total', 0)))
+            fecha_emision = parse_fecha(request.POST.get('fecha_emision'))
+            fecha_vencimiento = parse_fecha(request.POST.get('fecha_vencimiento')) or calcular_fecha_vencimiento(
+                fecha_emision, proveedor.plazo_pago
+            )
             
             documento.proveedor = proveedor
             documento.tipo_documento = request.POST.get('tipo_documento')
             documento.numero_documento = request.POST.get('numero_documento')
-            documento.fecha_emision = request.POST.get('fecha_emision')
-            documento.fecha_vencimiento = request.POST.get('fecha_vencimiento')
+            documento.fecha_emision = fecha_emision
+            documento.fecha_vencimiento = fecha_vencimiento
             documento.total_documento = total
             documento.saldo_pendiente = Decimal(total) - documento.monto_pagado
             documento.observaciones = request.POST.get('observaciones', '')
@@ -1479,31 +1581,18 @@ def obtener_clientes(request):
     """Obtener lista de clientes activos de la empresa"""
     try:
         # Obtener empresa del usuario
-        if request.user.is_superuser:
-            empresa_id = request.session.get('empresa_activa')
-            if empresa_id:
-                try:
-                    empresa = Empresa.objects.get(id=empresa_id)
-                except Empresa.DoesNotExist:
-                    empresa = Empresa.objects.first()
-            else:
-                empresa = Empresa.objects.first()
-        else:
-            try:
-                empresa = request.user.perfil.empresa
-            except:
-                return JsonResponse({'error': 'Usuario no tiene empresa asociada'}, status=400)
-        
+        empresa = _empresa_de_request(request)
         if not empresa:
             return JsonResponse({'error': 'No se encontró empresa'}, status=400)
-        
+
         from clientes.models import Cliente
         clientes = Cliente.objects.filter(empresa=empresa).order_by('nombre')
         
         clientes_data = [{
             'id': cliente.id,
             'nombre': cliente.nombre,
-            'rut': cliente.rut or ''
+            'rut': cliente.rut or '',
+            'plazo_pago': int(cliente.plazo_pago or 0),
         } for cliente in clientes]
         
         return JsonResponse({'clientes': clientes_data})
@@ -1519,26 +1608,13 @@ def crear_documento_cliente(request):
     
     try:
         # Obtener empresa del usuario
-        if request.user.is_superuser:
-            empresa_id = request.session.get('empresa_activa')
-            if empresa_id:
-                try:
-                    empresa = Empresa.objects.get(id=empresa_id)
-                except Empresa.DoesNotExist:
-                    empresa = Empresa.objects.first()
-            else:
-                empresa = Empresa.objects.first()
-        else:
-            try:
-                empresa = request.user.perfil.empresa
-            except:
-                return JsonResponse({'success': False, 'message': 'Usuario no tiene empresa asociada'})
-        
+        empresa = _empresa_de_request(request)
         if not empresa:
             return JsonResponse({'success': False, 'message': 'No se encontró empresa'})
         
         from clientes.models import Cliente
         from .models import DocumentoCliente
+        from core.fechas import calcular_fecha_vencimiento, parse_fecha
         
         data = json.loads(request.body)
         
@@ -1546,6 +1622,10 @@ def crear_documento_cliente(request):
         cliente = get_object_or_404(Cliente, pk=cliente_id, empresa=empresa)
         
         total = int(data.get('total', 0))
+        fecha_emision = parse_fecha(data.get('fecha_emision'))
+        fecha_vencimiento = parse_fecha(data.get('fecha_vencimiento')) or calcular_fecha_vencimiento(
+            fecha_emision, cliente.plazo_pago
+        )
         
         # Crear documento de cliente en cuenta corriente
         documento = DocumentoCliente.objects.create(
@@ -1553,8 +1633,8 @@ def crear_documento_cliente(request):
             cliente=cliente,
             tipo_documento=data.get('tipo_documento', 'factura'),
             numero_documento=data.get('numero_documento'),
-            fecha_emision=data.get('fecha_emision'),
-            fecha_vencimiento=data.get('fecha_vencimiento') or None,
+            fecha_emision=fecha_emision,
+            fecha_vencimiento=fecha_vencimiento,
             total=total,
             saldo_pendiente=Decimal(total),
             estado_pago='pendiente',
@@ -1586,7 +1666,7 @@ def historial_pagos_documento_cliente(request, documento_id):
         pagos_data = []
         for pago in pagos:
             pagos_data.append({
-                'fecha': pago.fecha_pago.strftime('%d/%m/%Y %H:%M'),
+                'fecha': pago.fecha_pago.strftime('%d-%m-%Y %H:%M'),
                 'monto': float(pago.monto),
                 'forma_pago': pago.forma_pago,
                 'observaciones': pago.observaciones
@@ -1674,11 +1754,9 @@ def obtener_documento_cliente(request, pk):
         from .models import DocumentoCliente
         
         # Obtener empresa
-        if request.user.is_superuser:
-            empresa_id = request.session.get('empresa_activa')
-            empresa = Empresa.objects.get(id=empresa_id) if empresa_id else Empresa.objects.first()
-        else:
-            empresa = request.user.perfil.empresa
+        empresa = _empresa_de_request(request)
+        if not empresa:
+            return JsonResponse({'success': False, 'message': 'No se encontró empresa'})
         
         documento = get_object_or_404(DocumentoCliente, pk=pk, empresa=empresa)
         
@@ -1714,11 +1792,9 @@ def editar_documento_cliente(request, pk):
         from clientes.models import Cliente
         
         # Obtener empresa
-        if request.user.is_superuser:
-            empresa_id = request.session.get('empresa_activa')
-            empresa = Empresa.objects.get(id=empresa_id) if empresa_id else Empresa.objects.first()
-        else:
-            empresa = request.user.perfil.empresa
+        empresa = _empresa_de_request(request)
+        if not empresa:
+            return JsonResponse({'success': False, 'message': 'No se encontró empresa'})
         
         documento = get_object_or_404(DocumentoCliente, pk=pk, empresa=empresa)
         
@@ -1762,11 +1838,9 @@ def eliminar_documento_cliente(request, pk):
         from .models import DocumentoCliente
         
         # Obtener empresa
-        if request.user.is_superuser:
-            empresa_id = request.session.get('empresa_activa')
-            empresa = Empresa.objects.get(id=empresa_id) if empresa_id else Empresa.objects.first()
-        else:
-            empresa = request.user.perfil.empresa
+        empresa = _empresa_de_request(request)
+        if not empresa:
+            return JsonResponse({'success': False, 'message': 'No se encontró empresa'})
         
         documento = get_object_or_404(DocumentoCliente, pk=pk, empresa=empresa)
         numero = documento.numero_documento
@@ -1818,14 +1892,19 @@ def registrar_pago_movimiento(request):
             cuenta_corriente__empresa=request.empresa
         )
         
-        # Calcular monto total del pago
-        monto_total_pago = sum(Decimal(str(fp['monto'])) for fp in formas_pago)
-        
-        # Validar que el monto no exceda el monto del movimiento
-        if monto_total_pago > movimiento.monto:
+        _anotar_saldos_movimiento_cliente(movimiento)
+        saldo_pendiente = Decimal(movimiento.saldo_pendiente_factura)
+        monto_total_pago = Decimal(_pesos(sum(
+            parse_monto_chileno(fp.get('monto')) for fp in formas_pago
+        )))
+
+        if monto_total_pago <= 0:
+            return JsonResponse({'success': False, 'message': 'El monto debe ser mayor a 0'}, status=400)
+
+        if monto_total_pago > saldo_pendiente:
             return JsonResponse({
                 'success': False,
-                'message': f'El monto total ({monto_total_pago}) excede el monto de la factura ({movimiento.monto})'
+                'message': 'El monto excede el saldo pendiente'
             }, status=400)
         
         # Registrar el pago como un movimiento HABER (abono)
@@ -1875,7 +1954,7 @@ def registrar_pago_movimiento(request):
                         
                         pago_creado = PagoDocumentoCliente.objects.create(
                             documento=documento,
-                            monto=Decimal(str(forma['monto'])),
+                            monto=Decimal(_pesos(parse_monto_chileno(forma.get('monto')))),
                             forma_pago=forma_pago_nombre or 'No especificado',
                             observaciones=observaciones,
                             registrado_por=request.user
@@ -1901,8 +1980,19 @@ def registrar_pago_movimiento(request):
                     docs = DocumentoCliente.objects.filter(empresa=request.empresa).values_list('numero_documento', flat=True)
                     print(f"⚠ Documentos existentes: {list(docs)[:10]}")
             
+            if movimiento.venta:
+                venta = movimiento.venta
+                venta.monto_pagado = Decimal(str(venta.monto_pagado or 0)) + monto_total_pago
+                total_venta = Decimal(str(venta.total or 0))
+                if venta.monto_pagado > total_venta:
+                    venta.monto_pagado = total_venta
+                venta.saldo_pendiente = max(total_venta - venta.monto_pagado, Decimal('0'))
+                venta.save(update_fields=['monto_pagado', 'saldo_pendiente'])
+
             # Actualizar saldo de la cuenta corriente
             cuenta.saldo_pendiente -= monto_total_pago
+            if cuenta.saldo_pendiente < 0:
+                cuenta.saldo_pendiente = Decimal('0')
             cuenta.save()
             
             # Si el movimiento original está completamente pagado, marcarlo como anulado
@@ -1913,9 +2003,8 @@ def registrar_pago_movimiento(request):
                 tipo_movimiento='haber'
             ).aggregate(total=models.Sum('monto'))['total'] or Decimal('0')
             
-            if total_pagado >= movimiento.monto:
-                # Marcar como completamente pagado agregando observación
-                movimiento.observaciones += f"\n[PAGADO] Total pagado: ${total_pagado}"
+            if _pesos(total_pagado) >= movimiento.monto_display:
+                movimiento.observaciones = (movimiento.observaciones or '') + f"\n[PAGADO] Total pagado: ${total_pagado}"
                 movimiento.save()
         
         return JsonResponse({
@@ -1972,7 +2061,7 @@ def historial_pagos_movimiento(request, movimiento_id):
                         print(f"DEBUG: Pago - Monto: {pago.monto}, Forma: {pago.forma_pago}")
                         pagos_data.append({
                             'id': pago.pk,
-                            'fecha': pago.fecha_pago.strftime('%d/%m/%Y %H:%M'),
+                            'fecha': pago.fecha_pago.strftime('%d-%m-%Y %H:%M'),
                             'monto': float(pago.monto),
                             'forma_pago': pago.forma_pago,
                             'observaciones': pago.observaciones,
@@ -1992,7 +2081,7 @@ def historial_pagos_movimiento(request, movimiento_id):
                     for pago in pagos:
                         pagos_data.append({
                             'id': pago.pk,
-                            'fecha': pago.fecha_movimiento.strftime('%d/%m/%Y %H:%M'),
+                            'fecha': pago.fecha_movimiento.strftime('%d-%m-%Y %H:%M'),
                             'monto': float(pago.monto),
                             'forma_pago': 'No especificado',
                             'observaciones': pago.observaciones,

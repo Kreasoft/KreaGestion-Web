@@ -29,5 +29,13 @@ urlpatterns = [
 
     # Facturas recibidas del SII
     path('facturas-sii/', views.facturas_recibidas_sii, name='facturas_recibidas_sii'),
-    path('facturas-sii/xml/<str:folio>/', views.descargar_xml_factura_sii, name='descargar_xml_factura_sii'),
+    path('facturas-sii/sincronizar/', views.sincronizar_facturas_recibidas_sii, name='sincronizar_facturas_sii'),
+    path('facturas-sii/importar/', views.importar_factura_recibida_xml, name='importar_factura_xml'),
+    path('facturas-sii/<int:pk>/consultar/', views.consultar_eventos_factura_sii, name='consultar_eventos_sii'),
+    path('facturas-sii/<int:pk>/chequear-xml/', views.chequear_xml_factura_sii, name='chequear_xml_sii'),
+    path('facturas-sii/<int:pk>/pedir-xml/', views.solicitar_xml_factura_sii, name='solicitar_xml_sii'),
+    path('facturas-sii/<int:pk>/evento/', views.registrar_evento_factura_sii, name='registrar_evento_sii'),
+    path('facturas-sii/xml/<int:pk>/', views.descargar_xml_factura_sii, name='descargar_xml_factura_sii'),
+    path('facturas-sii/<int:pk>/rcv.xml', views.ver_registro_rcv_xml, name='ver_registro_rcv_xml'),
+    path('facturas-sii/<int:pk>/rcv.pdf', views.ver_registro_rcv_pdf, name='ver_registro_rcv_pdf'),
 ]

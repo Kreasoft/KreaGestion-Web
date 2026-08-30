@@ -337,7 +337,7 @@
                 </div>
                 <div class="info-item">
                     <span class="info-label">Fecha:</span>
-                    <span class="info-value">{{ hoja_ruta.fecha|date:"d/m/Y" }}</span>
+                    <span class="info-value">{{ hoja_ruta.fecha|date:"d-m-Y" }}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Estado:</span>
@@ -414,7 +414,7 @@
                     {% for factura in facturas %}
                     <tr>
                         <td><strong>{{ factura.folio }}</strong></td>
-                        <td>{{ factura.fecha_emision|date:"d/m/Y" }}</td>
+                        <td>{{ factura.fecha_emision|date:"d-m-Y" }}</td>
                         <td>{{ factura.razon_social_receptor }}</td>
                         <td>{{ factura.rut_receptor }}</td>
                         <td>
@@ -459,7 +459,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            <p><strong>Hoja de Ruta generada el {{ hoja_ruta.fecha_creacion|date:"d/m/Y H:i" }}</strong></p>
+            <p><strong>Hoja de Ruta generada el {{ hoja_ruta.fecha_creacion|date:"d-m-Y H:i" }}</strong></p>
             {% if hoja_ruta.creado_por %}
             <p>Generada por: {{ hoja_ruta.creado_por.get_full_name|default:hoja_ruta.creado_por.username }}</p>
             {% endif %}
@@ -471,19 +471,15 @@
         <button onclick="window.print()">
             <i class="fas fa-print"></i> Imprimir Hoja de Ruta
         </button>
-        <button onclick="window.close()">
+        <button onclick="safeCloseWindow()">
             <i class="fas fa-times"></i> Cerrar
         </button>
     </div>
 
+    {% include "includes/cerrar_visor.html" %}
     <script>
-        // Función para cerrar ventana de forma segura
         function safeCloseWindow() {
-            if (window.opener) {
-                window.close();
-            } else {
-                window.history.back();
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'pedidos:hoja_ruta_list' %}" });
         }
 
         // Auto-imprimir si se abre en nueva ventana (opcional, comentado)

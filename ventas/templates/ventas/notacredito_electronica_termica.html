@@ -243,6 +243,7 @@
     </style>
 </head>
 <body>
+    {% include "includes/visor_acciones.html" %}
     {% for i in copias_range %}
     <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
@@ -256,7 +257,7 @@
             <div class="company-rut">RUT: {{ empresa.rut }}</div>
             <div class="company-info">
                 {{ empresa.get_direccion_dte }}<br>
-                {{ empresa.get_ciudad_dte }}<br>
+                {{ empresa.get_comuna_dte }}{% if empresa.get_comuna_dte and empresa.get_ciudad_dte %}, {% endif %}{{ empresa.get_ciudad_dte }}<br>
                 Fono: {{ empresa.telefono|default:"Sin teléfono" }}
             </div>
         </div>
@@ -273,7 +274,7 @@
             </div>
             <div class="document-fecha">
                 {% load l10n %}
-                {{ nota.fecha|date:"d/m/Y" }}
+                {{ nota.fecha|date:"d-m-Y" }}
             </div>
             <div style="font-size: 7pt; margin-top: 1mm;">
                 SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
@@ -285,34 +286,42 @@
             <div style="font-weight: bold; text-align: center; margin-bottom: 1mm;">DOCUMENTO AFECTADO</div>
             <div><strong>Tipo:</strong> {{ nota.get_tipo_doc_afectado_display }}</div>
             <div><strong>Folio:</strong> {{ nota.numero_doc_afectado }}</div>
-            <div><strong>Fecha:</strong> {{ nota.fecha_doc_afectado|date:"d/m/Y" }}</div>
+            <div><strong>Fecha:</strong> {{ nota.fecha_doc_afectado|date:"d-m-Y" }}</div>
         </div>
 
         <!-- DATOS DEL CLIENTE -->
         <div class="cliente-section">
             <div class="cliente-row">
                 <span class="cliente-label">Cliente:</span>
-                <span>{{ nota.cliente.nombre|default:"Cliente" }}</span>
+                <span>{{ receptor_display.nombre|default:"Cliente" }}</span>
             </div>
             <div class="cliente-row">
                 <span class="cliente-label">RUT:</span>
-                <span>{{ nota.cliente.rut|default:"-" }}</span>
+                <span>{{ receptor_display.rut|default:"-" }}</span>
             </div>
-            {% if nota.cliente.direccion %}
+            {% if receptor_display.direccion %}
             <div class="cliente-row">
                 <span class="cliente-label">Dirección:</span>
-                <span>{{ nota.cliente.direccion }}</span>
+                <span>{{ receptor_display.direccion }}</span>
+            </div>
+            {% endif %}
+            {% if receptor_display.comuna or receptor_display.ciudad %}
+            <div class="cliente-row">
+                <span class="cliente-label">Ciudad:</span>
+                <span>{{ receptor_display.comuna|default:"-" }}{% if receptor_display.comuna and receptor_display.ciudad %}, {% endif %}{{ receptor_display.ciudad|default:"-" }}</span>
             </div>
             {% endif %}
         </div>
 
         <!-- MOTIVO -->
-        {% if nota.motivo or nota.observaciones %}
+        {% if nota.motivo or nota.tipo_nc %}
         <div style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 2mm; margin: 2mm 0; font-size: 7pt; border-radius: 2mm;">
             <div style="font-weight: bold; margin-bottom: 1mm;">MOTIVO:</div>
-            <div>{{ nota.get_motivo_display }}</div>
-            {% if nota.observaciones %}
-            <div style="margin-top: 1mm; font-style: italic;">{{ nota.observaciones|truncatewords:20 }}</div>
+            {% if nota.tipo_nc %}
+            <div style="margin-bottom: 1mm;"><strong>Tipo:</strong> {{ nota.get_tipo_nc_display }}</div>
+            {% endif %}
+            {% if nota.motivo %}
+            <div>{{ nota.motivo }}</div>
             {% endif %}
         </div>
         {% endif %}
@@ -323,10 +332,10 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.5mm 2mm 1.5mm 0; vertical-align: bottom;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.35mm 2mm 1.35mm 0; vertical-align: bottom;">
                         <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
                     </td>
-                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.5mm 0; vertical-align: bottom;">
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
                         ${{ detalle.total|format_miles }}
                     </td>
                 </tr>
@@ -377,22 +386,13 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ empresa.nombre }}<br>
-            Impreso: {{ nota.fecha|date:"d/m/Y" }}<br>
+            Impreso: {{ nota.fecha|date:"d-m-Y" }}<br>
             Este documento anula parcial/totalmente el documento afectado
         </div>
     </div>
     {% endfor %}
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()" style="padding: 6px 20px; font-size: 10pt; background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none; border-radius: 6px; cursor: pointer; margin: 4px; font-weight: 600; box-shadow: 0 2px 6px rgba(139, 115, 85, 0.2);">
-            <i class="fas fa-print me-1"></i> Imprimir
-        </button>
-        <button onclick="safeCloseWindow()" style="display: inline-block; padding: 6px 20px; font-size: 10pt; background: #FAF8F3; color: #8B7355; border: 1.5px solid #8B7355; border-radius: 6px; cursor: pointer; margin: 4px; text-decoration: none; font-weight: 600;">
-            <i class="fas fa-arrow-left me-1"></i> Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         // Parámetros URL globales
         const urlParams = new URLSearchParams(window.location.search);
@@ -405,45 +405,7 @@
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl, nCopiasConfig });
 
         function safeCloseWindow() {
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const referrer = document.referrer;
-
-            console.log('[DTE] Cerrando ventana vinculada al POS...');
-
-            // SI HAY OPENER (POPUP), CERRAR INSTANTÁNEAMENTE PARA NO RECARGAR EL POS
-            if (window.opener) {
-                try {
-                    window.close();
-                    setTimeout(() => {
-                        if (!window.closed) {
-                            if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
-                            else window.close();
-                        }
-                    }, 100);
-                } catch (e) { console.log(e); }
-                return;
-            }
-
-            // PRIORIDAD: return_url
-            if (returnUrl) {
-                window.location.href = decodeURIComponent(returnUrl);
-                return;
-            }
-
-            // Fallback: usar referrer si viene del POS
-            if (referrer && referrer.includes('/pos/')) {
-                console.log('[DTE AUTO] Volviendo al POS (referrer)');
-                window.location.href = referrer;
-                return;
-            }
-
-            // Fallback
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
         }
 
         // Auto-ejecuci?n

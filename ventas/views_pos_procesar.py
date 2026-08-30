@@ -15,6 +15,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 from core.decorators import requiere_empresa
+from core.fechas import fecha_documento_caja
 from .models import Venta, VentaDetalle, EstacionTrabajo, FormaPago
 from caja.models import VentaProcesada
 
@@ -58,33 +59,20 @@ def procesar_venta_pos(request, ticket_id):
     # El campo facturado se marca en True cuando se procesa en caja y se genera el DTE
     print("[POS VALE] Vale listo para facturar en caja (facturado=False)")
     
-    # ENVIAR A COLA DE IMPRESIÓN LOCAL
     try:
-        from caja.models import ColaImpresion, AperturaCaja
-        from caja.impresion_utils import generar_esc_pos_ticket
-        
-        contenido = generar_esc_pos_ticket(ticket)
-        
-        caja_id_cola = None
-        ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
-        if not ap_activa:
-            ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta').order_by('-fecha_apertura').first()
-        if ap_activa:
-            caja_id_cola = ap_activa.caja.id
+        from caja.impresion_utils import encolar_impresion_agente
 
-        if caja_id_cola:
-            ColaImpresion.objects.create(
-                caja_id=caja_id_cola,
-                empresa=empresa,
-                venta=ticket,
-                tipo_documento='vale',
-                documento_id=ticket.id,
-                contenido_raw=contenido,
-                estado='pendiente'
-            )
-            print(f"[OK] ✅ VALE ENCOLADO EN POS (Caja {caja_id_cola})")
+        planeado = (getattr(ticket, "tipo_documento_planeado", "") or "").lower()
+        tipo_cola = "vale" if planeado == "vale" or ticket.tipo_documento in ("vale", "ticket") else "ticket"
+        if encolar_impresion_agente(
+            empresa,
+            ticket,
+            estacion=ticket.estacion_trabajo,
+            tipo_documento=tipo_cola,
+        ):
+            print("[OK] VALE/TICKET ENCOLADO DESDE POS")
         else:
-            print(f"[WARN] No se encontró caja para encolar vale en POS")
+            print("[WARN] No se encontró caja para encolar vale en POS")
     except Exception as e:
         print(f"[ERROR] Error al encolar vale en procesar_venta_pos: {e}")
 
@@ -165,9 +153,16 @@ def procesar_venta_pos_directo(request, ticket_id):
         
         # Validar que el total pagado coincida con el total del ticket
         total_ticket = float(ticket.total)
-        if abs(total_pagado - total_ticket) > 0.01:  # Tolerancia de 1 centavo
-            messages.error(request, f'El total pagado (${total_pagado:,.0f}) no coincide con el total del ticket (${total_ticket:,.0f}).')
+        if total_pagado + 0.5 < total_ticket:
+            messages.error(request, f'El total pagado (${total_pagado:,.0f}) es menor al total del ticket (${total_ticket:,.0f}).')
             return redirect('ventas:procesar_venta_pos_directo', ticket_id=ticket_id)
+
+        if ticket.tipo_documento_planeado != 'factura':
+            for fp_data in formas_pago_dict.values():
+                forma_chk = FormaPago.objects.filter(pk=fp_data['forma_pago_id'], empresa=empresa).first()
+                if forma_chk and forma_chk.es_cuenta_corriente:
+                    messages.error(request, 'El crédito / cuenta corriente solo se permite en facturas. La boleta se cobra al contado.')
+                    return redirect('ventas:procesar_venta_pos_directo', ticket_id=ticket_id)
     
     # Validar y actualizar tipo_despacho si es guía
     if ticket.tipo_documento_planeado == 'guia':
@@ -232,7 +227,7 @@ def procesar_venta_pos_directo(request, ticket_id):
                 # SOBRESCRIBIR FECHA DEL TICKET CON LA FECHA DE APERTURA DE CAJA
                 # Esto asegura que el documento salga con la fecha del día del cobro/apertura
                 if apertura_activa:
-                    ticket.fecha = apertura_activa.fecha_apertura.date()
+                    ticket.fecha = fecha_documento_caja(apertura_activa)
                     ticket.save(update_fields=['fecha'])
                     print(f"[POS DIRECTO] Fecha del ticket actualizada a fecha de apertura: {ticket.fecha}")
                 
@@ -251,8 +246,11 @@ def procesar_venta_pos_directo(request, ticket_id):
             
             # 3. Crear movimientos de caja (solo si NO es guía)
             if ticket.tipo_documento_planeado != 'guia' and formas_pago_dict:
+                monto_credito = Decimal('0.00')
+                forma_pago_credito = None
                 for fp_data in formas_pago_dict.values():
                     forma_pago = FormaPago.objects.get(id=fp_data['forma_pago_id'], empresa=empresa)
+                    monto_fp = Decimal(str(fp_data['monto']))
                     
                     # USAR FECHA DE APERTURA PARA EL MOVIMIENTO (ESTRICTO)
                     MovimientoCaja.objects.create(
@@ -260,7 +258,7 @@ def procesar_venta_pos_directo(request, ticket_id):
                         venta=ticket,
                         tipo='venta',
                         forma_pago=forma_pago,
-                        monto=Decimal(str(fp_data['monto'])),
+                        monto=monto_fp,
                         descripcion=f"{ticket.tipo_documento_planeado.title()} #{numero_venta_final}",
                         usuario=request.user,
                         fecha=apertura_activa.fecha_apertura # Forzar fecha contable de la caja
@@ -271,9 +269,29 @@ def procesar_venta_pos_directo(request, ticket_id):
                         ticket.forma_pago = forma_pago
                         ticket.save()
                         print(f"[POS DIRECTO] Forma de pago principal asignada al ticket: {forma_pago.nombre}")
+
+                    if forma_pago.es_cuenta_corriente:
+                        monto_credito += monto_fp
+                        if forma_pago_credito is None:
+                            forma_pago_credito = forma_pago
                     
                     print(f"[POS DIRECTO] Movimiento de caja creado: {forma_pago.nombre} - ${fp_data['monto']}")
                 
+                if forma_pago_credito and monto_credito > 0 and ticket.tipo_documento_planeado == 'factura':
+                    from tesoreria.services import sincronizar_venta_credito_en_tesoreria
+
+                    ticket.forma_pago = forma_pago_credito
+                    ticket.monto_pagado = ticket.total - monto_credito
+                    ticket.saldo_pendiente = monto_credito
+                    ticket.save(update_fields=['forma_pago', 'monto_pagado', 'saldo_pendiente'])
+
+                    sincronizar_venta_credito_en_tesoreria(
+                        ticket,
+                        dte=dte,
+                        usuario=request.user,
+                        descripcion=f"Documento a crédito {ticket.tipo_documento_planeado} {numero_venta_final}",
+                    )
+
                 # Recalcular totales de la apertura
                 apertura_activa.calcular_totales()
             
@@ -335,33 +353,21 @@ def procesar_venta_pos_directo(request, ticket_id):
             # 8. Redirigir a impresión del documento
             messages.success(request, f'{ticket.tipo_documento_planeado.title()} #{numero_venta_final} procesada exitosamente.')
             
-            # ENVIAR A COLA DE IMPRESIÓN LOCAL
+            # ENVIAR A COLA DE IMPRESIÓN LOCAL (agente)
             try:
-                from caja.models import ColaImpresion, AperturaCaja
-                from caja.impresion_utils import generar_esc_pos_ticket
-                
-                contenido = generar_esc_pos_ticket(ticket)
-                
-                caja_id_cola = None
-                ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta', caja__estacion_trabajo=ticket.estacion_trabajo).first()
-                if not ap_activa:
-                    ap_activa = AperturaCaja.objects.filter(caja__empresa=empresa, estado='abierta').order_by('-fecha_apertura').first()
-                if ap_activa:
-                    caja_id_cola = ap_activa.caja.id
+                from caja.impresion_utils import encolar_impresion_agente
 
-                if caja_id_cola:
-                    ColaImpresion.objects.create(
-                        caja_id=caja_id_cola,
-                        empresa=empresa,
-                        venta=ticket,
-                        tipo_documento='dte' if dte else 'vale',
-                        documento_id=dte.id if dte else ticket.id,
-                        contenido_raw=contenido,
-                        estado='pendiente'
-                    )
-                    print(f"[OK] ✅ CIERRE DIRECTO ENCOLADO (Caja {caja_id_cola})")
+                encolado = encolar_impresion_agente(
+                    empresa,
+                    ticket,
+                    estacion=ticket.estacion_trabajo,
+                    dte=dte,
+                    tipo_documento='dte' if dte else 'vale',
+                )
+                if encolado:
+                    print("[OK] CIERRE DIRECTO ENCOLADO PARA AGENTE LOCAL")
                 else:
-                    print(f"[WARN] No se encontró caja para encolar en procesar_venta_pos_directo")
+                    print("[WARN] No se encontró caja para encolar en procesar_venta_pos_directo")
             except Exception as e:
                 print(f"[ERROR] Error al encolar en procesar_venta_pos_directo: {e}")
 

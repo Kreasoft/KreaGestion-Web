@@ -54,7 +54,11 @@ class Cliente(models.Model):
         default=Decimal('0.00'),
         verbose_name="Límite de Crédito"
     )
-    plazo_pago = models.IntegerField(default=30, verbose_name="Plazo de Pago (días)")
+    plazo_pago = models.IntegerField(
+        default=30,
+        verbose_name="Plazo de Pago (días)",
+        help_text="Días de crédito al facturar. 0 = vence el mismo día de emisión.",
+    )
     descuento_porcentaje = models.DecimalField(
         max_digits=5, 
         decimal_places=2, 

@@ -172,7 +172,7 @@
 
         .detalle-table td {
             border-right: 1px solid #eee;
-            padding: 2px 2px;
+            padding: 3px 2px;
             vertical-align: middle;
             white-space: nowrap;
             overflow: hidden;
@@ -336,6 +336,7 @@
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     <div class="factura-container">
 
         <!-- CABECERA -->
@@ -378,7 +379,7 @@
         <div class="fecha-emision">
             <strong>Fecha:</strong>
             {% load l10n %}
-            {{ nota.fecha|date:"l, d \d\e F \d\e Y"|capfirst }}
+            {{ nota.fecha|date:"d-m-Y" }}
         </div>
 
         <!-- DATOS DEL RECEPTOR -->
@@ -389,7 +390,7 @@
                         <span class="receptor-label">Señor(es):</span>
                     </div>
                     <div class="receptor-cell" colspan="3" style="padding-left: 0px; text-align: left;">
-                        <strong>{{ nota.cliente.nombre|default:"Cliente General" }}</strong>
+                        <strong>{{ receptor_display.nombre|default:"Cliente General" }}</strong>
                     </div>
                 </div>
             </div>
@@ -399,16 +400,34 @@
                         <span class="receptor-label">Dirección</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ nota.cliente.direccion|default:"-" }}
+                        {{ receptor_display.direccion|default:"-" }}
                     </div>
                     <div class="receptor-cell">
                         <span class="receptor-label">RUT</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ nota.cliente.rut|default:"-" }}
+                        {{ receptor_display.rut|default:"-" }}
                     </div>
                 </div>
             </div>
+            {% if receptor_display.comuna or receptor_display.ciudad %}
+            <div class="receptor-grid">
+                <div class="receptor-row">
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Comuna</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ receptor_display.comuna|default:"-" }}
+                    </div>
+                    <div class="receptor-cell">
+                        <span class="receptor-label">Ciudad</span>
+                    </div>
+                    <div class="receptor-cell">
+                        {{ receptor_display.ciudad|default:"-" }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <!-- DOCUMENTO DE REFERENCIA -->
@@ -421,7 +440,7 @@
                 nota.numero_doc_afectado }}
             </div>
             <div class="referencia-item">
-                <span class="referencia-label">Fecha Documento:</span> {{ nota.fecha_doc_afectado|date:"d/m/Y" }}
+                <span class="referencia-label">Fecha Documento:</span> {{ nota.fecha_doc_afectado|date:"d-m-Y" }}
             </div>
         </div>
 
@@ -441,7 +460,12 @@
                 {% for detalle in detalles %}
                 <tr>
                     <td>{{ detalle.articulo.codigo }}</td>
-                    <td>{{ detalle.articulo.nombre }}</td>
+                    <td>
+                        {{ detalle.articulo.nombre }}
+                        {% if detalle.descripcion and detalle.descripcion != detalle.articulo.nombre %}
+                        <div style="margin-top: 3px; font-size: 6.5pt; line-height: 1.3; letter-spacing: 0.01em; color: #6F5B44;">{{ detalle.descripcion }}</div>
+                        {% endif %}
+                    </td>
                     <td>{{ detalle.cantidad|floatformat:0 }}</td>
                     <td>${{ detalle.precio_unitario|format_miles }}</td>
                     <td>{{ detalle.descuento|floatformat:0 }}%</td>
@@ -464,6 +488,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% include "includes/visor_observacion.html" with observacion=nota.observaciones %}
 
         <!-- SECCIÓN INFERIOR: TIMBRE Y TOTALES -->
         <div class="footer-section">
@@ -529,46 +554,7 @@
 
     </div>
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="position: fixed; bottom: 30px; right: 30px; z-index: 1000; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #D4C4A8;">
-        <button onclick="window.print()" class="btn-terroso" style="margin-right: 5px;">
-            <i class="fas fa-print me-1"></i> Imprimir Nota
-        </button>
-        <button onclick="safeCloseWindow()" class="btn-terroso-outline" style="text-decoration: none; display: inline-block;">
-            <i class="fas fa-arrow-left me-1"></i> Volver
-        </button>
-    </div>
-
-    <style>
-        .btn-terroso {
-            background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-            color: white;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .btn-terroso:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
-        }
-        .btn-terroso-outline {
-            background: white;
-            color: #8B7355;
-            border: 1.5px solid #8B7355;
-            padding: 8px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .btn-terroso-outline:hover {
-            background: #FAF8F3;
-        }
-    </style>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         // Parámetros URL globales
         const urlParams = new URLSearchParams(window.location.search);
@@ -580,41 +566,10 @@
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
 
         function safeCloseWindow() {
-            // Notificar al padre si existe
-            try {
-                if (window.opener && window.opener !== window && !window.opener.closed) {
-                    window.opener.postMessage({ kind: 'print_done', dte_id: '{{ dte.id }}' }, window.location.origin);
-                }
-            } catch (e) { console.log('No se pudo notificar al padre:', e); }
-
-            console.log('[DTE AUTO] Intentando salir de la vista...');
-
-            // PRIORIDAD 1: Si hay return_url
-            if (returnUrl) {
-                const target = decodeURIComponent(returnUrl);
-                console.log('[DTE AUTO] Redirigiendo a return_url:', target);
-                window.location.href = target;
-                return;
-            }
-
-            // PRIORIDAD 2: Si es un popup o pestaña nueva sin historial
-            if (window.opener || window.history.length <= 1) {
-                console.log('[DTE AUTO] Cerrando ventana...');
-                setTimeout(() => {
-                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-                }, 500);
-                try { window.close(); } catch(e) { console.log(e); }
-                return;
-            }
-
-            // PRIORIDAD 3: Historial normal
-            window.history.back();
-            
-            setTimeout(() => {
-                if (!document.hidden) {
-                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-                }
-            }, 1000);
+            cerrarVisor({
+                fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}",
+                message: { kind: 'print_done', dte_id: '{{ dte.id|default:"" }}' }
+            });
         }
 
         // Auto-ejecución

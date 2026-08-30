@@ -15,6 +15,15 @@ from tesoreria.models import DocumentoCliente, PagoDocumentoCliente, MovimientoC
 from caja.models import AperturaCaja
 from documentos.models import DocumentoCompra
 from core.decorators import requiere_empresa
+from core.excel_utils import (
+    build_excel_response,
+    finalize_excel_table,
+    format_excel_date,
+    set_column_widths,
+    setup_corporate_sheet,
+    style_data_row,
+    write_table_headers,
+)
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from reportlab.lib import colors
@@ -104,7 +113,7 @@ def dashboard_informes(request):
     curr = hace_15_dias
     ventas_dict = { v['fecha']: float(v['total']) for v in ventas_diarias_raw }
     while curr <= hoy:
-        fechas.append(curr.strftime('%d/%m'))
+        fechas.append(curr.strftime('%d-%m'))
         totales_diarios.append(ventas_dict.get(curr, 0))
         curr += timedelta(days=1)
         
@@ -425,7 +434,10 @@ def informe_stock_actual(request):
         'search': search,
     }
     
-    return render(request, 'informes/stock_actual.html', context)
+    response = render(request, 'informes/stock_actual.html', context)
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    return response
 
 
 @login_required
@@ -639,45 +651,30 @@ def exportar_ventas_excel(request):
     
     ventas = sorted(ventas_por_fecha.values(), key=lambda x: x['fecha_solo'])
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Ventas por Período"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Informe de Ventas - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    ws['A2'] = f"Período: {fecha_desde.strftime('%d/%m/%Y')} - {fecha_hasta.strftime('%d/%m/%Y')}"
-    
-    # Headers
     headers = ['Fecha', 'Cantidad Ventas', 'Total Ventas', 'Ticket Promedio']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=4, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 5
+    branding = setup_corporate_sheet(
+        ws,
+        request.empresa,
+        "INFORME DE VENTAS",
+        f"Periodo: {format_excel_date(fecha_desde)} al {format_excel_date(fecha_hasta)}",
+        len(headers),
+    )
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
     for venta in ventas:
-        ws.cell(row=row, column=1, value=venta['fecha_solo'].strftime('%d/%m/%Y')).border = border
-        ws.cell(row=row, column=2, value=venta['cantidad_ventas']).border = border
-        ws.cell(row=row, column=3, value=venta['total_ventas']).border = border
+        ws.cell(row=row, column=1, value=format_excel_date(venta['fecha_solo'])).alignment = styles["center"]
+        ws.cell(row=row, column=2, value=venta['cantidad_ventas']).alignment = styles["center"]
+        ws.cell(row=row, column=3, value=venta['total_ventas']).alignment = styles["right"]
         ws.cell(row=row, column=3).number_format = '$#,##0'
         ticket_prom = venta['total_ventas'] / venta['cantidad_ventas'] if venta['cantidad_ventas'] > 0 else 0
-        ws.cell(row=row, column=4, value=ticket_prom).border = border
+        ws.cell(row=row, column=4, value=ticket_prom).alignment = styles["right"]
         ws.cell(row=row, column=4).number_format = '$#,##0'
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
         row += 1
     
     # Totales
@@ -687,24 +684,18 @@ def exportar_ventas_excel(request):
     
     ws.cell(row=row, column=1, value="TOTAL").font = Font(bold=True)
     ws.cell(row=row, column=2, value=cantidad_total).font = Font(bold=True)
+    ws.cell(row=row, column=2).alignment = styles["center"]
     ws.cell(row=row, column=3, value=total_general).font = Font(bold=True)
+    ws.cell(row=row, column=3).alignment = styles["right"]
     ws.cell(row=row, column=3).number_format = '$#,##0'
     ws.cell(row=row, column=4, value=ticket_promedio).font = Font(bold=True)
+    ws.cell(row=row, column=4).alignment = styles["right"]
     ws.cell(row=row, column=4).number_format = '$#,##0'
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 18
-    ws.column_dimensions['C'].width = 18
-    ws.column_dimensions['D'].width = 18
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = f'attachment; filename=ventas_{fecha_desde}_{fecha_hasta}.xlsx'
-    wb.save(response)
-    return response
+    style_data_row(ws, row, len(headers), styles)
+
+    set_column_widths(ws, [16, 18, 18, 18])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row, len(headers))
+    return build_excel_response(wb, f"ventas_{fecha_desde}_{fecha_hasta}.xlsx")
 
 
 @login_required
@@ -733,60 +724,34 @@ def exportar_productos_excel(request):
         total_vendido=Sum('precio_total')
     ).order_by('-cantidad_vendida')[:50]
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Productos Más Vendidos"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Productos Más Vendidos - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    ws['A2'] = f"Período: {fecha_desde.strftime('%d/%m/%Y')} - {fecha_hasta.strftime('%d/%m/%Y')}"
-    
-    # Headers
     headers = ['#', 'Código', 'Producto', 'Cantidad', 'Total Vendido']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=4, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 5
-    for idx, producto in enumerate(productos, start=1):
-        ws.cell(row=row, column=1, value=idx).border = border
-        ws.cell(row=row, column=2, value=producto['articulo__codigo']).border = border
-        ws.cell(row=row, column=3, value=producto['articulo__nombre']).border = border
-        ws.cell(row=row, column=4, value=float(producto['cantidad_vendida'])).border = border
-        ws.cell(row=row, column=5, value=float(producto['total_vendido'])).border = border
-        ws.cell(row=row, column=5).number_format = '$#,##0'
-        row += 1
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 8
-    ws.column_dimensions['B'].width = 15
-    ws.column_dimensions['C'].width = 40
-    ws.column_dimensions['D'].width = 15
-    ws.column_dimensions['E'].width = 18
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    branding = setup_corporate_sheet(
+        ws,
+        request.empresa,
+        "PRODUCTOS MAS VENDIDOS",
+        f"Periodo: {format_excel_date(fecha_desde)} al {format_excel_date(fecha_hasta)}",
+        len(headers),
     )
-    response['Content-Disposition'] = f'attachment; filename=productos_vendidos_{fecha_desde}_{fecha_hasta}.xlsx'
-    wb.save(response)
-    return response
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
+    for idx, producto in enumerate(productos, start=1):
+        ws.cell(row=row, column=1, value=idx).alignment = styles["center"]
+        ws.cell(row=row, column=2, value=producto['articulo__codigo'])
+        ws.cell(row=row, column=3, value=producto['articulo__nombre']).alignment = styles["wrap"]
+        ws.cell(row=row, column=4, value=float(producto['cantidad_vendida'])).alignment = styles["right"]
+        ws.cell(row=row, column=5, value=float(producto['total_vendido'])).alignment = styles["right"]
+        ws.cell(row=row, column=5).number_format = '$#,##0'
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
+        row += 1
+
+    set_column_widths(ws, [8, 15, 40, 15, 18])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
+    return build_excel_response(wb, f"productos_vendidos_{fecha_desde}_{fecha_hasta}.xlsx")
 
 
 @login_required
@@ -815,71 +780,48 @@ def exportar_stock_excel(request):
     
     stocks = stocks.order_by('bodega__nombre', 'articulo__nombre')
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Stock Actual"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Stock Actual - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    
-    # Headers
     headers = ['Bodega', 'Código', 'Artículo', 'Stock', 'Precio Promedio', 'Valorización']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=3, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 4
+    branding = setup_corporate_sheet(
+        ws,
+        request.empresa,
+        "STOCK ACTUAL",
+        "Inventario valorizado por bodega",
+        len(headers),
+    )
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
     total_valorizacion = 0
     for stock in stocks:
         valorizacion = float(stock.cantidad) * float(stock.precio_promedio)
         total_valorizacion += valorizacion
         
-        ws.cell(row=row, column=1, value=stock.bodega.nombre).border = border
-        ws.cell(row=row, column=2, value=stock.articulo.codigo).border = border
-        ws.cell(row=row, column=3, value=stock.articulo.nombre).border = border
-        ws.cell(row=row, column=4, value=float(stock.cantidad)).border = border
-        ws.cell(row=row, column=5, value=float(stock.precio_promedio)).border = border
+        ws.cell(row=row, column=1, value=stock.bodega.nombre)
+        ws.cell(row=row, column=2, value=stock.articulo.codigo)
+        ws.cell(row=row, column=3, value=stock.articulo.nombre).alignment = styles["wrap"]
+        ws.cell(row=row, column=4, value=float(stock.cantidad)).alignment = styles["right"]
+        ws.cell(row=row, column=5, value=float(stock.precio_promedio)).alignment = styles["right"]
         ws.cell(row=row, column=5).number_format = '$#,##0'
-        ws.cell(row=row, column=6, value=valorizacion).border = border
+        ws.cell(row=row, column=6, value=valorizacion).alignment = styles["right"]
         ws.cell(row=row, column=6).number_format = '$#,##0'
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
         row += 1
     
     # Total
     ws.cell(row=row, column=5, value="TOTAL:").font = Font(bold=True)
+    ws.cell(row=row, column=5).alignment = styles["right"]
     ws.cell(row=row, column=6, value=total_valorizacion).font = Font(bold=True)
+    ws.cell(row=row, column=6).alignment = styles["right"]
     ws.cell(row=row, column=6).number_format = '$#,##0'
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 20
-    ws.column_dimensions['B'].width = 15
-    ws.column_dimensions['C'].width = 40
-    ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 18
-    ws.column_dimensions['F'].width = 18
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = 'attachment; filename=stock_actual.xlsx'
-    wb.save(response)
-    return response
+    style_data_row(ws, row, len(headers), styles)
+
+    set_column_widths(ws, [20, 15, 40, 12, 18, 18])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row, len(headers))
+    return build_excel_response(wb, "stock_actual.xlsx")
 
 
 @login_required
@@ -892,66 +834,31 @@ def exportar_clientes_excel(request):
         empresa=request.empresa
     ).order_by('nombre')
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Clientes"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Listado de Clientes - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    
-    # Headers
     headers = ['RUT', 'Nombre', 'Giro', 'Dirección', 'Comuna', 'Ciudad', 'Región', 'Teléfono', 'Email']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=3, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 4
+    branding = setup_corporate_sheet(ws, request.empresa, "LISTADO DE CLIENTES", "", len(headers))
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
     for cliente in clientes:
-        ws.cell(row=row, column=1, value=cliente.rut).border = border
-        ws.cell(row=row, column=2, value=cliente.nombre).border = border
-        ws.cell(row=row, column=3, value=cliente.giro or '').border = border
-        ws.cell(row=row, column=4, value=cliente.direccion or '').border = border
-        ws.cell(row=row, column=5, value=cliente.comuna or '').border = border
-        ws.cell(row=row, column=6, value=cliente.ciudad or '').border = border
-        ws.cell(row=row, column=7, value=cliente.region or '').border = border
-        ws.cell(row=row, column=8, value=cliente.telefono or '').border = border
-        ws.cell(row=row, column=9, value=cliente.email or '').border = border
+        ws.cell(row=row, column=1, value=cliente.rut)
+        ws.cell(row=row, column=2, value=cliente.nombre)
+        ws.cell(row=row, column=3, value=cliente.giro or '')
+        ws.cell(row=row, column=4, value=cliente.direccion or '')
+        ws.cell(row=row, column=5, value=cliente.comuna or '')
+        ws.cell(row=row, column=6, value=cliente.ciudad or '')
+        ws.cell(row=row, column=7, value=cliente.region or '')
+        ws.cell(row=row, column=8, value=cliente.telefono or '')
+        ws.cell(row=row, column=9, value=cliente.email or '')
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
         row += 1
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 35
-    ws.column_dimensions['C'].width = 30
-    ws.column_dimensions['D'].width = 35
-    ws.column_dimensions['E'].width = 20
-    ws.column_dimensions['F'].width = 20
-    ws.column_dimensions['G'].width = 20
-    ws.column_dimensions['H'].width = 15
-    ws.column_dimensions['I'].width = 30
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = 'attachment; filename=clientes.xlsx'
-    wb.save(response)
-    return response
+
+    set_column_widths(ws, [15, 35, 30, 35, 20, 20, 20, 15, 30])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
+    return build_excel_response(wb, "clientes.xlsx")
 
 
 @login_required
@@ -964,64 +871,30 @@ def exportar_proveedores_excel(request):
         empresa=request.empresa
     ).order_by('nombre')
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Proveedores"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Listado de Proveedores - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    
-    # Headers
     headers = ['RUT', 'Nombre', 'Giro', 'Dirección', 'Comuna', 'Ciudad', 'Teléfono', 'Email']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=3, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 4
+    branding = setup_corporate_sheet(ws, request.empresa, "LISTADO DE PROVEEDORES", "", len(headers))
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
     for proveedor in proveedores:
-        ws.cell(row=row, column=1, value=proveedor.rut).border = border
-        ws.cell(row=row, column=2, value=proveedor.nombre).border = border
-        ws.cell(row=row, column=3, value=proveedor.giro or '').border = border
-        ws.cell(row=row, column=4, value=proveedor.direccion or '').border = border
-        ws.cell(row=row, column=5, value=proveedor.comuna or '').border = border
-        ws.cell(row=row, column=6, value=proveedor.ciudad or '').border = border
-        ws.cell(row=row, column=7, value=proveedor.telefono or '').border = border
-        ws.cell(row=row, column=8, value=proveedor.email or '').border = border
+        ws.cell(row=row, column=1, value=proveedor.rut)
+        ws.cell(row=row, column=2, value=proveedor.nombre)
+        ws.cell(row=row, column=3, value=proveedor.giro or '')
+        ws.cell(row=row, column=4, value=proveedor.direccion or '')
+        ws.cell(row=row, column=5, value=proveedor.comuna or '')
+        ws.cell(row=row, column=6, value=proveedor.ciudad or '')
+        ws.cell(row=row, column=7, value=proveedor.telefono or '')
+        ws.cell(row=row, column=8, value=proveedor.email or '')
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
         row += 1
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 35
-    ws.column_dimensions['C'].width = 30
-    ws.column_dimensions['D'].width = 35
-    ws.column_dimensions['E'].width = 20
-    ws.column_dimensions['F'].width = 20
-    ws.column_dimensions['G'].width = 15
-    ws.column_dimensions['H'].width = 30
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = 'attachment; filename=proveedores.xlsx'
-    wb.save(response)
-    return response
+
+    set_column_widths(ws, [15, 35, 30, 35, 20, 20, 15, 30])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
+    return build_excel_response(wb, "proveedores.xlsx")
 
 
 @login_required
@@ -1034,72 +907,36 @@ def exportar_articulos_excel(request):
         empresa=request.empresa
     ).select_related('categoria', 'unidad_medida').order_by('codigo')
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Artículos"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Listado de Artículos - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    
-    # Headers
     headers = ['Código', 'Nombre', 'Descripción', 'Categoría', 'Unidad', 'Precio Costo', 'Precio Venta', 'Precio Final', 'Margen %', 'Código Barras']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=3, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 4
+    branding = setup_corporate_sheet(ws, request.empresa, "LISTADO DE ARTICULOS", "", len(headers))
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
     for articulo in articulos:
-        ws.cell(row=row, column=1, value=articulo.codigo).border = border
-        ws.cell(row=row, column=2, value=articulo.nombre).border = border
-        ws.cell(row=row, column=3, value=articulo.descripcion or '').border = border
-        ws.cell(row=row, column=4, value=articulo.categoria.nombre if articulo.categoria else '').border = border
-        ws.cell(row=row, column=5, value=articulo.unidad_medida.nombre if articulo.unidad_medida else '').border = border
-        ws.cell(row=row, column=6, value=float(articulo.precio_costo)).border = border
+        ws.cell(row=row, column=1, value=articulo.codigo)
+        ws.cell(row=row, column=2, value=articulo.nombre)
+        ws.cell(row=row, column=3, value=articulo.descripcion or '')
+        ws.cell(row=row, column=4, value=articulo.categoria.nombre if articulo.categoria else '')
+        ws.cell(row=row, column=5, value=articulo.unidad_medida.nombre if articulo.unidad_medida else '')
+        ws.cell(row=row, column=6, value=float(articulo.precio_costo)).alignment = styles["right"]
         ws.cell(row=row, column=6).number_format = '$#,##0'
-        ws.cell(row=row, column=7, value=float(articulo.precio_venta)).border = border
+        ws.cell(row=row, column=7, value=float(articulo.precio_venta)).alignment = styles["right"]
         ws.cell(row=row, column=7).number_format = '$#,##0'
-        ws.cell(row=row, column=8, value=float(articulo.precio_final)).border = border
+        ws.cell(row=row, column=8, value=float(articulo.precio_final)).alignment = styles["right"]
         ws.cell(row=row, column=8).number_format = '$#,##0'
-        ws.cell(row=row, column=9, value=float(articulo.margen_porcentaje)).border = border
+        ws.cell(row=row, column=9, value=float(articulo.margen_porcentaje)).alignment = styles["right"]
         ws.cell(row=row, column=9).number_format = '0.00"%"'
-        ws.cell(row=row, column=10, value=articulo.codigo_barras or '').border = border
+        ws.cell(row=row, column=10, value=articulo.codigo_barras or '')
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
         row += 1
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 35
-    ws.column_dimensions['C'].width = 40
-    ws.column_dimensions['D'].width = 20
-    ws.column_dimensions['E'].width = 12
-    ws.column_dimensions['F'].width = 15
-    ws.column_dimensions['G'].width = 15
-    ws.column_dimensions['H'].width = 15
-    ws.column_dimensions['I'].width = 12
-    ws.column_dimensions['J'].width = 18
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = 'attachment; filename=articulos.xlsx'
-    wb.save(response)
-    return response
+
+    set_column_widths(ws, [15, 35, 40, 20, 12, 15, 15, 15, 12, 18])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
+    return build_excel_response(wb, "articulos.xlsx")
 
 
 @login_required
@@ -1269,61 +1106,35 @@ def exportar_ventas_vendedor_excel(request):
         ticket_promedio=Avg('total')
     ).order_by('-total_ventas')
     
-    # Crear Excel
     wb = Workbook()
     ws = wb.active
     ws.title = "Ventas por Vendedor"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="8B7355", end_color="8B7355", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Título
-    ws['A1'] = f"Ventas por Vendedor - {request.empresa.nombre}"
-    ws['A1'].font = Font(bold=True, size=14)
-    ws['A2'] = f"Período: {fecha_desde.strftime('%d/%m/%Y')} - {fecha_hasta.strftime('%d/%m/%Y')}"
-    
-    # Headers
     headers = ['Código', 'Vendedor', 'Cant. Ventas', 'Total Vendido', 'Ticket Promedio']
-    for col, header in enumerate(headers, start=1):
-        cell = ws.cell(row=4, column=col, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.border = border
-        cell.alignment = Alignment(horizontal='center')
-    
-    # Datos
-    row = 5
-    for vendedor in ventas_vendedor:
-        ws.cell(row=row, column=1, value=vendedor['vendedor__codigo']).border = border
-        ws.cell(row=row, column=2, value=vendedor['vendedor__nombre']).border = border
-        ws.cell(row=row, column=3, value=vendedor['cantidad_ventas']).border = border
-        ws.cell(row=row, column=4, value=float(vendedor['total_ventas'])).border = border
-        ws.cell(row=row, column=4).number_format = '$#,##0'
-        ws.cell(row=row, column=5, value=float(vendedor['ticket_promedio'])).border = border
-        ws.cell(row=row, column=5).number_format = '$#,##0'
-        row += 1
-    
-    # Ajustar anchos
-    ws.column_dimensions['A'].width = 12
-    ws.column_dimensions['B'].width = 35
-    ws.column_dimensions['C'].width = 15
-    ws.column_dimensions['D'].width = 18
-    ws.column_dimensions['E'].width = 18
-    
-    # Respuesta
-    response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    branding = setup_corporate_sheet(
+        ws,
+        request.empresa,
+        "VENTAS POR VENDEDOR",
+        f"Periodo: {format_excel_date(fecha_desde)} al {format_excel_date(fecha_hasta)}",
+        len(headers),
     )
-    response['Content-Disposition'] = f'attachment; filename=ventas_vendedor_{fecha_desde}_{fecha_hasta}.xlsx'
-    wb.save(response)
-    return response
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
+    for vendedor in ventas_vendedor:
+        ws.cell(row=row, column=1, value=vendedor['vendedor__codigo']).alignment = styles["center"]
+        ws.cell(row=row, column=2, value=vendedor['vendedor__nombre'])
+        ws.cell(row=row, column=3, value=vendedor['cantidad_ventas']).alignment = styles["center"]
+        ws.cell(row=row, column=4, value=float(vendedor['total_ventas'])).alignment = styles["right"]
+        ws.cell(row=row, column=4).number_format = '$#,##0'
+        ws.cell(row=row, column=5, value=float(vendedor['ticket_promedio'])).alignment = styles["right"]
+        ws.cell(row=row, column=5).number_format = '$#,##0'
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
+        row += 1
+
+    set_column_widths(ws, [12, 35, 15, 18, 18])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
+    return build_excel_response(wb, f"ventas_vendedor_{fecha_desde}_{fecha_hasta}.xlsx")
 
 
 @login_required

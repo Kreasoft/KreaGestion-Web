@@ -21,7 +21,7 @@
 
     @media print {
         @page { size: landscape; margin: 1cm; }
-        .sidebar, .navbar, .btn, .filter-section, .nav-tabs, .hide-print { display: none !important; }
+        .sidebar, .navbar, .btn, .filter-section, .nav-tabs, .nav-pills, .hide-print, .ico-32 { display: none !important; }
         body { background: white !important; padding: 0 !important; margin: 0 !important; }
         .card-piedra { box-shadow: none !important; border: none !important; }
         .table-premium { width: 100% !important; border-collapse: collapse !important; }
@@ -31,11 +31,13 @@
         .print-header { display: block !important; text-align: center; margin-bottom: 20px; }
     }
 
-    .print-header { display: none; }
+    @media screen {
+        .print-header { display: none; }
+    }
 
     .card-piedra {
         border: none;
-        border-radius: 20px;
+        border-radius: 12px;
         box-shadow: var(--shadow-piedra);
         background: white;
         overflow: hidden;
@@ -43,7 +45,7 @@
 
     .stat-card {
         border: none;
-        border-radius: 15px;
+        border-radius: 8px;
         transition: all 0.3s ease;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
         overflow: hidden;
@@ -73,7 +75,7 @@
     }
 
     .stat-icon {
-        font-size: 2.2rem;
+        font-size: 1.4rem;
         color: rgba(255, 255, 255, 0.2);
         position: absolute;
         right: 15px;
@@ -83,8 +85,8 @@
 
     .filter-section {
         background: white;
-        border-radius: 15px;
-        padding: 25px;
+        border-radius: 8px;
+        padding: 10px 12px;
         margin-bottom: 25px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.03);
         border: 1px solid #F5F1E8;
@@ -156,8 +158,8 @@
         vertical-align: middle;
         font-size: 0.75rem;
         color: #5D4037;
-        height: 32px;
-        line-height: 32px;
+        height: 28px;
+        line-height: 28px;
         white-space: nowrap;
     }
 
@@ -188,14 +190,14 @@
         gap: 4px;
         text-decoration: none;
     }
-    .btn-enviar-sii { background: #4682B4; color: white; }
-    .btn-sincronizar-sii { background: #5F9EA0; color: white; }
+    .btn-enviar-sii { background: #C76F43; color: white; }
+    .btn-sincronizar-sii { background: #8B7355; color: white; }
     .btn-enviar-sii:hover, .btn-sincronizar-sii:hover { transform: translateY(-1px); color: white; filter: brightness(1.1); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
 
     .badge-premium {
         padding: 2px 8px;
-        border-radius: 20px;
+        border-radius: 12px;
         font-size: 0.65rem;
         font-weight: 600;
         line-height: 1.2;
@@ -204,6 +206,43 @@
     .container-fluid {
         padding-left: 15px;
         padding-right: 15px;
+    }
+
+    .libro-toolbar {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
+    }
+    .libro-toolbar .nav-pills { flex: 0 0 auto; }
+    .libro-toolbar .nav-pills .nav-link {
+        padding: 4px 12px;
+        font-size: 0.72rem;
+    }
+    .libro-toolbar-stats {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .libro-toolbar-stats .stat-card {
+        flex: 1 1 0;
+        min-height: 44px;
+        padding: 6px 10px !important;
+    }
+    .libro-toolbar-stats .stat-value {
+        font-size: 1rem;
+        line-height: 1.15;
+    }
+    .libro-toolbar-stats .stat-label {
+        font-size: 0.62rem;
+        letter-spacing: 0.4px;
+    }
+    .libro-toolbar-stats .stat-icon {
+        font-size: 1.05rem;
+        right: 10px;
+        bottom: 6px;
     }
 </style>
 {% endblock %}
@@ -214,7 +253,7 @@
         <div class="col-12">
             <div class="card card-piedra">
                 <!-- HEADER PREMIUM -->
-                <div class="card-header border-0 bg-white py-4">
+                <div class="card-header border-0 bg-white py-2">
                     <div class="row align-items-center">
                         <div class="col-md-8">
                             <div class="d-flex align-items-center">
@@ -223,11 +262,11 @@
                                     <i class="fas fa-truck text-white" style="font-size: 1.2rem;"></i>
                                 </div>
                                 <div>
-                                    <h2 class="mb-0 fw-light" style="color: #5D4037; font-size: 1.8rem; letter-spacing: -1px;">
-                                        Libro de <span class="fw-bold">Guías</span> <small class="text-muted" style="font-size: 0.8rem;">[v2.0 Acciones SII]</small>
+                                    <h2 class="mb-0 fw-light" style="color: #5D4037; font-size: 1.15rem; letter-spacing: -1px;">
+                                        Libro de <span class="fw-bold">Guías</span>
                                     </h2>
                                     <div style="color: #8B7355; font-size: 0.9rem;">
-                                        Registro logístico de traslados y despachos
+                                        Registro de guías de despacho{% if sucursal_activa %} · {{ sucursal_activa.nombre }}{% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -239,7 +278,7 @@
                                 <i class="fas fa-print me-2"></i>Imprimir
                             </button>
                             <button class="btn btn-sm" 
-                                    style="background: #5F9EA0; color: white; border: none; font-weight: 600; padding: 8px 15px; border-radius: 10px;"
+                                    style="background: #6F5B44; color: white; border: none; font-weight: 600; padding: 8px 15px; border-radius: 10px;"
                                     onclick="sincronizarTodo()">
                                 <i class="fas fa-sync-alt me-2"></i>Sincronizar SII
                             </button>
@@ -252,7 +291,7 @@
                     </div>
                 </div>
 
-                <div class="card-body p-4" style="background: #FAFAF8;">
+                <div class="card-body p-2" style="background: #FAFAF8;">
                     <!-- Cabecera exclusiva para Impresión -->
                     <div class="print-header text-center">
                         <h1 style="font-size: 18pt; margin-bottom: 5px;">LIBRO DE GUÍAS DE DESPACHO</h1>
@@ -261,20 +300,32 @@
                         <hr>
                     </div>
                     
-                    <!-- NAVEGACIÓN ENTRE REPORTES -->
-                    <div class="px-2 mb-4">
-                        <ul class="nav nav-pills p-1 background-piedra-suave rounded-pill" style="background: #E8DCC8; border: 1px solid #D4C4A8; width: fit-content;">
+                    <!-- Pestañas + totales en una sola línea -->
+                    <div class="libro-toolbar hide-print px-2 mb-2">
+                        <ul class="nav nav-pills p-1 rounded-pill mb-0" style="background: #E8DCC8; border: 1px solid #D4C4A8;">
                             <li class="nav-item">
-                                <a class="nav-link rounded-pill fw-bold text-muted" href="{% url 'ventas:libro_ventas' %}">
-                                    <i class="fas fa-file-invoice me-2"></i>Libro de Ventas
+                                <a class="nav-link rounded-pill fw-bold" href="{% url 'ventas:libro_ventas' %}" style="color: #8B7355;">
+                                    <i class="fas fa-file-invoice me-1"></i>Libro de Ventas
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link active rounded-pill fw-bold" style="background: var(--color-piedra-primario); color: white;" href="{% url 'ventas:libro_guias' %}">
-                                    <i class="fas fa-truck me-2"></i>Libro de Guías
+                                    <i class="fas fa-truck me-1"></i>Libro de Guías
                                 </a>
                             </li>
                         </ul>
+                        <div class="libro-toolbar-stats">
+                            <div class="stat-card stat-card-1 position-relative">
+                                <div class="stat-label">Guías del período</div>
+                                <div class="stat-value">{{ estadisticas.total_documentos|default:0 }}</div>
+                                <i class="fas fa-truck stat-icon"></i>
+                            </div>
+                            <div class="stat-card stat-card-2 position-relative">
+                                <div class="stat-label">Total</div>
+                                <div class="stat-value">${{ estadisticas.total_general|default:0|format_miles }}</div>
+                                <i class="fas fa-file-invoice-dollar stat-icon"></i>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- FILTROS -->
@@ -290,15 +341,12 @@
                                     <input type="date" name="fecha_hasta" class="form-control-premium w-100" value="{{ fecha_hasta }}">
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label-premium">Cliente</label>
-                                    <select name="cliente" class="form-select-premium w-100">
-                                        <option value="">Todos</option>
-                                        {% for cliente in clientes %}
-                                        <option value="{{ cliente.id }}" {% if cliente_id == cliente.id|stringformat:"s" %}selected{% endif %}>
-                                            {{ cliente.nombre|truncatechars:30 }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
+                                    <label class="form-label-premium">Cliente / RUT</label>
+                                    <input type="text"
+                                        name="cliente"
+                                        class="form-control-premium w-100"
+                                        value="{{ cliente_id }}"
+                                        placeholder="Buscar por nombre o RUT">
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label-premium">Vendedor</label>
@@ -337,79 +385,54 @@
                                     <th>Tipo</th>
                                     <th>Cliente</th>
                                     <th>RUT</th>
+                                    <th>Sucursal</th>
                                     <th>Vendedor</th>
                                     <th class="text-end">Total</th>
                                     <th class="text-center">Estado</th>
-                                    <th class="text-center" style="color: #E67E22;">Acciones</th>
+                                    <th class="text-center action-column" style="color: #C76F43; min-width: 168px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for documento in page_obj %}
                                 <tr id="row-{{ documento.id }}">
                                     {% if documento.es_dte %}
-                                    <td>{{ documento.fecha_emision|date:"d/m/Y" }}</td>
+                                    <td>{{ documento.fecha_emision|date:"d-m-Y" }}</td>
                                     <td><strong>{{ documento.folio }}</strong></td>
                                     <td>
                                         <span class="badge badge-premium" style="background: #A0826D; color: white;">GD ELECTRÓNICA</span>
                                         {% if documento.tipo_traslado == '1' %}
-                                            <span class="badge badge-premium bg-success" style="font-size: 0.6rem;" title="Esta guía constituye una venta y es facturable">FACTURABLE</span>
+                                            <span class="badge badge-premium" style="background: #5F8D62; color: white; font-size: 0.6rem;" title="Esta guía constituye una venta y es facturable">FACTURABLE</span>
                                         {% elif documento.tipo_traslado == '5' %}
-                                            <span class="badge badge-premium bg-info" style="font-size: 0.6rem;" title="Traslado interno entre bodegas">INTERNO</span>
+                                            <span class="badge badge-premium" style="background: #C76F43; color: white; font-size: 0.6rem;" title="Traslado interno entre bodegas">INTERNO</span>
                                         {% else %}
-                                            <span class="badge badge-premium bg-secondary" style="font-size: 0.6rem;">{{ documento.get_tipo_traslado_display|default:"OTROS" }}</span>
+                                            <span class="badge badge-premium" style="background: #8B7355; color: white; font-size: 0.6rem;">{{ documento.get_tipo_traslado_display|default:"OTROS" }}</span>
                                         {% endif %}
                                     </td>
                                     <td>{{ documento.razon_social_receptor|truncatechars:40 }}</td>
                                     <td>{{ documento.rut_receptor }}</td>
-                                    <td>{{ documento.venta.vendedor.nombre|default:"-" }}</td>
+                                    <td>{{ documento.sucursal_nombre|default:"-" }}</td>
+                                    <td>{{ documento.vendedor_nombre|default:"-" }}</td>
                                     <td class="text-end"><strong>${{ documento.monto_total|format_miles }}</strong></td>
                                     <td class="text-center">
-                                        <span class="badge badge-premium" 
-                                              style="background: {% if documento.estado_sii == 'aceptado' %}rgba(72, 187, 120, 0.15){% else %}#EDF2F7{% endif %}; 
-                                                     color: {% if documento.estado_sii == 'aceptado' %}#2F855A{% else %}#2D3748{% endif %};">
-                                            {{ documento.get_estado_sii_display|default:documento.estado_sii }}
+                                        <span class="badge badge-premium" style="{{ documento.get_estado_sii_real_badge_style }}" title="{{ documento.glosa_sii|default:documento.error_envio|default:documento.get_estado_sii_real_display }}">
+                                            {{ documento.get_estado_sii_real_display }}
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            {% if documento.tipo_dte == '52' and documento.transferencias.first %}
-                                                <a href="{% url 'inventario:transferencia_imprimir_guia' documento.transferencias.first.pk %}"
-                                                class="btn btn-sm btn-outline-secondary" target="_blank" title="Ver Guía">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            {% else %}
-                                                <a href="{% url 'facturacion_electronica:ver_factura_electronica' documento.id %}?return_url={{ request.get_full_path|urlencode }}"
-                                                class="btn btn-sm btn-outline-secondary" target="_blank" title="Ver Guía">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            {% endif %}
-
-                                            {% if documento.estado_sii != 'aceptado' and documento.estado_sii != 'rechazado' %}
-                                                {% if documento.track_id %}
-                                                    <a href="{% url 'facturacion_electronica:consultar_estado_dte' documento.id %}?return_url={{ request.get_full_path|urlencode }}" 
-                                                    class="btn-action-sii btn-sincronizar-sii" title="Sincronizar Estado SII">
-                                                        <i class="fas fa-sync-alt"></i>
-                                                    </a>
-                                                {% else %}
-                                                    <a href="{% url 'facturacion_electronica:enviar_dte' documento.id %}?return_url={{ request.get_full_path|urlencode }}" 
-                                                    class="btn-action-sii btn-enviar-sii" title="Enviar al SII">
-                                                        <i class="fas fa-paper-plane"></i>
-                                                    </a>
-                                                {% endif %}
-                                            {% endif %}
-                                        </div>
+                                        {% include 'facturacion_electronica/_dte_acciones_lista.html' with dte=documento %}
                                     </td>
                                     {% else %}
-                                    <td>{{ documento.fecha|date:"d/m/Y" }}</td>
+                                    <td>{{ documento.fecha|date:"d-m-Y" }}</td>
                                     <td><strong>{{ documento.numero_venta }}</strong></td>
                                     <td><span class="badge badge-premium" style="background: #D4A574; color: white;">GUÍA POS</span></td>
                                     <td>{{ documento.cliente.nombre|default:"CLIENTE GENERAL"|truncatechars:40 }}</td>
                                     <td>{{ documento.cliente.rut|default:"-" }}</td>
+                                    <td>{{ documento.sucursal_nombre|default:"-" }}</td>
                                     <td>{{ documento.vendedor.nombre|default:"-" }}</td>
                                     <td class="text-end"><strong>${{ documento.total|format_miles }}</strong></td>
                                     <td class="text-center"><span class="badge bg-secondary">CONFIRMADA</span></td>
                                     <td class="text-center">
-                                        <a href="{% url 'ventas:venta_html' documento.pk %}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                        <a href="{% url 'ventas:venta_html' documento.pk %}?{{ return_url_q }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="opener">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </td>
@@ -417,7 +440,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center py-4">No se encontraron guías en este periodo.</td>
+                                    <td colspan="10" class="text-center py-4">No se encontraron guías en este periodo.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -446,6 +469,7 @@
         </div>
     </div>
 </div>
+{% include 'facturacion_electronica/_dte_detail_modal_shell.html' %}
 {% endblock %}
 
 {% block extra_js %}

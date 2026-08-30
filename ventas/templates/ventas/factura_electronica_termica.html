@@ -172,6 +172,16 @@
             padding: 1mm 0;
         }
 
+        .total-row-separated {
+            margin-top: 2.6mm;
+            padding-top: 2.4mm;
+            border-top: 1px dotted #999;
+        }
+
+        .total-row-emphasis {
+            font-size: 9.9pt;
+        }
+
         .total-label {
             font-weight: bold;
         }
@@ -247,6 +257,7 @@
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     {% for i in copias_range %}
     <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
@@ -260,7 +271,7 @@
             <div class="company-rut">RUT: {{ venta.empresa.rut }}</div>
             <div class="company-info">
                 {{ venta.empresa.get_direccion_dte }}<br>
-                {{ venta.empresa.get_ciudad_dte }}<br>
+                {{ venta.empresa.get_comuna_dte }}{% if venta.empresa.get_comuna_dte and venta.empresa.get_ciudad_dte %}, {% endif %}{{ venta.empresa.get_ciudad_dte }}<br>
                 Fono: {{ venta.empresa.telefono|default:"Sin teléfono" }}
             </div>
         </div>
@@ -285,7 +296,10 @@
             </div>
             <div class="document-fecha">
                 {% load l10n %}
-                {{ venta.fecha_creacion|date:"d/m/Y H:i" }}
+                {{ venta.fecha_creacion|date:"d-m-Y H:i" }}
+                {% if venta.fecha_vencimiento %}
+                <br>Vence: {{ venta.fecha_vencimiento|date:"d-m-Y" }}
+                {% endif %}
             </div>
             <div style="font-size: 7pt; margin-top: 1mm;">
                 SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}
@@ -308,37 +322,36 @@
         <div class="cliente-section">
             <div class="cliente-row">
                 <span class="cliente-label">Cliente:</span>
-                <span>{% if venta.cliente %}{{ venta.cliente.nombre|default:"Cliente General" }}{% else %}Cliente
-                    General{% endif %}</span>
+                <span>{{ receptor_display.nombre|default:"Cliente General" }}</span>
             </div>
             <div class="cliente-row">
                 <span class="cliente-label">RUT:</span>
-                <span>{% if venta.cliente %}{{ venta.cliente.rut|default:"-" }}{% else %}-{% endif %}</span>
+                <span>{{ receptor_display.rut|default:"-" }}</span>
             </div>
-            {% if venta.cliente and venta.cliente.giro %}
             <div class="cliente-row">
                 <span class="cliente-label">Giro:</span>
-                <span>{{ venta.cliente.giro }}</span>
+                <span>{{ receptor_display.giro|default:"-" }}</span>
             </div>
-            {% endif %}
-            {% if venta.cliente and venta.cliente.direccion %}
             <div class="cliente-row">
                 <span class="cliente-label">Dirección:</span>
-                <span>{{ venta.cliente.direccion }}</span>
+                <span>{{ receptor_display.direccion|default:"-" }}</span>
             </div>
-            {% endif %}
-            {% if venta.cliente %}
-            {% if venta.cliente.ciudad or venta.cliente.comuna %}
+            <div class="cliente-row">
+                <span class="cliente-label">Comuna:</span>
+                <span>{{ receptor_display.comuna|default:"-" }}</span>
+            </div>
             <div class="cliente-row">
                 <span class="cliente-label">Ciudad:</span>
-                <span>{{ venta.cliente.comuna|default:"-" }}{% if venta.cliente.comuna and venta.cliente.ciudad %}, {% endif %}{{ venta.cliente.ciudad|default:"-" }}</span>
+                <span>{{ receptor_display.ciudad|default:"-" }}</span>
             </div>
-            {% endif %}
-            {% endif %}
-            {% if venta.cliente and venta.cliente.telefono %}
+            <div class="cliente-row">
+                <span class="cliente-label">Bodega:</span>
+                <span>{{ bodega_display|default:"-" }}</span>
+            </div>
+            {% if receptor_display.telefono %}
             <div class="cliente-row">
                 <span class="cliente-label">Teléfono:</span>
-                <span>{{ venta.cliente.telefono }}</span>
+                <span>{{ receptor_display.telefono }}</span>
             </div>
             {% endif %}
         </div>
@@ -348,10 +361,10 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1mm 2mm 1mm 0; vertical-align: bottom;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.35mm 2mm 1.35mm 0; vertical-align: bottom;">
                         <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
                     </td>
-                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1mm 0; vertical-align: bottom;">
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
                         ${{ detalle.precio_total|format_miles }}
                     </td>
                 </tr>
@@ -371,11 +384,11 @@
                 <span class="total-value">-${{ venta.descuento|format_miles }}</span>
             </div>
             {% endif %}
-            <div class="total-row">
+            <div class="total-row total-row-emphasis">
                 <span class="total-label">Neto:</span>
                 <span class="total-value">${{ venta.neto|format_miles }}</span>
             </div>
-            <div class="total-row">
+            <div class="total-row total-row-separated total-row-emphasis">
                 <span class="total-label">IVA (19%):</span>
                 <span class="total-value">${{ venta.iva|format_miles }}</span>
             </div>
@@ -401,6 +414,11 @@
                 <span style="font-weight: bold;">${{ fp.monto|format_miles }}</span>
             </div>
             {% endfor %}
+            {% if condicion_pago_display and venta.saldo_pendiente %}
+            <div style="text-align: center; font-size: 7pt; margin-top: 1mm; color: #6F5B44;">
+                <strong>Saldo Pendiente:</strong> ${{ venta.saldo_pendiente|format_miles }}
+            </div>
+            {% endif %}
             {% elif venta.forma_pago %}
             <div style="text-align: center; font-size: 8pt;">
                 <strong>Forma de Pago:</strong> {{ venta.forma_pago.nombre }}
@@ -419,7 +437,7 @@
             {% for ref in venta.referencias.all %}
             <div style="font-size: 7pt; margin-bottom: 1mm; padding: 1mm; background: #f5f5f5; border-radius: 2mm;">
                 <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
-                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d-m-Y" }}</div>
                 {% if ref.razon_referencia %}
                 <div style="font-size: 6pt; color: #666;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:10 }}</div>
                 {% endif %}
@@ -474,24 +492,13 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ venta.empresa.nombre }}<br>
-            Impreso: {{ venta.fecha_creacion|date:"d/m/Y H:i" }}<br>
+            Impreso: {{ venta.fecha_creacion|date:"d-m-Y H:i" }}<br>
             Gracias por su compra
         </div>
     </div>
     {% endfor %}
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()"
-            style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            🖨️ Imprimir
-        </button>
-        <button id="btn-cerrar" onclick="safeCloseWindow()"
-            style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            ← Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         // Parámetros URL globales
         const urlParams = new URLSearchParams(window.location.search);
@@ -504,46 +511,7 @@
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl, nCopiasConfig });
 
         function safeCloseWindow() {
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const referrer = document.referrer;
-
-            console.log('[DTE] Cerrando ventana vinculada al POS...');
-
-            // SI HAY OPENER (POPUP), CERRAR INSTANTÁNEAMENTE PARA NO RECARGAR EL POS
-            if (window.opener) {
-                try {
-                    window.close();
-                    setTimeout(() => {
-                        if (!window.closed) {
-                            if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
-                            else window.close();
-                        }
-                    }, 100);
-                } catch (e) { console.log(e); }
-                return;
-            }
-
-            // PRIORIDAD: return_url
-            if (returnUrl) {
-                window.location.href = decodeURIComponent(returnUrl);
-                return;
-            }
-
-            // Fallback: usar referrer si viene del POS
-            if (referrer && referrer.includes('/pos/')) {
-                console.log('[DTE AUTO] Volviendo al POS (referrer)');
-                window.location.href = referrer;
-                return;
-            }
-            
-            // Fallback: volver atrás
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                console.log('[DTE AUTO] Fallback a Libro de Ventas');
-                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
         }
 
         // Auto-ejecuci?n

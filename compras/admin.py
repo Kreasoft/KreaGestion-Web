@@ -4,8 +4,24 @@ from django.urls import reverse
 from django.utils.safestring import mark_safe
 from .models import (
     OrdenCompra, ItemOrdenCompra, RecepcionMercancia, 
-    ItemRecepcion
+    ItemRecepcion, DocumentoRecibidoSII, EventoAceptacionReclamoSII
 )
+
+
+@admin.register(DocumentoRecibidoSII)
+class DocumentoRecibidoSIIAdmin(admin.ModelAdmin):
+    list_display = ('tipo_dte', 'folio', 'rut_emisor', 'razon_social_emisor', 'empresa', 'fecha_recepcion_sii', 'monto_total')
+    list_filter = ('tipo_dte', 'empresa')
+    search_fields = ('folio', 'rut_emisor', 'razon_social_emisor')
+    readonly_fields = ('fecha_importacion', 'actualizado_en', 'xml_original')
+
+
+@admin.register(EventoAceptacionReclamoSII)
+class EventoAceptacionReclamoSIIAdmin(admin.ModelAdmin):
+    list_display = ('documento', 'accion', 'estado', 'codigo_respuesta', 'usuario', 'fecha_solicitud', 'fecha_respuesta')
+    list_filter = ('accion', 'estado')
+    search_fields = ('documento__folio', 'documento__rut_emisor', 'descripcion_respuesta')
+    readonly_fields = ('respuesta_sii', 'fecha_solicitud', 'fecha_respuesta')
 
 
 class ItemOrdenCompraInline(admin.TabularInline):

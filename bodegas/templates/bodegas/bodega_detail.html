@@ -3,59 +3,69 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block page_title %}{{ titulo }}{% endblock %}
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background: #FAFAF8 !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .form-control, .form-select {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
+        accent-color: #6F5B44 !important;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-3">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4>{{ titulo }}</h4>
-        <a href="{% url 'bodegas:bodega_list' %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Volver
-        </a>
-    </div>
-
-    <!-- Información Básica -->
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Información General</h6>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-warehouse me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                    <div>
+                        <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                            Detalle de <span class="fw-bold">Bodega</span>
+                        </h2>
+                        <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">{{ bodega.nombre }}</div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Nombre:</label>
-                        <p class="form-control-plaintext">{{ bodega.nombre }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Código:</label>
-                        <p class="form-control-plaintext">{{ bodega.codigo }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Estado:</label>
-                        <p class="form-control-plaintext">
+                <a href="{% url 'bodegas:bodega_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
+                </a>
+            </div>
+        </div>
+        <div class="card-body" style="background: #FAFAF8; padding: 8px 12px;">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="px-2 py-2" style="background: #fff; border: 1px solid #E8DCC8; border-radius: 6px; font-size: 0.75rem;">
+                        <div class="fw-bold mb-1" style="color: #6F5B44; font-size: 0.72rem;">Información General</div>
+                        <div><span style="color:#8B7355;">Nombre:</span> <strong>{{ bodega.nombre }}</strong></div>
+                        <div><span style="color:#8B7355;">Código:</span> {{ bodega.codigo }}</div>
+                        <div><span style="color:#8B7355;">Estado:</span>
                             {% if bodega.activa %}
-                                <span class="badge bg-success">Activa</span>
+                                <span class="estado-dot estado-dot-activo" title="Activa"></span> Activa
                             {% else %}
-                                <span class="badge bg-secondary">Inactiva</span>
+                                <span class="estado-dot estado-dot-inactivo" title="Inactiva"></span> Inactiva
                             {% endif %}
-                        </p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">Acciones</h6>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-warning" onclick="editarBodega({{ bodega.id }})">
-                            <i class="fas fa-edit me-2"></i>Editar Bodega
+                <div class="col-md-6">
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-sm" onclick="editarBodega({{ bodega.id }})" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                            <i class="fas fa-edit me-1"></i>Editar
                         </button>
-                        <button type="button" class="btn btn-danger" onclick="eliminarBodega({{ bodega.id }}, '{{ bodega.nombre }}')">
-                            <i class="fas fa-trash me-2"></i>Eliminar Bodega
+                        <button type="button" class="btn btn-sm" onclick="eliminarBodega({{ bodega.id }}, '{{ bodega.nombre }}')" style="background: #C62828; border: 1px solid #8E0000; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                            <i class="fas fa-trash me-1"></i>Eliminar
                         </button>
                     </div>
                 </div>
@@ -64,35 +74,29 @@
     </div>
 </div>
 
-<!-- Modal para editar bodega -->
 <div class="modal fade" id="modalEditarBodega" tabindex="-1" aria-labelledby="modalEditarBodegaLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalEditarBodegaLabel">Editar Bodega</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 8px; overflow: hidden; border: none;">
+            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                <h5 class="modal-title" id="modalEditarBodegaLabel" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1.1rem;">Editar Bodega</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div id="bodegaEditFormContainer">
-                    <!-- El formulario se carga aquí via AJAX -->
-                </div>
+            <div class="modal-body" style="padding: 8px 12px !important; background: #FAFAF8;">
+                <div id="bodegaEditFormContainer"></div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal para eliminar bodega -->
 <div class="modal fade" id="modalEliminarBodega" tabindex="-1" aria-labelledby="modalEliminarBodegaLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="modalEliminarBodegaLabel">Eliminar Bodega</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 8px; overflow: hidden; border: none;">
+            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                <h5 class="modal-title" id="modalEliminarBodegaLabel" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1.1rem;">Eliminar Bodega</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <div id="bodegaDeleteFormContainer">
-                    <!-- El formulario se carga aquí via AJAX -->
-                </div>
+            <div class="modal-body" style="padding: 8px 12px !important; background: #FAFAF8;">
+                <div id="bodegaDeleteFormContainer"></div>
             </div>
         </div>
     </div>
@@ -101,15 +105,11 @@
 <script>
 let bodegaEditando = null;
 
-// Función para editar bodega
 function editarBodega(id) {
     bodegaEditando = id;
-    
     fetch(`/bodegas/editar-modal/${id}/`, {
         method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
@@ -123,13 +123,10 @@ function editarBodega(id) {
     });
 }
 
-// Función para eliminar bodega
 function eliminarBodega(id, nombre) {
     fetch(`/bodegas/eliminar-modal/${id}/`, {
         method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
@@ -144,4 +141,3 @@ function eliminarBodega(id, nombre) {
 }
 </script>
 {% endblock %}
-

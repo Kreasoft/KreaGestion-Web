@@ -192,7 +192,7 @@
 
         .detalle-table td {
             border-right: 1px solid #eee;
-            padding: 2px 2px;
+            padding: 3px 2px;
             vertical-align: top;
         }
 
@@ -300,35 +300,45 @@
             body {
                 padding: 0;
             }
-            .no-print {
+            .no-print,
+            .visor-actions {
                 display: none;
             }
         }
 
-        .print-button {
+        .visor-actions {
             position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 10px 20px;
-            background: #6B8E23;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            z-index: 1000;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #FAFAF8;
+            border-bottom: 1px solid #E8DCC8;
         }
 
-        .print-button:hover {
-            background: #8B9F4A;
+        .visor-actions button {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        @media screen {
+            body {
+                padding-top: 56px;
+            }
         }
     </style>
 </head>
 <body>
-    <button onclick="window.print()" class="print-button no-print">
-        <i class="fas fa-print"></i> Imprimir
-    </button>
-
+    {% include "includes/visor_acciones.html" %}
     <div class="guia-container">
         <!-- CABECERA -->
         <div class="header-section">
@@ -361,7 +371,7 @@
 
         <!-- FECHA DE EMISIÓN -->
         <div class="fecha-emision">
-            <strong>Fecha Emisión:</strong> {{ dte.fecha_emision|date:"d/m/Y" }}
+            <strong>Fecha Emisión:</strong> {{ dte.fecha_emision|date:"d-m-Y" }}
         </div>
 
         <!-- INFORMACIÓN DEL RECEPTOR -->
@@ -384,17 +394,17 @@
                     </div>
                     <div class="receptor-cell">
                         <span class="receptor-label">Dirección:</span>
-                        {{ dte.direccion_receptor|default:"" }}
+                        {{ receptor_display.direccion|default:"" }}
                     </div>
                 </div>
                 <div class="receptor-row">
                     <div class="receptor-cell">
                         <span class="receptor-label">Comuna:</span>
-                        {{ dte.comuna_receptor|default:"" }}
+                        {{ receptor_display.comuna|default:"" }}
                     </div>
                     <div class="receptor-cell">
                         <span class="receptor-label">Ciudad:</span>
-                        {{ dte.ciudad_receptor|default:"" }}
+                        {{ receptor_display.ciudad|default:"" }}
                     </div>
                 </div>
             </div>
@@ -458,6 +468,11 @@
                 {% endif %}
             </tbody>
         </table>
+        {% if venta and venta.observaciones %}
+        {% include "includes/visor_observacion.html" with observacion=venta.observaciones %}
+        {% elif transferencia and transferencia.observaciones %}
+        {% include "includes/visor_observacion.html" with observacion=transferencia.observaciones %}
+        {% endif %}
 
         <!-- SECCIÓN INFERIOR -->
         <div class="footer-section">
@@ -480,13 +495,6 @@
                     </div>
                 </div>
 
-                <!-- OBSERVACIONES -->
-                {% if transferencia.observaciones %}
-                <div class="observaciones-box">
-                    <div class="observaciones-title">OBSERVACIONES:</div>
-                    <div class="observaciones-text">{{ transferencia.observaciones }}</div>
-                </div>
-                {% endif %}
             </div>
 
             <!-- TOTALES -->
@@ -534,8 +542,8 @@
                 <div class="observaciones-box">
                     <div class="observaciones-title">INFORMACIÓN DEL DOCUMENTO:</div>
                     <div class="observaciones-text">
-                        <strong>Estado SII:</strong> {{ dte.get_estado_sii_display }}<br>
-                        <strong>Fecha Creación:</strong> {{ dte.fecha_creacion|date:"d/m/Y H:i" }}<br>
+                        <strong>Estado SII:</strong> {{ dte.get_estado_sii_real_display }}<br>
+                        <strong>Fecha Creación:</strong> {{ dte.fecha_creacion|date:"d-m-Y H:i" }}<br>
                         <strong>Usuario:</strong> {{ dte.usuario_creacion.get_full_name|default:dte.usuario_creacion.username }}
                     </div>
                 </div>
@@ -544,5 +552,11 @@
     </div>
 
     <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    {% include "includes/cerrar_visor.html" %}
+    <script>
+        window.cerrarVentana = function () {
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
+        };
+    </script>
 </body>
 </html>

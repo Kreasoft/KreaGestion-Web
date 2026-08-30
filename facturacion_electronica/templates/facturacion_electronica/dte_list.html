@@ -6,6 +6,22 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select, input[type="text"], input[type="email"], input[type="number"], input[type="password"], input[type="tel"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+        height: 26px !important; min-height: 26px !important; padding: 2px 8px !important;
+        font-size: 0.72rem !important; border-color: #D4C4A8 !important;
+    }
+    textarea, textarea.form-control { height: auto !important; min-height: 52px !important; }
+    .form-control:focus, .form-select:focus, input:focus, select:focus, textarea:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; outline: none;
+    }
+    .form-label { font-size: 0.72rem; color: #5D4037; font-weight: 600; margin-bottom: 2px; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
+{% endblock %}
+
 {% block extra_css %}
 <style>
     /* Estilos para la tabla Estilo Piedra y Variables */
@@ -115,19 +131,19 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
     <div class="card card-piedra">
         <!-- Header con Estilo Piedra Premium (Color Claro) -->
-        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <div class="d-flex align-items-center">
-                        <i class="fas fa-book me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                        <i class="fas fa-book me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                         <div>
-                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
                                 Libro de <span class="fw-bold">Ventas</span>
                             </h2>
-                            <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                            <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
                                 Registro de documentos emitidos (Grupo E)
                             </div>
                         </div>
@@ -135,12 +151,12 @@
                 </div>
                 <div class="col-md-4 text-end">
                     <button class="btn btn-sm me-2" 
-                            style="background: rgba(255, 255, 255, 0.6); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;"
+                            style="background: transparent; border: 1px solid #D4C4A8; color: #5D4037; font-weight: 600; font-size: 0.75rem;"
                             onclick="window.print()">
                         <i class="fas fa-print me-1"></i>Imprimir
                     </button>
                     <button class="btn btn-sm" 
-                            style="background: #8B7355; border: 1px solid #8B7355; color: white; font-weight: 600; font-size: 0.75rem;"
+                            style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;"
                             onclick="exportarExcel()">
                         <i class="fas fa-file-excel me-1"></i>Exportar
                     </button>
@@ -181,7 +197,7 @@
                     <select name="cliente" class="form-select form-select-sm" style="border: 1px solid #D4C4A8;">
                         <option value="">Todos</option>
                         {% for cliente in clientes %}
-                        <option value="{{ cliente.id }}">{{ cliente.nombre|truncatechars:20 }}</option>
+                        <option value="{{ cliente.id }}" data-rut="{{ cliente.rut|default:'' }}" data-nombre="{{ cliente.nombre }}">{{ cliente.nombre }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -323,70 +339,19 @@
                                 {% endif %}
                             </td>
                             <td><span class="fw-bold" style="color: #6F5B44;">{{ dte.folio }}</span></td>
-                            <td class="small opacity-75">{{ dte.fecha_emision|date:"d/m/Y" }}</td>
+                            <td class="small opacity-75">{{ dte.fecha_emision|date:"d-m-Y" }}</td>
                             <td>{{ dte.razon_social_receptor|truncatechars:35 }}</td>
                             <td class="small opacity-75">{{ dte.rut_receptor }}</td>
                             <td class="text-end" style="color: #6F5B44;">${{ dte.monto_neto|format_miles }}</td>
                             <td class="text-end" style="color: #A67C52;">${{ dte.monto_iva|format_miles }}</td>
                             <td class="text-end fw-bold" style="color: #8B7355;">${{ dte.monto_total|format_miles }}</td>
                             <td class="text-center">
-                                {% if dte.estado_sii == 'aceptado' %}
-                                <span class="badge bg-success" style="font-size: 0.65rem;">Aceptado</span>
-                                {% elif dte.estado_sii == 'enviado' %}
-                                <span class="badge bg-info" style="font-size: 0.65rem;">Enviado</span>
-                                {% elif dte.estado_sii == 'rechazado' %}
-                                <span class="badge bg-danger" style="font-size: 0.65rem;">Rechazado</span>
-                                {% elif dte.estado_sii == 'pendiente' %}
-                                <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Pendiente</span>
-                                {% elif dte.estado_sii == 'anulado' %}
-                                <span class="badge bg-secondary" style="font-size: 0.65rem;">Anulado</span>
-                                {% else %}
-                                <span class="badge bg-secondary" style="font-size: 0.65rem;">{{ dte.get_estado_sii_display|default:"-" }}</span>
-                                {% endif %}
+                                <span class="badge" style="font-size: 0.65rem; {{ dte.get_estado_sii_real_badge_style }}">
+                                    {{ dte.get_estado_sii_real_display }}
+                                </span>
                             </td>
                             <td class="text-center">
-                                <div class="d-flex justify-content-center gap-1">
-                                    {# Ver documento #}
-                                    {% if dte.tipo_dte == '52' and dte.transferencias.first %}
-                                    <a href="{% url 'inventario:transferencia_imprimir_guia' dte.transferencias.first.pk %}"
-                                        class="btn-action-piedra" target="_blank" title="Ver guía">
-                                        <i class="fas fa-file-pdf"></i>
-                                    </a>
-                                    {% elif dte.tipo_dte == '61' and dte.notacredito_id %}
-                                    <a href="{% url 'facturacion_electronica:ver_notacredito_electronica' dte.notacredito_id %}"
-                                        class="btn-action-piedra" target="_blank" title="Ver Nota de Crédito">
-                                        <i class="fas fa-file-contract"></i>
-                                    </a>
-                                    {% else %}
-                                    <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte.pk %}"
-                                        class="btn-action-piedra" target="_blank" title="Ver DTE">
-                                        <i class="fas fa-file-invoice"></i>
-                                    </a>
-                                    {% endif %}
-
-                                    {% if dte.estado_sii != 'aceptado' and dte.estado_sii != 'rechazado' and dte.estado_sii != 'anulado' %}
-                                    <a href="{% url 'facturacion_electronica:enviar_dte' dte.pk %}?return_url={{ request.get_full_path|urlencode }}"
-                                        class="btn-action-piedra" title="Enviar al SII" style="color: #D69E2E; border-color: #F6E05E;">
-                                        <i class="fas fa-paper-plane"></i>
-                                    </a>
-                                    {% endif %}
-
-                                    {# Regenerar XML (Boletas y Guías sin XML o con error) #}
-                                    {% if dte.tipo_dte == '39' or dte.tipo_dte == '52' %}
-                                    {% if dte.estado_sii != 'aceptado' and dte.estado_sii != 'rechazado' and dte.estado_sii != 'anulado' %}
-                                    <a href="{% url 'facturacion_electronica:regenerar_xml_dte' dte.pk %}?return_url={{ request.get_full_path|urlencode }}"
-                                        class="btn-action-piedra" title="Regenerar XML (si está vacío o con error)">
-                                        <i class="fas fa-sync-alt"></i>
-                                    </a>
-                                    {% endif %}
-                                    {% endif %}
-
-                                     {# Descargar desde GDExpress (PDF y XML) #}
-                                     <a href="{% url 'facturacion_electronica:descargar_pdf_gdexpress' dte.pk %}?return_url={{ request.get_full_path|urlencode }}"
-                                        class="btn-action-piedra" title="Traer PDF/XML y sincronizar desde GDExpress">
-                                         <i class="fas fa-cloud-download-alt"></i>
-                                     </a>
-                                 </div>
+                                {% include 'facturacion_electronica/_dte_acciones_lista.html' with dte=dte %}
                              </td>
                         </tr>
                         {% empty %}
@@ -406,6 +371,8 @@
         </div>
     </div>
 </div>
+
+{% include 'facturacion_electronica/_dte_detail_modal_shell.html' %}
 
 <script>
     function exportarExcel() {

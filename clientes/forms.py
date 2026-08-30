@@ -76,9 +76,21 @@ class ClienteForm(forms.ModelForm):
         rut = self.cleaned_data.get('rut', '')
         if not rut:
             raise ValidationError('El RUT es obligatorio.')
+
+        tipo = (self.data.get('tipo_cliente') or '').strip()
+        rut_ingresado = rut.strip()
+
+        # Extranjero: se guarda como viene, sin dígito verificador chileno.
+        if tipo == 'extranjero':
+            queryset = Cliente.objects.filter(empresa=self.empresa, rut=rut_ingresado)
+            if self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise ValidationError('Este RUT ya está siendo usado por otro cliente de su empresa.')
+            return rut_ingresado
         
         # Limpiar el RUT (quitar puntos y guiones)
-        rut_limpio = rut.strip().replace('.', '').replace('-', '')
+        rut_limpio = rut_ingresado.replace('.', '').replace('-', '')
         
         # Validar longitud
         if len(rut_limpio) < 8 or len(rut_limpio) > 9:
@@ -176,7 +188,7 @@ class ClienteForm(forms.ModelForm):
         plazo = self.cleaned_data.get('plazo_pago')
         if plazo is not None and plazo < 0:
             raise ValidationError('El plazo de pago no puede ser negativo.')
-        return plazo or 30
+        return plazo if plazo is not None else 0
     
     def clean_descuento_porcentaje(self):
         descuento = self.cleaned_data.get('descuento_porcentaje')

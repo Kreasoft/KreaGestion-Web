@@ -44,6 +44,7 @@ class EmpresaMiddleware:
 						# SOLO actualizar sesión si cambió (evitar sobrescribir POS)
 						if request.session.get('empresa_activa_id') != request.empresa.id:
 							request.session['empresa_activa_id'] = request.empresa.id
+							request.session['empresa_activa'] = request.empresa.id
 							request.session.modified = True
 							# CRÍTICO: Forzar guardado inmediato
 							request.session.save()
@@ -63,6 +64,7 @@ class EmpresaMiddleware:
 					
 					if request.empresa:
 						request.session['empresa_activa_id'] = request.empresa.id
+						request.session['empresa_activa'] = request.empresa.id
 						request.session.modified = True
 						# CRÍTICO: Forzar guardado inmediato
 						request.session.save()

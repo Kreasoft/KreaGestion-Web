@@ -6,7 +6,7 @@ def empresa_context(request):
         'todas_las_empresas': None
     }
     if request.user.is_authenticated:
-        empresa_id = request.session.get('empresa_activa_id')
+        empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
         if empresa_id:
             try:
                 context['empresa_actual'] = Empresa.objects.get(id=empresa_id)

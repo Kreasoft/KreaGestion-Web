@@ -1,19 +1,28 @@
 """
 Vistas para generación y gestión de DTE
 """
+import logging
+import os
+import re
+import traceback
+from io import BytesIO
+from urllib.parse import urlencode, unquote, urlparse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.db.models import Q, Count, Sum
 from django.utils import timezone
 from datetime import datetime
 from core.decorators import requiere_empresa
 from .models import DocumentoTributarioElectronico
-from .dte_service import DTEService
+from .dte_service import DTEService, normalizar_error_envio_sii
+from .lineas_dte import obtener_lineas_dte
 from ventas.models import Venta, NotaCredito
 from clientes.models import Cliente
+
+logger = logging.getLogger(__name__)
 
 # Importar OrdenDespacho si existe (puede no estar disponible en todos los proyectos)
 try:
@@ -28,7 +37,7 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
     """
     from django.urls import reverse
     
-    url = request.GET.get('return_url')
+    url = request.POST.get('return_url') or request.GET.get('return_url')
     
     if not url:
         # Intentar obtener del referer si no hay return_url
@@ -36,9 +45,9 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
         if referer:
             # Evitar bucles si el referer es la misma página de acción o el detalle del documento
             excluded_patterns = [
-                '/enviar/', '/consultar-estado/', '/descargar-pdf/', 
-                '/regenerar-xml/', '/ver-factura/', '/ver-notacredito/', 
-                '/ver-notadebito/', '/dte/'
+                '/enviar/', '/enviar-email/', '/consultar-estado/', '/descargar-pdf/',
+                '/descargar-xml/', '/regenerar-xml/', '/ver-factura/',
+                '/ver-notacredito/', '/ver-notadebito/', '/dte/'
             ]
             if not any(x in referer for x in excluded_patterns):
                 url = referer
@@ -47,6 +56,8 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
         # Fallback inteligente según el tipo de DTE
         if dte and dte.tipo_dte == '52':
             url = reverse('ventas:libro_guias')
+        elif dte and str(dte.tipo_dte) in {'33', '34', '39', '41', '56', '61'}:
+            url = reverse('ventas:libro_ventas')
         else:
             url = reverse('facturacion_electronica:dte_list')
             
@@ -67,6 +78,91 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
         url += f'#{anchor}'
         
     return redirect(url)
+
+
+def _attr_texto(obj, name):
+    if obj is None:
+        return ''
+    val = getattr(obj, name, None)
+    if val is None:
+        return ''
+    return str(val).strip()
+
+
+def _build_receptor_display(dte=None, fallback_cliente=None):
+    """Unifica los datos del receptor usando cliente y DTE como respaldo."""
+    class ReceptorDisplay:
+        def __init__(self, dte, fallback_cliente=None):
+            self.nombre = (
+                _attr_texto(fallback_cliente, 'nombre')
+                or _attr_texto(dte, 'razon_social_receptor')
+                or 'Cliente General'
+            )
+            self.rut = _attr_texto(fallback_cliente, 'rut') or _attr_texto(dte, 'rut_receptor')
+            self.giro = _attr_texto(fallback_cliente, 'giro') or _attr_texto(dte, 'giro_receptor')
+            self.direccion = _attr_texto(fallback_cliente, 'direccion') or _attr_texto(dte, 'direccion_receptor')
+            self.comuna = _attr_texto(fallback_cliente, 'comuna') or _attr_texto(dte, 'comuna_receptor')
+            self.ciudad = _attr_texto(fallback_cliente, 'ciudad') or _attr_texto(dte, 'ciudad_receptor')
+            self.telefono = _attr_texto(fallback_cliente, 'telefono')
+            self.email = _attr_texto(fallback_cliente, 'email')
+
+    return ReceptorDisplay(dte, fallback_cliente=fallback_cliente)
+
+
+def _format_bodega_display(bodega):
+    if not bodega:
+        return ''
+    nombre = _attr_texto(bodega, 'nombre') or str(bodega)
+    codigo = _attr_texto(bodega, 'codigo')
+    if codigo and nombre:
+        return f'{nombre} ({codigo})'
+    return nombre or codigo
+
+
+def resolver_bodega_documento(venta=None, dte=None):
+    """Resuelve la bodega de origen para imprimirla en guía/factura térmica."""
+    bodega = getattr(venta, 'bodega', None)
+    if bodega:
+        return _format_bodega_display(bodega)
+
+    try:
+        from caja.models import VentaProcesada
+        qs = VentaProcesada.objects.select_related('apertura_caja__caja__bodega')
+        vp = None
+        venta_id = getattr(venta, 'pk', None) or getattr(venta, 'id', None)
+        if venta_id:
+            vp = qs.filter(venta_final_id=venta_id).first()
+        if not vp and dte is not None:
+            vp = qs.filter(dte_generado=dte).first()
+            venta_dte_id = getattr(dte, 'venta_id', None)
+            if not vp and venta_dte_id:
+                vp = qs.filter(venta_final_id=venta_dte_id).first()
+        caja = getattr(getattr(vp, 'apertura_caja', None), 'caja', None) if vp else None
+        if caja and getattr(caja, 'bodega', None):
+            return _format_bodega_display(caja.bodega)
+    except Exception:
+        pass
+
+    try:
+        orden_pedido = getattr(venta, 'orden_pedido', None)
+        if orden_pedido and getattr(orden_pedido, 'bodega', None):
+            return _format_bodega_display(orden_pedido.bodega)
+        if dte is not None and hasattr(dte, 'orden_despacho'):
+            od = dte.orden_despacho.select_related('orden_pedido__bodega').first()
+            if od and getattr(od, 'orden_pedido', None) and od.orden_pedido.bodega:
+                return _format_bodega_display(od.orden_pedido.bodega)
+    except Exception:
+        pass
+
+    try:
+        if dte is not None and hasattr(dte, 'transferencias'):
+            transf = dte.transferencias.select_related('bodega_origen').first()
+            if transf and getattr(transf, 'bodega_origen', None):
+                return _format_bodega_display(transf.bodega_origen)
+    except Exception:
+        pass
+
+    return ''
 
 
 @login_required
@@ -120,7 +216,7 @@ def generar_dte_venta(request, venta_id):
         except ValueError as e:
             messages.error(request, f'Error al generar DTE: {str(e)}')
         except Exception as e:
-            messages.error(request, f'Error inesperado: {str(e)}')
+            messages.error(request, f'Error al generar DTE: {normalizar_error_envio_sii(e)}')
             import traceback
             traceback.print_exc()
     
@@ -141,40 +237,70 @@ def generar_dte_venta(request, venta_id):
 @requiere_empresa
 def enviar_dte_sii(request, dte_id):
     """
-    Envía un DTE al SII
+    Encola el DTE para envío al SII en segundo plano (no bloquea la página).
     """
     dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
-    
-    # Verificar que no haya sido enviado ya
-    if dte.estado_sii in ['enviado', 'aceptado']:
-        messages.warning(request, 'Este DTE ya fue enviado al SII.')
-        return redirect_to_dte_list(request)
 
-    # Acción directa: cualquier request que llegue aquí intenta enviar el DTE
-    try:
-        # Inicializar servicio
-        dte_service = DTEService(request.empresa)
+    if dte.tiene_track_sii and not dte.permite_reenvio_xml_corregido:
+        messages.warning(
+            request,
+            f'El folio {dte.folio} ya tiene Track {dte.track_id_efectivo()}. '
+            'Use Consultar SII. Reenviar el mismo archivo es riesgoso.'
+        )
+        return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
-        # Enviar al SII (vía DTEBox)
-        respuesta = dte_service.enviar_dte_al_sii(dte)
+    if dte.en_espera_reintento_sii() and not dte.permite_reenvio_xml_corregido:
+        messages.warning(request, dte.get_mensaje_espera_reintento())
+        return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
-        if respuesta.get('track_id'):
+    if not dte.puede_enviarse_al_sii and not dte.permite_reenvio_xml_corregido:
+        if dte.estado_sii in ['enviado', 'enviando'] and str(dte.track_id or '').strip():
+            messages.warning(request, 'Este DTE ya fue enviado al SII y está pendiente de respuesta.')
+        else:
+            messages.warning(request, 'Este DTE no está disponible para reenvío al SII.')
+        return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
+
+    if dte.permite_reenvio_xml_corregido:
+        from .dte_service import DTEService
+        servicio = DTEService(request.empresa)
+        try:
+            servicio.procesar_dte_existente(dte)
+            dte.refresh_from_db()
+            envio = servicio.enviar_dte_al_sii(dte)
+        except Exception as exc:
+            messages.error(request, f'No se pudo subir el XML del folio {dte.folio}: {exc}')
+            return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
+        if envio.get('success'):
+            track = envio.get('track_id') or dte.track_id_efectivo()
             messages.success(
                 request,
-                f'DTE enviado exitosamente al SII. Track ID: {respuesta["track_id"]}'
+                f'Folio {dte.folio} subido de nuevo (mismo folio). Track {track or "-"}. Pulse Consultar SII.'
             )
         else:
-            messages.warning(
+            messages.error(
                 request,
-                'DTE enviado pero no se recibió Track ID. Revise la respuesta del SII.'
+                f'El SII no aceptó el XML del folio {dte.folio}: {envio.get("message") or "sin detalle"}.'
             )
+        return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
-    except Exception as e:
-        messages.error(request, f'Error al enviar DTE: {str(e)}')
-        import traceback
-        traceback.print_exc()
-
-    # Siempre volver al listado de DTE después del intento de envío
+    servicio = DTEService(request.empresa)
+    try:
+        envio = servicio.enviar_dte_al_sii(dte)
+    except Exception as exc:
+        messages.error(request, f'El SII no recibió el folio {dte.folio}: {exc}')
+        return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
+    dte.refresh_from_db()
+    track = envio.get('track_id') or dte.track_id_efectivo()
+    if envio.get('success') or track:
+        messages.success(
+            request,
+            f'Folio {dte.folio} enviado al SII. Track {track or "-"}.'
+        )
+    else:
+        messages.error(
+            request,
+            f'El SII no confirmó el folio {dte.folio}: {envio.get("message") or envio.get("error") or "sin detalle"}.'
+        )
     return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
@@ -188,21 +314,27 @@ def consultar_estado_dte(request, dte_id):
     """
     dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
     
-    if not dte.track_id:
+    if not dte.tiene_track_sii:
         messages.error(request, 'Este DTE no tiene Track ID. Debe ser enviado al SII primero.')
         return redirect('facturacion_electronica:dte_detail', pk=dte_id)
+    if not str(dte.track_id or '').strip():
+        dte.track_id = dte.track_id_efectivo()
+        dte.save(update_fields=['track_id'])
     
     try:
         # Inicializar servicio
         dte_service = DTEService(request.empresa)
         
-        # Consultar estado
         estado = dte_service.consultar_estado_dte(dte)
-        
-        messages.success(
-            request,
-            f'Estado consultado: {estado.get("estado")} - {estado.get("glosa", "")}'
-        )
+        dte.refresh_from_db()
+        glosa = (estado.get('glosa') or '').strip()
+        if glosa:
+            messages.success(request, f'{dte.get_estado_sii_real_display()}: {glosa}')
+        else:
+            messages.success(
+                request,
+                f'Estado SII: {dte.get_estado_sii_real_display()} ({estado.get("estado") or "-"})'
+            )
         
     except Exception as e:
         messages.error(request, f'Error al consultar estado: {str(e)}')
@@ -212,37 +344,492 @@ def consultar_estado_dte(request, dte_id):
     return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
+def _safe_internal_url(url, fallback):
+    """Acepta solo rutas internas relativas para volver al listado."""
+    if not url:
+        return fallback
+    raw = str(url).strip()
+    if raw.startswith('/') and not raw.startswith('//'):
+        return raw
+    return fallback
+
+
+def _email_receptor_dte(dte):
+    """Correo del receptor: venta, nota o pedido de despacho."""
+    venta = getattr(dte, 'venta', None)
+    cliente = getattr(venta, 'cliente', None) if venta else None
+    email = _attr_texto(cliente, 'email')
+    if email:
+        return email
+    for related in ('notas_credito', 'notas_debito'):
+        try:
+            nota = getattr(dte, related).select_related('cliente').first()
+        except Exception:
+            nota = None
+        email = _attr_texto(getattr(nota, 'cliente', None), 'email')
+        if email:
+            return email
+    for related in ('detalles_despacho_guia', 'detalles_despacho_factura'):
+        try:
+            detalle = getattr(dte, related).select_related(
+                'orden_despacho__orden_pedido__cliente'
+            ).first()
+        except Exception:
+            detalle = None
+        pedido = getattr(getattr(detalle, 'orden_despacho', None), 'orden_pedido', None)
+        email = _attr_texto(getattr(pedido, 'cliente', None), 'email')
+        if email:
+            return email
+    return ''
+
+
+def _xml_dte_bytes(dte):
+    """XML firmado (o sin firmar) listo para adjuntar al correo."""
+    xml = (dte.xml_firmado or dte.xml_dte or '').strip()
+    if not xml:
+        return None
+    if isinstance(xml, bytes):
+        return xml
+    encoding = 'utf-8'
+    decl = re.search(r'encoding=["\']([^"\']+)["\']', xml[:220], re.IGNORECASE)
+    if decl:
+        encoding = decl.group(1).strip() or encoding
+    try:
+        return xml.encode(encoding)
+    except (LookupError, UnicodeEncodeError):
+        return xml.encode('utf-8', errors='replace')
+
+
+def url_copia_impresa(dte):
+    """URL del visor imprimible según el tipo de DTE."""
+    try:
+        if dte.tipo_dte == '52':
+            transferencia = dte.transferencias.first()
+            if transferencia:
+                return reverse('inventario:transferencia_imprimir_guia', args=[transferencia.pk])
+        if dte.tipo_dte == '61':
+            nota = dte.notas_credito.first()
+            if nota:
+                return reverse('facturacion_electronica:ver_notacredito_electronica', args=[nota.pk])
+        if dte.tipo_dte == '56':
+            nota = dte.notas_debito.first()
+            if nota:
+                return reverse('facturacion_electronica:ver_notadebito_electronica', args=[nota.pk])
+    except Exception:
+        logger.exception('url_copia_impresa DTE %s', getattr(dte, 'pk', None))
+    return reverse('facturacion_electronica:ver_factura_electronica', args=[dte.pk])
+
+
+def _tipo_impresora_dte(empresa, dte):
+    tipo = str(getattr(dte, 'tipo_dte', '') or '')
+    if tipo in {'33', '34'}:
+        return getattr(empresa, 'impresora_factura', 'laser') or 'laser'
+    if tipo in {'39', '41'}:
+        return getattr(empresa, 'impresora_boleta', 'laser') or 'laser'
+    if tipo == '52':
+        return getattr(empresa, 'impresora_guia', 'laser') or 'laser'
+    if tipo == '61':
+        return getattr(empresa, 'impresora_nota_credito', 'laser') or 'laser'
+    if tipo == '56':
+        return getattr(empresa, 'impresora_nota_debito', 'laser') or 'laser'
+    return 'laser'
+
+
+def _pdf_link_callback(uri, rel):
+    """Resuelve /media y /static a rutas de archivo para xhtml2pdf."""
+    from django.conf import settings
+    from django.contrib.staticfiles import finders
+
+    raw = unquote(str(uri or '').strip())
+    if not raw or raw.startswith('data:'):
+        return raw
+    if os.path.exists(raw):
+        return raw
+
+    path = urlparse(raw).path or raw
+    media_url = settings.MEDIA_URL or '/media/'
+    static_url = settings.STATIC_URL or '/static/'
+
+    if path.startswith(media_url):
+        rel_path = path[len(media_url):].lstrip('/').replace('/', os.sep)
+        full = os.path.join(settings.MEDIA_ROOT, rel_path)
+        return full if os.path.exists(full) else raw
+
+    if path.startswith(static_url):
+        rel_path = path[len(static_url):].lstrip('/')
+        found = finders.find(rel_path)
+        return found or raw
+
+    if path.startswith('/'):
+        candidate = os.path.join(settings.MEDIA_ROOT, path.lstrip('/').replace('/', os.sep))
+        if os.path.exists(candidate):
+            return candidate
+    return raw
+
+
+def _html_tributario_a_pdf(html, tipo_impresora):
+    """Convierte la copia oficial (láser/térmica) a PDF."""
+    from xhtml2pdf import pisa
+
+    tipo = str(tipo_impresora or 'laser').lower()
+    if tipo == 'termica_58':
+        pagina = '@page { size: 58mm 260mm; margin: 2mm; }'
+    elif tipo in {'termica_80', 'termica'}:
+        pagina = '@page { size: 80mm 280mm; margin: 2mm; }'
+    else:
+        pagina = '@page { size: A4; margin: 10mm; }'
+
+    html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'@page\s*\{[^}]*\}', '', html)
+    extra_css = (
+        f'<style>{pagina}'
+        '.no-print, .no-print * { display: none !important; }'
+        '.header, .header *, .document-meta, .company-name, .company-info { border: 0 !important; }'
+        'table.sii-id-box, table.sii-id-box td { border-collapse: collapse; }'
+        'table.sii-id-box { border: 2px solid #000 !important; }'
+        'table.sii-id-box td { border: 0 !important; }'
+        '</style>'
+    )
+    if '</head>' in html.lower():
+        html = re.sub(r'</head>', extra_css + '</head>', html, count=1, flags=re.IGNORECASE)
+    else:
+        html = extra_css + html
+
+    buffer = BytesIO()
+    resultado = pisa.CreatePDF(
+        src=html,
+        dest=buffer,
+        encoding='utf-8',
+        link_callback=_pdf_link_callback,
+    )
+    if resultado.err:
+        logger.warning('xhtml2pdf reportó %s avisos al generar PDF tributario', resultado.err)
+    pdf = buffer.getvalue()
+    if not pdf.startswith(b'%PDF'):
+        raise ValueError('El PDF generado no es válido')
+    return pdf
+
+
+def _respuesta_copia_oficial(request, dte):
+    """Renderiza la misma copia tributaria usada al imprimir."""
+    if dte.tipo_dte == '52':
+        transferencia = dte.transferencias.first()
+        if transferencia:
+            from inventario.views_transferencias import transferencia_imprimir_guia
+            return transferencia_imprimir_guia(request, transferencia.pk)
+    if dte.tipo_dte == '61':
+        nota = dte.notas_credito.first()
+        if nota:
+            return ver_notacredito_electronica(request, nota.pk)
+    if dte.tipo_dte == '56':
+        nota = dte.notas_debito.first()
+        if nota:
+            return ver_notadebito_electronica(request, nota.pk)
+    return ver_factura_electronica(request, dte.pk)
+
+
+def _dte_detail_es_partial(request):
+    return (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.GET.get('partial') == '1'
+    )
+
+
+def _dte_detail_error_response(request, dte, exc, is_partial):
+    """HTML útil con status 200 para que el modal no quede en un error opaco."""
+    tb = traceback.format_exc()
+    logger.exception('dte_detail fallo DTE %s: %s', getattr(dte, 'pk', None), exc)
+    try:
+        estado = dte.get_estado_sii_real_display() if dte else '-'
+    except Exception:
+        estado = getattr(dte, 'estado_sii', None) or '-'
+    context = {
+        'dte': dte,
+        'folio': getattr(dte, 'folio', '-'),
+        'tipo': '',
+        'track_id': getattr(dte, 'track_id', '') or '',
+        'estado': estado,
+        'glosa': (getattr(dte, 'glosa_sii', None) or getattr(dte, 'error_envio', None) or '').strip(),
+        'mensaje_tecnico': f'{exc.__class__.__name__}: {exc}',
+        'traceback_corto': (tb or '')[-1200:],
+    }
+    try:
+        context['tipo'] = dte.get_tipo_dte_display() if dte else ''
+    except Exception:
+        context['tipo'] = str(getattr(dte, 'tipo_dte', '') or '')
+    return render(
+        request,
+        'facturacion_electronica/_dte_detail_modal_error.html',
+        context,
+        status=200,
+    )
+
+
 @login_required
 @requiere_empresa
 def dte_detail(request, pk):
     """
-    Detalle de un DTE
+    Detalle de un DTE con tracking SII y motivo de rechazo/reparos.
+    El partial del modal nunca responde 500: si falla, entrega HTML de error.
     """
-    dte = get_object_or_404(DocumentoTributarioElectronico, pk=pk, empresa=request.empresa)
-    
-    # Determinar URL de retorno inteligente
-    from django.urls import reverse
-    back_url = reverse('facturacion_electronica:dte_list')
-    if dte.tipo_dte == '52':
-        back_url = reverse('ventas:libro_guias')
-    
-    # Añadir el anclaje si es posible
-    back_url += f"#row-{dte.id}"
-    
-    context = {
-        'dte': dte,
-        'back_url': back_url,
-    }
-    
-    return render(request, 'facturacion_electronica/dte_detail.html', context)
+    is_partial = _dte_detail_es_partial(request)
+    try:
+        dte = get_object_or_404(
+            DocumentoTributarioElectronico.objects.select_related(
+                'venta', 'venta__cliente', 'empresa'
+            ).prefetch_related(
+                'notas_credito__items__articulo',
+                'notas_debito__items__articulo',
+                'transferencias__detalles__articulo',
+                'venta__ventadetalle_set__articulo',
+                'detalles_despacho_guia__item_pedido__articulo',
+                'detalles_despacho_factura__item_pedido__articulo',
+            ),
+            pk=pk,
+            empresa=request.empresa,
+        )
+    except Http404:
+        raise
+    except Exception as exc:
+        if is_partial:
+            logger.exception('dte_detail no pudo cargar DTE %s', pk)
+            return _dte_detail_error_response(request, None, exc, True)
+        raise
+
+    try:
+        dte.corregir_falso_rechazo_espera()
+    except Exception:
+        logger.exception('corregir_falso_rechazo_espera DTE %s', dte.pk)
+
+    try:
+        fallback = reverse('ventas:libro_guias') if dte.tipo_dte == '52' else reverse('facturacion_electronica:dte_list')
+        fallback += f'#row-dte-{dte.id}'
+        back_url = _safe_internal_url(request.GET.get('return_url'), fallback)
+
+        try:
+            estado_real = dte.get_estado_sii_real()
+        except Exception:
+            estado_real = str(dte.estado_sii or 'enviado')
+
+        if is_partial:
+            action_return = back_url
+        else:
+            action_return = reverse('facturacion_electronica:dte_detail', args=[dte.pk])
+            if request.GET.get('return_url'):
+                action_return += '?' + urlencode({'return_url': request.GET.get('return_url')})
+
+        try:
+            url_copia = url_copia_impresa(dte)
+        except Exception:
+            logger.exception('url_copia_impresa DTE %s', dte.pk)
+            url_copia = reverse('facturacion_electronica:ver_factura_electronica', args=[dte.pk])
+
+        try:
+            lineas = obtener_lineas_dte(dte)
+        except Exception:
+            logger.exception('obtener_lineas_dte DTE %s', dte.pk)
+            lineas = []
+
+        try:
+            email_receptor = _email_receptor_dte(dte)
+        except Exception:
+            email_receptor = ''
+
+        try:
+            tiene_xml = bool((dte.xml_firmado or dte.xml_dte or '').strip())
+        except Exception:
+            tiene_xml = False
+
+        context = {
+            'dte': dte,
+            'back_url': back_url,
+            'url_copia': url_copia,
+            'estado_real': estado_real,
+            'mostrar_motivo': estado_real in ('rechazado', 'aceptado_reparos') or bool((dte.glosa_sii or '').strip()),
+            'tiene_xml': tiene_xml,
+            'email_receptor': email_receptor,
+            'detail_return_q': urlencode({'return_url': action_return}),
+            'return_url_q': urlencode({'return_url': action_return}),
+            'dte_modal_preload': True,
+            'lineas_dte': lineas,
+        }
+        template = (
+            'facturacion_electronica/_dte_detail_modal.html'
+            if is_partial
+            else 'facturacion_electronica/dte_detail.html'
+        )
+        return render(request, template, context)
+    except Exception as exc:
+        return _dte_detail_error_response(request, dte, exc, is_partial)
+
+
+def _generar_pdf_tributario_bytes(request, dte):
+    """Genera el PDF de la copia tributaria. Lanza ValueError si no se puede."""
+    if not dte.puede_emitir_documento_tributario:
+        raise ValueError(dte.get_mensaje_no_emitible())
+
+    original_get = request.GET
+    query = original_get.copy()
+    query['pdf'] = '1'
+    request.GET = query
+    try:
+        respuesta = _respuesta_copia_oficial(request, dte)
+    finally:
+        request.GET = original_get
+
+    if respuesta.status_code >= 300:
+        raise ValueError('No se pudo generar la copia tributaria del documento.')
+
+    html = respuesta.content.decode(getattr(respuesta, 'charset', None) or 'utf-8', errors='replace')
+    tipo_impresora = _tipo_impresora_dte(getattr(request, 'empresa', None) or dte.empresa, dte)
+    return _html_tributario_a_pdf(html, tipo_impresora)
 
 
 @login_required
 @requiere_empresa
-def ver_factura_electronica(request, dte_id):
+def descargar_xml_dte(request, dte_id):
+    """Descarga el XML firmado (o el XML del DTE si aún no está firmado)."""
+    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
+    xml = (dte.xml_firmado or dte.xml_dte or '').strip()
+    if not xml:
+        messages.error(request, 'Este documento no tiene XML disponible.')
+        return redirect('facturacion_electronica:dte_detail', pk=dte.pk)
+
+    xml_bytes = xml.encode('utf-8') if isinstance(xml, str) else xml
+    response = HttpResponse(xml_bytes, content_type='application/xml; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="DTE_{dte.tipo_dte}_{dte.folio}.xml"'
+    return response
+
+
+@login_required
+@requiere_empresa
+def descargar_pdf_dte(request, dte_id):
+    """Descarga el PDF de la copia tributaria (láser o térmica según configuración)."""
+    dte = get_object_or_404(
+        DocumentoTributarioElectronico.objects.select_related(
+            'empresa', 'venta', 'caf_utilizado', 'vendedor'
+        ).prefetch_related('notas_credito', 'notas_debito', 'transferencias'),
+        pk=dte_id,
+        empresa=request.empresa,
+    )
+    if not dte.puede_emitir_documento_tributario:
+        messages.error(request, dte.get_mensaje_no_emitible())
+        return redirect('facturacion_electronica:dte_detail', pk=dte.pk)
+
+    try:
+        pdf_bytes = _generar_pdf_tributario_bytes(request, dte)
+    except Exception as exc:
+        logger.exception('Error generando PDF tributario del DTE %s: %s', dte.pk, exc)
+        messages.error(request, 'No se pudo generar el PDF del documento tributario.')
+        return redirect('facturacion_electronica:dte_detail', pk=dte.pk)
+
+    filename = f'DTE_{dte.tipo_dte}_{dte.folio}.pdf'
+    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+@requiere_empresa
+def enviar_dte_email(request, dte_id):
+    """Envía el DTE por correo con PDF tributario y XML adjuntos."""
+    from django.core.exceptions import ValidationError
+    from django.core.mail import EmailMessage
+    from django.core.validators import validate_email
+
+    dte = get_object_or_404(
+        DocumentoTributarioElectronico.objects.select_related(
+            'empresa', 'venta', 'venta__cliente', 'caf_utilizado', 'vendedor'
+        ).prefetch_related('notas_credito', 'notas_debito', 'transferencias'),
+        pk=dte_id,
+        empresa=request.empresa,
+    )
+    destino = redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
+
+    if request.method != 'POST':
+        return destino
+
+    if not dte.puede_emitir_documento_tributario:
+        messages.error(request, dte.get_mensaje_no_emitible())
+        return destino
+
+    email = (request.POST.get('email') or '').strip() or _email_receptor_dte(dte)
+    try:
+        validate_email(email)
+    except ValidationError:
+        messages.error(request, 'Indique un correo válido para enviar el documento.')
+        return destino
+
+    from utilidades.utils import aviso_correo_no_entregado, conexion_correo, datos_smtp
+    smtp = datos_smtp(dte.empresa)
+    if not smtp['listo']:
+        messages.error(request, aviso_correo_no_entregado(email))
+        return destino
+
+    xml_bytes = _xml_dte_bytes(dte)
+    if not xml_bytes:
+        messages.error(request, 'Este documento no tiene XML para enviar.')
+        return destino
+
+    try:
+        pdf_bytes = _generar_pdf_tributario_bytes(request, dte)
+    except Exception as exc:
+        logger.exception('Error generando PDF para correo del DTE %s: %s', dte.pk, exc)
+        messages.error(request, 'No se pudo generar el PDF del documento tributario.')
+        return destino
+
+    empresa = dte.empresa
+    receptor = (dte.razon_social_receptor or '').strip() or 'Cliente'
+    tipo = dte.get_tipo_dte_display()
+    total = f"{int(round(float(dte.monto_total or 0))):,}".replace(',', '.')
+    extra = (request.POST.get('mensaje') or '').strip()
+    extra_txt = f"{extra}\n\n" if extra else ""
+    cuerpo = (
+        f"Estimado/a {receptor},\n\n"
+        f"{extra_txt}"
+        f"Adjuntamos {tipo} N° {dte.folio} de {empresa.nombre} (PDF y XML).\n"
+        f"Total: ${total}\n\n"
+        f"{empresa.nombre}\n"
+        f"{empresa.telefono or ''}\n"
+        f"{empresa.email or ''}\n"
+    )
+    copia = (empresa.email or '').strip()
+    try:
+        mensaje = EmailMessage(
+            subject=f"{tipo} N° {dte.folio} — {empresa.nombre}",
+            body=cuerpo,
+            from_email=smtp['from_email'] or empresa.email,
+            to=[email],
+            cc=[copia] if copia and copia.lower() != email.lower() else None,
+            connection=conexion_correo(empresa),
+        )
+        mensaje.attach(f'DTE_{dte.tipo_dte}_{dte.folio}.pdf', pdf_bytes, 'application/pdf')
+        mensaje.attach(f'DTE_{dte.tipo_dte}_{dte.folio}.xml', xml_bytes, 'application/xml')
+        mensaje.send(fail_silently=False)
+    except Exception as exc:
+        logger.exception('Error enviando correo del DTE %s: %s', dte.pk, exc)
+        messages.error(request, f'No se pudo enviar el correo ({exc}).')
+        return destino
+
+    messages.success(request, f'{tipo} N° {dte.folio} enviado a {email}.')
+    return destino
+
+
+@login_required
+@requiere_empresa
+def _pide_copia_a4(request):
+    formato = (request.GET.get('formato') or request.GET.get('vista') or '').strip().lower()
+    if formato in ('a4', 'carta', 'laser', 'copia'):
+        return True
+    return_url = (request.GET.get('return_url') or '').lower()
+    return 'cuenta-corriente' in return_url
+
+
+def ver_factura_electronica(request, dte_id, forzar_a4=False):
     """
     Muestra la factura electrónica con el timbre
     """
+    forzar_a4 = bool(forzar_a4) or _pide_copia_a4(request)
     # Optimizar el query de DTE con select_related y prefetch_related
     dte = get_object_or_404(
         DocumentoTributarioElectronico.objects.select_related(
@@ -250,6 +837,13 @@ def ver_factura_electronica(request, dte_id):
         ).prefetch_related('orden_despacho'), 
         pk=dte_id, empresa=request.empresa
     )
+
+    if not dte.puede_emitir_documento_tributario:
+        messages.error(
+            request,
+            dte.get_mensaje_no_emitible()
+        )
+        return redirect('facturacion_electronica:dte_detail', pk=dte_id)
     
     # ASEGURAR TIMBRE PDF417 si falta o es placeholder, pero tenemos el TED
     if dte.timbre_electronico and (not dte.timbre_pdf417 or dte.timbre_pdf417.size < 3000):
@@ -366,7 +960,16 @@ def ver_factura_electronica(request, dte_id):
     if isinstance(documento_origen, Venta):
         detalles = list(documento_origen.ventadetalle_set.all().select_related('articulo', 'articulo__unidad_medida'))
     elif OrdenDespacho and isinstance(documento_origen, OrdenDespacho):
-        detalles_despacho = documento_origen.items.all().select_related('item_pedido__articulo', 'item_pedido__articulo__unidad_medida')
+        detalles_qs = documento_origen.items.filter(cantidad__gt=0)
+        if str(dte.tipo_dte) == '52':
+            vinculados = detalles_qs.filter(guia_despacho=dte)
+            if vinculados.exists():
+                detalles_qs = vinculados
+        elif str(dte.tipo_dte) in ['33', '34']:
+            vinculados = detalles_qs.filter(factura=dte)
+            if vinculados.exists():
+                detalles_qs = vinculados
+        detalles_despacho = detalles_qs.select_related('item_pedido__articulo', 'item_pedido__articulo__unidad_medida')
         
         class DetalleWrapper:
             def __init__(self, detalle_despacho):
@@ -424,9 +1027,17 @@ def ver_factura_electronica(request, dte_id):
     
     else:
         template = 'ventas/factura_electronica_html.html'
+
+    if forzar_a4:
+        nombre_impresora = None
+        if dte.tipo_dte == '52':
+            template = 'inventario/guia_despacho_electronica_html.html'
+        else:
+            template = 'ventas/factura_electronica_html.html'
     
     # Obtener formas de pago múltiples
     formas_pago_list = []
+    condicion_pago_display = None
     try:
         from caja.models import VentaProcesada, MovimientoCaja
         
@@ -453,21 +1064,44 @@ def ver_factura_electronica(request, dte_id):
                 })
     except Exception as e:
         logger.warning(f"Error al obtener formas de pago: {str(e)}")
+
+    if venta and isinstance(venta, Venta):
+        saldo_pendiente = float(getattr(venta, 'saldo_pendiente', 0) or 0)
+        forma_pago = getattr(venta, 'forma_pago', None)
+        es_credito = bool(getattr(forma_pago, 'es_cuenta_corriente', False)) or saldo_pendiente > 0
+        if es_credito:
+            condicion_pago_display = {
+                'label': 'Credito / Cuenta Corriente',
+                'monto': saldo_pendiente if saldo_pendiente > 0 else float(venta.total)
+            }
+            if not any((fp.get('forma_pago') or '').lower() in ['credito', 'crédito', 'cuenta corriente', 'credito / cuenta corriente'] for fp in formas_pago_list):
+                formas_pago_list.append({
+                    'forma_pago': condicion_pago_display['label'],
+                    'monto': condicion_pago_display['monto']
+                })
     
     # Obtener configuración de copias de la estación (prioritario)
     n_copias = 1
     estacion = getattr(venta, 'estacion_trabajo', None)
     if estacion:
         n_copias = estacion.get_copias_por_tipo(dte.get_tipo_slug())
+    if request.GET.get('pdf') == '1':
+        n_copias = 1
     
+    receptor_display = _build_receptor_display(dte, fallback_cliente=cliente_display)
+    bodega_display = resolver_bodega_documento(venta=venta, dte=dte)
+
     context = {
         'dte': dte,
         'venta': venta,
         'cliente_display': cliente_display,
+        'receptor_display': receptor_display,
+        'bodega_display': bodega_display,
         'detalles': detalles,
         'empresa': empresa,
         'nombre_impresora': nombre_impresora,
         'formas_pago_list': formas_pago_list,
+        'condicion_pago_display': condicion_pago_display,
         'n_copias': n_copias,
         'copias_range': range(n_copias),
     }
@@ -485,6 +1119,13 @@ def ver_notacredito_electronica(request, notacredito_id):
     
     # Obtener el DTE asociado directamente desde la nota de crédito
     dte = nota.dte
+
+    if not dte.puede_emitir_documento_tributario:
+        messages.error(
+            request,
+            dte.get_mensaje_no_emitible()
+        )
+        return redirect('facturacion_electronica:dte_detail', pk=dte.pk)
 
     # Obtener detalles de la nota de crédito
     detalles = nota.items.all()
@@ -508,10 +1149,15 @@ def ver_notacredito_electronica(request, notacredito_id):
     estacion = getattr(venta, 'estacion_trabajo', None) if venta else None
     if estacion:
         n_copias = estacion.get_copias_por_tipo('notacredito')
-    
+    if request.GET.get('pdf') == '1':
+        n_copias = 1
+
+    receptor_display = _build_receptor_display(dte, fallback_cliente=getattr(nota, 'cliente', None))
+
     context = {
         'nota': nota,
         'dte': dte,
+        'receptor_display': receptor_display,
         'detalles': detalles,
         'empresa': empresa,
         'n_copias': n_copias,
@@ -548,10 +1194,16 @@ def ver_notadebito_electronica(request, notadebito_id):
         # Por ahora usamos el listado si no hay template laser específico o reusamos lógica
         template = 'ventas/notadebito_electronica_termica.html' # Ajustar si existe html
         print(f"[PRINT] Nota Debito -> Formato TERMICO (fallback)")
-    
+
+    n_copias = 1
+    if request.GET.get('pdf') == '1':
+        n_copias = 1
+    receptor_display = _build_receptor_display(dte, fallback_cliente=getattr(nota, 'cliente', None))
+
     context = {
         'nota': nota,
         'dte': dte,
+        'receptor_display': receptor_display,
         'detalles': detalles,
         'empresa': empresa,
         'copias_range': range(n_copias),
@@ -576,378 +1228,6 @@ def dte_list(request):
         
     return redirect(url)
 
-
-@login_required
-@requiere_empresa
-def probar_dtebox(request, dte_id):
-    """
-    Vista de prueba para probar DTEBox con un DTE existente
-    """
-    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
-    
-    if not request.empresa.dtebox_habilitado:
-        messages.error(request, 'DTEBox no está habilitado para esta empresa.')
-        return redirect('facturacion_electronica:dte_detail', pk=dte_id)
-    
-    if not dte.xml_firmado:
-        messages.error(request, 'Este DTE no tiene XML firmado. Debe generar el DTE primero.')
-        return redirect('facturacion_electronica:dte_detail', pk=dte_id)
-    
-    resultado = None
-    error = None
-    
-    if request.method == 'POST':
-        try:
-            from facturacion_electronica.dtebox_service import DTEBoxService
-            
-            dtebox = DTEBoxService(request.empresa)
-            resultado = dtebox.timbrar_dte(dte.xml_firmado)
-            
-            if resultado['success']:
-                # Actualizar el TED en el DTE
-                dte.timbre_electronico = resultado['ted']
-                
-                # Regenerar PDF417 con el nuevo TED
-                from facturacion_electronica.firma_electronica import FirmadorDTE
-                firmador = FirmadorDTE(
-                    request.empresa.certificado_digital.path,
-                    request.empresa.password_certificado
-                )
-                pdf417_data = firmador.generar_datos_pdf417(resultado['ted'])
-                dte.datos_pdf417 = pdf417_data
-                
-                # Regenerar imagen PDF417
-                from facturacion_electronica.pdf417_generator import PDF417Generator
-                PDF417Generator.guardar_pdf417_en_dte(dte)
-                
-                dte.save()
-                
-                messages.success(request, '✅ TED obtenido exitosamente desde DTEBox y actualizado en el DTE.')
-            else:
-                error = resultado['error']
-                messages.error(request, f'❌ Error al obtener TED desde DTEBox: {error}')
-                
-        except Exception as e:
-            error = str(e)
-            messages.error(request, f'❌ Error inesperado: {error}')
-            import traceback
-            traceback.print_exc()
-    
-    context = {
-        'dte': dte,
-        'resultado': resultado,
-        'error': error,
-        'empresa': request.empresa,
-    }
-    
-    return render(request, 'facturacion_electronica/probar_dtebox.html', context)
-
-
-@login_required
-@requiere_empresa
-def probar_dtebox_xml_ejemplo(request):
-    """
-    Vista para probar DTEBox con el XML de ejemplo exacto que el usuario compartió
-    """
-    if not request.empresa.dtebox_habilitado:
-        messages.error(request, 'DTEBox no está habilitado para esta empresa.')
-        return redirect_to_dte_list(request)
-    
-    resultado = None
-    error = None
-    
-    # XML de ejemplo válido y timbrado que el usuario compartió
-    xml_ejemplo = '''<EnvioDTE xmlns="http://www.sii.cl/SiiDte" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.0" xsi:schemaLocation="http://www.sii.cl/SiiDte EnvioDTE_v10.xsd">
-<SetDTE ID="ID74b2e30033e64606b9a1d4d54bd6b05f">
-<Caratula version="1.0">
-<RutEmisor>77117239-3</RutEmisor>
-<RutEnvia>10974377-1</RutEnvia>
-<RutReceptor>78421900-3</RutReceptor>
-<FchResol>2014-08-22</FchResol>
-<NroResol>80</NroResol>
-<TmstFirmaEnv>2025-11-03T12:26:50</TmstFirmaEnv>
-<SubTotDTE>
-<TpoDTE>33</TpoDTE>
-<NroDTE>1</NroDTE>
-</SubTotDTE>
-</Caratula>
-<DTE xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns="http://www.sii.cl/SiiDte" version="1.0">
-<Documento ID="F3220T33">
-<Encabezado>
-<IdDoc>
-<TipoDTE>33</TipoDTE>
-<Folio>3220</Folio>
-<FchEmis>2025-11-03</FchEmis>
-<FmaPago>1</FmaPago>
-</IdDoc>
-<Emisor>
-<RUTEmisor>77117239-3</RUTEmisor>
-<RznSoc>SOCIEDAD INFORMATICA KREASOFT SPA</RznSoc>
-<GiroEmis>.COMPUTACION</GiroEmis>
-<Telefono>963697225</Telefono>
-<Acteco>523930</Acteco>
-<DirOrigen>VICTOR PLAZA MAYORGA 887</DirOrigen>
-<CmnaOrigen>EL BOSQUE</CmnaOrigen>
-<CiudadOrigen>SANTIAGO</CiudadOrigen>
-<CdgVendedor>OFICINA</CdgVendedor>
-</Emisor>
-<Receptor>
-<RUTRecep>78421900-3</RUTRecep>
-<RznSocRecep>JPF CINE S.A.</RznSocRecep>
-<GiroRecep>PRODUCCIONES AUDIOVISUALES.</GiroRecep>
-<Contacto>.</Contacto>
-<DirRecep>CALLE NUEVA 1757.</DirRecep>
-<CmnaRecep>HUECHURABA.</CmnaRecep>
-<CiudadRecep>SANTIAGO.</CiudadRecep>
-</Receptor>
-<Totales>
-<MntNeto>186181</MntNeto>
-<MntExe>0</MntExe>
-<TasaIVA>19</TasaIVA>
-<IVA>35374</IVA>
-<MntTotal>221555</MntTotal>
-</Totales>
-</Encabezado>
-<Detalle>
-<NroLinDet>1</NroLinDet>
-<CdgItem>
-<TpoCodigo>INT</TpoCodigo>
-<VlrCodigo>SER001</VlrCodigo>
-</CdgItem>
-<NmbItem>SERVICIO MENSUAL</NmbItem>
-<DscItem>SERVICIO DE MANTENCION SISTEMAS N O V I E M B R E - 2025 </DscItem>
-<QtyItem>1</QtyItem>
-<PrcItem>186181</PrcItem>
-<MontoItem>186181</MontoItem>
-</Detalle>
-<TED version="1.0">
-<DD>
-<RE>77117239-3</RE>
-<TD>33</TD>
-<F>3220</F>
-<FE>2025-11-03</FE>
-<RR>78421900-3</RR>
-<RSR>JPF CINE S.A.</RSR>
-<MNT>221555</MNT>
-<IT1>SERVICIO MENSUAL</IT1>
-<CAF version="1.0">
-<DA>
-<RE>77117239-3</RE>
-<RS>SOCIEDAD INFORMÁTICA KREASOFT SPA</RS>
-<TD>33</TD>
-<RNG>
-<D>3150</D>
-<H>3227</H>
-</RNG>
-<FA>2025-05-05</FA>
-<RSAPK>
-<M>uYWbTHGa7MxLNibxh9WcGUObQQ+R+Jftd5Oxt4XKOl2Br/Dvo3MRSqUWatRH0x7CF7H2hCZbifaj+FGLJnuP9Q==</M>
-<E>Aw==</E>
-</RSAPK>
-<IDK>300</IDK>
-</DA>
-<FRMA algoritmo="SHA1withRSA">lmeB07XNTlAH7022i7xjKGPRaTrjRbJQuKH2qp7PwaWdUq5m7At5d0P9c7dXrDjF7gAresSLoeExxg0wtUeBiQ==</FRMA>
-</CAF>
-<TSTED>2025-11-03T12:26:45</TSTED>
-</DD>
-<FRMT algoritmo="SHA1withRSA">KHvM01ziigCDTlSeNcnyWHjRbMVuWHQ1va+Y7tc5TV7QC9uM3fu4y2gjvEzhJpBAwhRio0kvgMIpWIZb/L5AKw==</FRMT>
-</TED>
-<TmstFirma>2025-11-03T12:26:45</TmstFirma>
-</Documento>
-<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
-<SignedInfo>
-<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
-<Reference URI="#F3220T33">
-<Transforms>
-<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-</Transforms>
-<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
-<DigestValue>jjWEeksyW8B3whSe2dXZTWqYfRI=</DigestValue>
-</Reference>
-</SignedInfo>
-<SignatureValue> cs7egu7YkL5hoD1rtIECgAE2SVuiheFdpPgh+CsJFTF9HMHSb4kMiEh4r5f4XFsA 9QoV3yJB/AnGrTIKXKtL0sjj38XzxiPxo6po4Wr0L4xM5EP+JyR7nFHYt7i19U7k QKVoO8A8xgfS0BPhRh4Ah8tn2iRzWakZTISPB6tzT3jPwmmvWjM8tY9PD4IK4nIG WD9LVhJnBkhXjfYkkMGHRMnQdYagklATbBQEDv36w0Syw9eu/ddlUoNMM6n0tCSE 46N8C3Syu3kDf+VxX2OGyV4HDDrxKIrxkYkzpuutkzXO9dLvlbSPfMYvrwNspcsz J9ZUb35sTj7wf8tnFAZgFA== </SignatureValue>
-<KeyInfo>
-<KeyValue>
-<RSAKeyValue>
-<Modulus> nMxFllg/ae7Awo2T+2/6mMFfebVoTC4vBfqV5feMkAQ4YevKqh2nhBtjB4HKhMd4 GEVn3O57BTRkjEdQIGy/lVQBgBdZzaTW8e0YDqIXZQSh9qKRQqL9tQ7nhNl8Cq1e BMJqLInQVvlC0UYmvUEFe3t6/ws4QwdhRMK5WxNpb/r2WAeymQD0k9+jKnRda6zh gwyCMNrOifWAwG6vMNGwr+NZA2FHV9/6ecs6jfmKaVfDALjG4u9PW4ZH+GDrEWB8 fwWsWj6e4umicxnbLIqWWwUxxM5PacSSahvpdk22oDjJWK1xuAFZkO/2mhKlnRaS hh27GZgMRd9TxigV4QI/3Q== </Modulus>
-<Exponent>AQAB</Exponent>
-</RSAKeyValue>
-</KeyValue>
-<X509Data>
-<X509Certificate> MIIGEDCCBPigAwIBAgIIS9+A8qleqEEwDQYJKoZIhvcNAQELBQAwgboxHjAcBgkq hkiG9w0BCQEWD3NvcG9ydGVAaWRvay5jbDEiMCAGA1UEAwwZSURPSyBGSVJNQSBF TEVDVFJPTklDQSBWNDEXMBUGA1UECwwOUlVULTc2NjEwNzE4LTQxIDAeBgNVBAsM F0F1dG9yaWRhZCBDZXJ0aWZpY2Fkb3JhMRkwFwYDVQQKDBBCUE8gQWR2aXNvcnMg U3BBMREwDwYDVQQHDAhTYW50aWFnbzELMAkGA1UEBhMCQ0wwHhcNMjQwMTE4MjEy NzE2WhcNMjYwMTE3MjEyNzE2WjB7MScwJQYDVQQDDB5SSUNBUkRPIEFOVE9OSU8g R09OWkFMRVogR0FFVEUxITAfBgkqhkiG9w0BCQEWEmtyZWFzb2Z0QGdtYWlsLmNv bTETMBEGA1UEBRMKMTEzMTQ3NTUtNTELMAkGA1UEBhMCQ0wxCzAJBgNVBAcMAlJN MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnMxFllg/ae7Awo2T+2/6 mMFfebVoTC4vBfqV5feMkAQ4YevKqh2nhBtjB4HKhMd4GEVn3O57BTRkjEdQIGy/ lVQBgBdZzaTW8e0YDqIXZQSh9qKRQqL9tQ7nhNl8Cq1eBMJqLInQVvlC0UYmvUEF e3t6/ws4QwdhRMK5WxNpb/r2WAeymQD0k9+jKnRda6zhgwyCMNrOifWAwG6vMNGw r+NZA2FHV9/6ecs6jfmKaVfDALjG4u9PW4ZH+GDrEWB8fwWsWj6e4umicxnbLIqW WwUxxM5PacSSahvpdk22oDjJWK1xuAFZkO/2mhKlnRaShh27GZgMRd9TxigV4QI/ 3QIDAQABo4ICVjCCAlIwCQYDVR0TBAIwADAfBgNVHSMEGDAWgBS73UrbfxA3iHRn RbLKuRKE4MZ4FjCBmAYDVR0gBIGQMIGNMIGKBgorBgEEAYOMHgEEMHwwLAYIKwYB BQUHAgEWIGh0dHBzOi8vcHNjLmlkb2suY2wvb3Blbi9jcHMucGRmMEwGCCsGAQUF BwICMEAePgBDAGUAcgB0AGkAZgBpAGMAYQBkAG8AIABwAGEAcgBhACAAdQBzAG8A IABUAHIAaQBiAHUAdABhAHIAaQBvMIIBEQYDVR0fBIIBCDCCAQQwggEAoDmgN4Y1 aHR0cHM6Ly9wc2MuaWRvay5jbC9vcGVuL0lET0tfRklSTUFfRUxFQ1RST05JQ0Ff NC5jcmyigcKkgb8wgbwxHjAcBgkqhkiG9w0BCQEWD3NvcG9ydGVAaWRvay5jbDEk MCIGA1UEAwwbSURPSyBGSVJNQSBFTEVDVFJPTklDQSAyMDIyMRcwFQYDVQQLDA5S VVQtNzY2MTA3MTgtNDEgMB4GA1UECwwXQXV0b3JpZGFkIENlcnRpZmljYWRvcmEx GTAXBgNVBAoMEEJQTyBBZHZpc29ycyBTcEExETAPBgNVBAcMCFNhbnRpYWdvMQsw CQYDVQQGEwJDTDAdBgNVHQ4EFgQUR1ca1G+NYS4s9jhYXYQDS5D/nDowCwYDVR0P BAQDAgSQMCMGA1UdEgQcMBqgGAYIKwYBBAHBAQKgDBYKNzY2MTA3MTgtNDAjBgNV HREEHDAaoBgGCCsGAQQBwQEBoAwWCjExMzE0NzU1LTUwDQYJKoZIhvcNAQELBQAD ggEBAG1cRq5yYhudo5t+mxvGDH8TbNrWyu7Tbvw8HFqBdQGnfJJu/Q04PGIjZzCz AFpYlT7FEGj6CKm0lsxkdbgTEficazP/XClwu7L6LprhB4HmGywJf9p40NOP/S8r 4NgQqzI9uRLrrnHzSB9pYmP9rTsqXNTXN/GC8faj0pdgSmwwotKcT95CVMHoVTuI irvbOiD7/lAy/znLRKDSDHiiNgCz80+/hkkDYmXuqIgteurC0NZ6NIzC5W3p2SC7 PQt9euX1gmx7a3mmz6aEgJbHjxvFx5+8uCsSEwQXqrXu3hz3mqeeA804bwU9rMIG Cg1jxEvGSraeRRX9btsOAWEZ0hk= </X509Certificate>
-</X509Data>
-</KeyInfo>
-</Signature>
-</DTE>
-</SetDTE>
-<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
-<SignedInfo>
-<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
-<Reference URI="#ID74b2e30033e64606b9a1d4d54bd6b05f">
-<Transforms>
-<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>
-</Transforms>
-<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
-<DigestValue>hIN6XB5CxQW3NbXoAZxhj7JPWCQ=</DigestValue>
-</Reference>
-</SignedInfo>
-<SignatureValue> EgUz0KMyNg3JUnVXsvIeMJWJrx29WTrAPutCY5hHCao7MoeRQY6zcW2RkmxOjCKW 2VyTrsUoJ3XOibQRjgZOIaSAzd8iMbtvQ59GQMQbLUMpc/rKk0hAQA50qMgGFYdw mbsXtA+9kHJIzk7N7JdJTprBdb1P+cDBA54hD5FKODBvIY+RjlPsnE5FyMCi6rOF uxntZSEvChFZA2aShILOik2OLvoH2FeZJSIJ7s9Uso0SZmlAfjlAM4pqXz7jiVLl sDwoBETX6VLhhAcqnMJqKSmT80iPn3yxR20PW9rD1fqYif+z/jByZJ5ozdeHG1te KzcVf7pQTYVdMTw+sytozA== </SignatureValue>
-<KeyInfo>
-<KeyValue>
-<RSAKeyValue>
-<Modulus> mZyNOZGHPazOujYza5bj8qjBUwShdlmdABF+CJO5S1iGAMBXoyb+UTc5tqKaqLQr hxOJxZSZwpuMVbc2cJ+JtDwXsEj2asqB9GXjHGUH4HhJu7PI7qWw2YivtQm2p4R3 hsd+un1QECsfAyL8DQ4v8ulm7URFuOimYA8YK2ML8EmiBJ2AzXu9MTxIUBUkhxsv A3tffFuDudOtIK12FpHSM0jseAFvZJY7HSfV/oybdeUDeKX10rrgnIrsOHfwZQ9E TQ3lzbTZms1WCu40cG30aMn1o8c1TLMdfNPT8f2PULshH4TuykwHli4MVk8LD2TR 4hDdNt6JK2BUQJT2VeL8Fw== </Modulus>
-<Exponent>AQAB</Exponent>
-</RSAKeyValue>
-</KeyValue>
-<X509Data>
-<X509Certificate> MIIGEDCCBPigAwIBAgIINo2mVCGpjRYwDQYJKoZIhvcNAQELBQAwgboxHjAcBgkq hkiG9w0BCQEWD3NvcG9ydGVAaWRvay5jbDEiMCAGA1UEAwwZSURPSyBGSVJNQSBF TEVDVFJPTklDQSBWMjEXMBUGA1UECwwOUlVULTc2NjEwNzE4LTQxIDAeBgNVBAsM F0F1dG9yaWRhZCBDZXJ0aWZpY2Fkb3JhMRkwFwYDVQQKDBBCUE8gQWR2aXNvcnMg U3BBMREwDwYDVQQHDAhTYW50aWFnbzELMAkGA1UEBhMCQ0wwHhcNMjIwNTIzMjI0 OTM1WhcNMjUwNTIyMjI0OTM1WjB9MSgwJgYDVQQDDB9DUklTVElBTiBVTElTRVMg Uk9KQVMgR1VUSUVSUkVaMSIwIAYJKoZIhvcNAQkBFhNjcm9qYXNAZ2RleHByZXNz LmNsMRMwEQYDVQQFEwoxMDk3NDM3Ny0xMQswCQYDVQQGEwJDTDELMAkGA1UEBwwC Uk0wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCZnI05kYc9rM66NjNr luPyqMFTBKF2WZ0AEX4Ik7lLWIYAwFejJv5RNzm2opqotCuHE4nFlJnCm4xVtzZw n4m0PBewSPZqyoH0ZeMcZQfgeEm7s8jupbDZiK+1CbanhHeGx366fVAQKx8DIvwN Di/y6WbtREW46KZgDxgrYwvwSaIEnYDNe70xPEhQFSSHGy8De198W4O5060grXYW kdIzSOx4AW9kljsdJ9X+jJt15QN4pfXSuuCciuw4d/BlD0RNDeXNtNmazVYK7jRw bfRoyfWjxzVMsx1809Px/Y9QuyEfhO7KTAeWLgxWTwsPZNHiEN023okrYFRAlPZV 4vwXAgMBAAGjggJUMIICUDAJBgNVHRMEAjAAMB8GA1UdIwQYMBaAFPBsM7+sl5NY eqHgzp7s6N77ZT76MIGYBgNVHSAEgZAwgY0wgYoGCisGAQQBg4weAQQwfDAsBggr BgEFBQcCARYgaHR0cHM6Ly9wc2MuaWRvay5jbC9vcGVuL2Nwcy5wZGYwTAYIKwYB BQUHAgIwQB4+AEMAZQByAHQAaQBmAGkAYwBhAGQAbwAgAHAAYQByAGEAIAB1AHMA bwAgAFQAcgBpAGIAdQB0AGEAcgBpAG8wggEPBgNVHR8EggEGMIIBAjCB/6A6oDiG Nmh0dHBzOi8vcHNjLmlkb2suY2wvb3Blbi9JRE9LX0ZJUk1BX0VMRUNUUk9OSUNB X1YyLmNybKKBwKSBvTCBujEeMBwGCSqGSIb3DQEJARYPc29wb3J0ZUBpZG9rLmNs MSIwIAYDVQQDDBlJRE9LIEZJUk1BIEVMRUNUUk9OSUNBIFYyMRcwFQYDVQQLDA5S VVQtNzY2MTA3MTgtNDEgMB4GA1UECwwXQXV0b3JpZGFkIENlcnRpZmljYWRvcmEx GTAXBgNVBAoMEEJQTyBBZHZpc29ycyBTcEExETAPBgNVBAcMCFNhbnRpYWdvMQsw CQYDVQQGEwJDTDAdBgNVHQ4EFgQUnR78AetPsNDqFh+h8AeExJY4aOgwCwYDVR0P BAQDAgSQMCMGA1UdEgQcMBqgGAYIKwYBBAHBAQKgDBYKNzY2MTA3MTgtNDAjBgNV HREEHDAaoBgGCCsGAQQBwQEBoAwWCjEwOTc0Mzc3LTEwDQYJKoZIhvcNAQELBQAD ggEBAA6KTv23rQSdvQrJMy1jxE/+gYgMDsPqx6VcSRrsDVl+tUjf4Bld1zBLmBak dtMPiyNhQ0kaOgEjo3QU8kQ/SV6fWysnmwwAutagLJvX5cix9YPrhAnGxe31kdR7 nj8h/xMTetxxgmOQ/+sKwM6GDPCyzVMZ0JuXr9rn3ozViDx0+Lu1tegCE0CMZgLi ynwZXrtR5bjbJH01QrxErY8GoFIY7BO8Iah/iBS0SfClWYaEH6JOjcGUSIwDapa3 Th0+GYEUgSektb8aHqyl2XEDJtAem4PSWmsdOBZZaXA07eUVxI20qq4FeKdl38Mi t/WiFQvQ0chqv6iEPJZqx/3FVIU= </X509Certificate>
-</X509Data>
-</KeyInfo>
-</Signature>
-</EnvioDTE>'''
-    
-    if request.method == 'POST':
-        try:
-            from facturacion_electronica.dtebox_service import DTEBoxService
-            
-            dtebox = DTEBoxService(request.empresa)
-            
-            # Enviar el XML de ejemplo exacto
-            resultado = dtebox.timbrar_dte(xml_ejemplo)
-            
-            if resultado['success']:
-                messages.success(request, f'✅ Éxito! TED obtenido: {len(resultado["ted"])} caracteres')
-            else:
-                error = resultado['error']
-                messages.error(request, f'❌ Error: {error}')
-                
-        except Exception as e:
-            error = str(e)
-            messages.error(request, f'❌ Error inesperado: {error}')
-            import traceback
-            traceback.print_exc()
-    
-    context = {
-        'resultado': resultado,
-        'error': error,
-        'empresa': request.empresa,
-        'xml_ejemplo_preview': xml_ejemplo[:500] + '...' if len(xml_ejemplo) > 500 else xml_ejemplo,
-    }
-    
-    return render(request, 'facturacion_electronica/probar_dtebox_xml_ejemplo.html', context)
-
-
-@login_required
-@requiere_empresa
-def descargar_pdf_gdexpress(request, dte_id):
-    """
-    Descarga el PDF de un DTE desde GDExpress/DTEBox (Alias de compatibilidad)
-    """
-    return sincronizar_con_gdexpress(request, dte_id)
-
-
-@login_required
-@requiere_empresa
-def sincronizar_con_gdexpress(request, dte_id):
-    """
-    Trae PDF y XML desde GDExpress, sincroniza el TED localmente y ofrece descarga del PDF.
-    """
-    from .dtebox_service import DTEBoxService
-    from .models import DocumentoTributarioElectronico
-    from django.contrib import messages
-    from django.shortcuts import redirect, get_object_or_404
-    from django.http import HttpResponse
-    import base64
-    from lxml import etree
-    
-    try:
-        # Obtener el DTE
-        dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
-        
-        # Verificar que DTEBox esté habilitado
-        if not request.empresa.dtebox_habilitado:
-            messages.error(request, 'DTEBox/GDExpress no está habilitado para esta empresa.')
-            return redirect_to_dte_list(request)
-        
-        # Inicializar servicio DTEBox
-        dtebox_service = DTEBoxService(request.empresa)
-        
-        print(f"[GDExpress] Sincronizando DTE ID {dte.id}, Folio {dte.folio}")
-        sincronizado_xml = False
-        
-        # 1. Intentar traer XML para sincronizar el Timbre (TED)
-        try:
-            res_xml = dtebox_service.descargar_xml(dte)
-            if res_xml['success']:
-                xml_content = res_xml['xml_content']
-                # Intentar extraer el nodo <TED> para tener el timbre oficial
-                parser = etree.XMLParser(recover=True, encoding='ISO-8859-1')
-                root = etree.fromstring(xml_content.encode('ISO-8859-1'), parser=parser)
-                
-                # Namespace del SII
-                ns = {"sii": "http://www.sii.cl/SiiDte"}
-                
-                # Buscar el TED (Timbre Electrónico DTE)
-                ted_node = root.find(".//sii:TED", namespaces=ns)
-                if ted_node is None:
-                    ted_node = root.find(".//TED")
-                
-                if ted_node is not None:
-                    # Guardar el fragmento XML del TED
-                    dte.timbre_electronico = etree.tostring(ted_node, encoding='unicode')
-                    
-                    # También buscar el TmstFirma si es posible
-                    tmst_node = root.find(".//sii:TmstFirma", namespaces=ns)
-                    if tmst_node is None:
-                        tmst_node = root.find(".//TmstFirma")
-                    
-                    if tmst_node is not None:
-                        dte.tmst_firma = tmst_node.text
-                    
-                    # Guardar cambios
-                    dte.save()
-                    
-                    # Regenerar la imagen PDF417 localmente usando el TED oficial
-                    from .pdf417_generator import PDF417Generator
-                    if PDF417Generator.guardar_pdf417_en_dte(dte):
-                        print(f"[GDExpress] Imagen PDF417 regenerada exitosamente.")
-                    
-                    sincronizado_xml = True
-                    print(f"[GDExpress] Timbre (TED) sincronizado exitosamente.")
-        except Exception as e_xml:
-            print(f"[GDExpress] Error al intentar sincronizar XML: {str(e_xml)}")
-
-        # 2. Descargar el PDF para el usuario
-        resultado_pdf = dtebox_service.descargar_pdf(dte)
-        
-        if resultado_pdf['success']:
-            # Crear respuesta HTTP con el PDF
-            response = HttpResponse(resultado_pdf['pdf_content'], content_type='application/pdf')
-            # Establecer nombre de archivo
-            filename = f"DTE_{dte.tipo_dte}_{dte.folio}.pdf"
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
-            msg = f'Documento {dte.folio} sincronizado correctamente.'
-            if sincronizado_xml:
-                msg += ' El timbre (TED) ha sido actualizado en el sistema local.'
-            
-            messages.success(request, msg)
-            return response
-        else:
-            if sincronizado_xml:
-                messages.success(request, f'El timbre del folio {dte.folio} fue sincronizado, pero no se pudo recuperar el PDF de GDExpress: {resultado_pdf.get("error")}')
-            else:
-                messages.error(request, f'No se pudo sincronizar el documento {dte.folio}: {resultado_pdf.get("error")}')
-            
-            return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
-            
-    except Exception as e:
-        messages.error(request, f'Error durante la sincronización: {str(e)}')
-        import traceback
-        traceback.print_exc()
-        return redirect_to_dte_list(request)
 
 
 @login_required
@@ -1022,47 +1302,36 @@ def regenerar_xml_dte(request, dte_id):
             )
             xml_firmado = firmador.firmar_xml(xml_sin_firmar)
 
-            ted_xml = None
-            if getattr(request.empresa, 'dtebox_habilitado', False):
-                try:
-                    from facturacion_electronica.dtebox_service import DTEBoxService
-                    dtebox = DTEBoxService(request.empresa)
-                    res_dtebox = dtebox.timbrar_dte(xml_firmado, '52')
-                    if res_dtebox.get('success') and res_dtebox.get('ted'):
-                        ted_xml = res_dtebox['ted']
-                except Exception:
-                    pass
-            if not ted_xml:
-                dte_service = DTEService(request.empresa)
-                datos_caf = {}
-                try:
-                    datos_parsed = dte_service._parsear_datos_caf(dte.caf_utilizado)
-                    datos_caf = {'modulo': datos_parsed.get('M', ''), 'exponente': datos_parsed.get('E', '')}
-                except Exception:
-                    datos_caf = {'modulo': 'ERROR', 'exponente': 'ERROR'}
-                caf = dte.caf_utilizado
-                dte_data = {
-                    'rut_emisor': request.empresa.rut,
-                    'tipo_dte': '52',
-                    'folio': dte.folio,
-                    'fecha_emision': (dte.fecha_emision or timezone.now().date()).strftime('%Y-%m-%d'),
-                    'rut_receptor': request.empresa.rut,
-                    'razon_social_receptor': request.empresa.nombre,
-                    'monto_total': int(total),
-                    'item_1': 'Guía de Despacho Electrónica',
-                }
-                caf_data = {
-                    'rut_emisor': request.empresa.rut,
-                    'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
-                    'tipo_documento': '52',
-                    'folio_desde': caf.folio_desde,
-                    'folio_hasta': caf.folio_hasta,
-                    'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
-                    'modulo': datos_caf.get('modulo', ''),
-                    'exponente': datos_caf.get('exponente', ''),
-                    'firma': caf.firma_electronica,
-                }
-                ted_xml = firmador.generar_ted(dte_data, caf_data)
+            dte_service = DTEService(request.empresa)
+            try:
+                datos_parsed = dte_service._parsear_datos_caf(dte.caf_utilizado)
+                datos_caf = {'modulo': datos_parsed.get('M', ''), 'exponente': datos_parsed.get('E', '')}
+            except Exception:
+                datos_caf = {'modulo': 'ERROR', 'exponente': 'ERROR'}
+
+            caf = dte.caf_utilizado
+            dte_data = {
+                'rut_emisor': request.empresa.rut,
+                'tipo_dte': '52',
+                'folio': dte.folio,
+                'fecha_emision': (dte.fecha_emision or timezone.now().date()).strftime('%Y-%m-%d'),
+                'rut_receptor': request.empresa.rut,
+                'razon_social_receptor': request.empresa.nombre,
+                'monto_total': int(total),
+                'item_1': 'Guía de Despacho Electrónica',
+            }
+            caf_data = {
+                'rut_emisor': request.empresa.rut,
+                'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
+                'tipo_documento': '52',
+                'folio_desde': caf.folio_desde,
+                'folio_hasta': caf.folio_hasta,
+                'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
+                'modulo': datos_caf.get('modulo', ''),
+                'exponente': datos_caf.get('exponente', ''),
+                'firma': caf.firma_electronica,
+            }
+            ted_xml = firmador.generar_ted(dte_data, caf_data)
 
             pdf417_data = firmador.generar_datos_pdf417(ted_xml)
             dte.xml_dte = xml_sin_firmar
@@ -1083,70 +1352,31 @@ def regenerar_xml_dte(request, dte_id):
     return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
-@login_required
-@requiere_empresa
-def enviar_gdexpress_directo(request, dte_id):
-    """
-    Envía un DTE directamente a GDExpress/DTEBox
-    """
-    from .dtebox_service import DTEBoxService
-    
-    dte = get_object_or_404(DocumentoTributarioElectronico, pk=dte_id, empresa=request.empresa)
-    
-    try:
-        service = DTEBoxService(request.empresa)
-        resultado = service.timbrar_dte(dte.xml_firmado, dte.tipo_dte)
-        
-        if resultado.get('success'):
-            dte.timbre_electronico = resultado.get('ted', '')
-            dte.track_id = resultado.get('track_id', f'DTEBOX-{dte.folio}')
-            dte.estado_sii = 'enviado'
-            dte.error_envio = ''
-            dte.save()
-            messages.success(request, f'Folio {dte.folio} enviado a GDExpress - Track: {dte.track_id}')
-        else:
-            error = resultado.get('error', 'Error desconocido')
-            dte.error_envio = error
-            dte.save()
-            messages.error(request, f'Error enviando folio {dte.folio}: {error[:100]}')
-            
-    except Exception as e:
-        messages.error(request, f'Error: {str(e)}')
-        import traceback
-    return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
-
 
 @login_required
 @requiere_empresa
 def sincronizar_pendientes_sii(request):
     """
-    Envía todos los DTEs pendientes al SII en segundo plano usando BackgroundDTESender.
-    Se puede llamar vía GET (redirección) o vía AJAX (JSON).
+    Encola DTEs pendientes al SII en segundo plano (BackgroundDTESender).
+    GET o POST; AJAX responde JSON.
     """
     from .background_sender import get_background_sender
-    
-    # Obtener DTEs pendientes de la empresa
-    dtes_pendientes = DocumentoTributarioElectronico.objects.filter(
-        empresa=request.empresa,
-        estado_sii__in=['pendiente', 'generado', 'firmado', 'error', 'rechazado']
-    ).exclude(estado_sii__in=['enviado', 'aceptado', 'anulado'])
-    
-    count = dtes_pendientes.count()
-    
+    from .validacion_envio import obtener_dtes_pendientes_envio
+
+    sender = get_background_sender()
+    dtes_pendientes = obtener_dtes_pendientes_envio(request.empresa)
+    dtes_ids = list(dtes_pendientes.values_list('id', flat=True))
+    count = sender.enviar_multiples(dtes_ids, request.empresa.id) if dtes_ids else 0
+
     if count > 0:
-        sender = get_background_sender()
-        dtes_ids = list(dtes_pendientes.values_list('id', flat=True))
-        sender.enviar_multiples(dtes_ids, request.empresa.id)
-        
         msg = f'Se han encolado {count} documentos para envío al SII en segundo plano.'
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'success': True, 'message': msg, 'count': count})
-        
-        messages.success(request, f'✅ {msg}')
+        messages.success(request, msg)
     else:
         msg = 'No hay documentos pendientes para enviar.'
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'success': True, 'message': msg, 'count': 0})
         messages.info(request, msg)
-        
+
     return redirect_to_dte_list(request)

@@ -5,226 +5,124 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_css %}
+{% block extra_head %}
 <style>
-    /* Estilos tabla Piedra (Compacta) */
-    .table-piedra {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        font-family: 'Poppins', sans-serif !important;
-    }
-
-    .table-piedra thead th {
-        background: #FDFCFB !important;
-        border-bottom: 2px solid #E8DCC8 !important;
-        color: #8B7355 !important;
-        font-weight: 700 !important;
-        text-transform: uppercase !important;
-        font-size: 0.7rem !important;
-        letter-spacing: 1px !important;
-        padding: 12px 15px !important;
-    }
-
-    .table-piedra tbody tr {
-        height: 32px !important;
-        transition: all 0.2s ease !important;
-    }
-
-    .table-piedra tbody tr:nth-of-type(odd) {
-        background-color: rgba(245, 241, 232, 0.3) !important;
-    }
-    
-    .table-piedra tbody tr:nth-of-type(even) {
-        background-color: white !important;
-    }
-
-    .table-piedra tbody tr:hover {
-        background-color: #F5F1E8 !important;
-    }
-
-    .table-piedra tbody td {
-        padding: 4px 15px !important;
-        border-bottom: 1px solid #F5F1E8 !important;
-        vertical-align: middle !important;
-        font-size: 0.85rem !important;
-        color: #4A5568 !important;
-    }
-
-    .btn-action-piedra {
-        width: 28px !important;
-        height: 28px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: white !important;
-        border: 1px solid #D4C4A8 !important;
-        border-radius: 6px !important;
-        color: #8B7355 !important;
-        font-size: 0.75rem !important;
-        transition: all 0.2s ease !important;
-        text-decoration: none !important;
-        cursor: pointer !important;
-    }
-    
-    .btn-action-piedra:hover {
-        background: #8B7355 !important;
-        color: white !important;
-        transform: scale(1.1) !important;
+    body { background: #FAFAF8 !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .modal-footer { padding: 6px 12px !important; }
+    .modal-content .form-control, .modal-content .form-select,
+    .modal-content .form-control-sm, .modal-content .form-select-sm {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden;">
-                <div class="card-header stats-card-piedra" style="border: none; padding: 20px 30px; border-radius: 15px 15px 0 0; position: relative; border-bottom: 3px solid var(--color-piedra-borde) !important;">
-                    <div class="d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
-                        <div class="d-flex align-items-center">
-                            <!-- Icono Grande Frontal -->
-                            <div class="me-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 15px; border: 1px solid rgba(255,255,255,0.2);">
-                                <i class="fas fa-user-tie" style="font-size: 3.5rem; color: var(--color-piedra-texto); opacity: 0.95;"></i>
-                            </div>
-                            
-                            <div>
-                                <h2 class="mb-0" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; line-height: 1.1;">
-                                    <span style="font-weight: 300;">Gestión de</span> 
-                                    <span style="font-weight: 700;">Choferes</span>
-                                    <span style="font-weight: 300; font-size: 1.5rem; margin-left: 10px; opacity: 0.7;">#{{ choferes.count }}</span>
-                                </h2>
-                                <p class="mb-0 mt-1" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; font-size: 0.95rem; opacity: 0.85; font-weight: 500;">
-                                    Administración de transportistas, asistentes y personal de entrega
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            {% if perms.pedidos.add_chofer or user.is_superuser %}
-                            <button type="button" class="btn btn-sm px-4 fw-bold shadow-sm" id="btnNuevoChofer" style="background: linear-gradient(135deg, #A68B6D 0%, #8B7355 100%); color: white; border-radius: 20px; border: none; height: 42px; display: flex; align-items: center; transition: all 0.3s ease;">
-                                <i class="fas fa-plus me-2"></i> NUEVO CHOFER
-                            </button>
-                            {% endif %}
-                        </div>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-user-tie me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                    <div>
+                        <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                            Gestión de <span class="fw-bold">Choferes</span>
+                        </h2>
+                        <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75;">Transportistas y personal de entrega</div>
                     </div>
                 </div>
-
-                <div class="card-body p-3">
-                    <div class="filter-section" style="background: linear-gradient(135deg, #FAF8F3 0%, #F5F1E8 100%); border-radius: 8px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                        <form method="get" class="row g-2 align-items-end">
-                            <div class="col-md-5">
-                                <label for="q" class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">Buscar Chofer</label>
-                                <input type="text" name="q" id="q" class="form-control form-control-sm" placeholder="Buscar por código, nombre o RUT..." value="{{ query }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="estado" class="form-label fw-bold" style="font-size: 0.7rem; color: #6F5B44;">Estado</label>
-                                <select name="estado" id="estado" class="form-select form-select-sm">
-                                    <option value="">Todos</option>
-                                    <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activos</option>
-                                    <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Inactivos</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <button type="submit" class="btn btn-buscar btn-sm me-2"><i class="fas fa-search"></i> Buscar</button>
-                                <a href="{% url 'pedidos:chofer_list' %}" class="btn btn-limpiar btn-sm"><i class="fas fa-times"></i> Limpiar</a>
-                            </div>
-                        </form>
-                    </div>
-
-                    {% if page_obj %}
-                        <div class="table-responsive">
-                            <table class="table-piedra">
-                                <thead>
-                                    <tr>
-                                        <th>Código</th>
-                                        <th>Nombre Completo</th>
-                                        <th>RUT</th>
-                                        <th>Tipo</th>
-                                        <th>Estado</th>
-                                        <th class="text-center">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="choferes-tbody">
-                                    {% for chofer in page_obj %}
-                                    <tr>
-                                        <td class="fw-bold" style="color: #8B7355;">{{ chofer.codigo }}</td>
-                                        <td>{{ chofer.nombre }}</td>
-                                        <td class="text-muted">{{ chofer.rut }}</td>
-                                        <td>
-                                            {% if chofer.tipo == 'chofer' %}
-                                                <span class="badge" style="background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB;">CHOFER</span>
-                                            {% else %}
-                                                <span class="badge" style="background: #FFF3E0; color: #E65100; border: 1px solid #FFE0B2;">{{ chofer.get_tipo_display|upper }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if chofer.activo %}
-                                                <span class="badge" style="background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; font-size: 0.65rem;">ACTIVO</span>
-                                            {% else %}
-                                                <span class="badge" style="background: #FFF3E0; color: #E65100; border: 1px solid #FFE0B2; font-size: 0.65rem;">INACTIVO</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="d-flex justify-content-center gap-1">
-                                                <a href="{% url 'pedidos:chofer_detail' chofer.pk %}" class="btn-action-piedra" title="Ver detalle">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <button type="button" class="btn-action-piedra btn-editar-chofer" data-id="{{ chofer.pk }}" title="Editar">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <a href="{% url 'pedidos:chofer_delete' chofer.pk %}" class="btn-action-piedra text-danger" title="Eliminar">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {% if page_obj.has_other_pages %}
-                        <nav aria-label="Paginación" class="mt-3">
-                            <ul class="pagination justify-content-center">
-                                {% if page_obj.has_previous %}
-                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-left"></i></a></li>
-                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-left"></i></a></li>
-                                {% endif %}
-                                <li class="page-item active"><span class="page-link btn-nueva">{{ page_obj.number }}</span></li>
-                                {% if page_obj.has_next %}
-                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-right"></i></a></li>
-                                    <li class="page-item"><a class="page-link btn-limpiar" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}"><i class="fas fa-angle-double-right"></i></a></li>
-                                {% endif %}
-                            </ul>
-                        </nav>
-                        {% endif %}
-                    {% else %}
-                        <div class="alert alert-light text-center" style="background-color: #F5F1E8; border: 1px solid #E8DCC8; color: #8B7355;">
-                            <i class="fas fa-info-circle fa-lg me-2"></i>No se encontraron choferes. Utilice el botón <strong>"Nuevo Chofer"</strong> para agregar uno.
-                        </div>
-                    {% endif %}
-                </div>
+                {% if perms.pedidos.add_chofer or user.is_superuser %}
+                <button type="button" class="btn btn-sm" id="btnNuevoChofer" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                    <i class="fas fa-plus me-1"></i> Nuevo Chofer
+                </button>
+                {% endif %}
             </div>
+        </div>
+
+        <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+            <form method="get" class="row g-1 align-items-end mb-2 px-1 py-1" style="background: white; border: 1px solid #E8DCC8; border-radius: 6px;">
+                <div class="col-md-5">
+                    <input type="text" name="q" id="q" class="form-control form-control-sm" placeholder="Código, nombre o RUT..." value="{{ query }}" style="height:28px; font-size:0.75rem; border-color:#D4C4A8;">
+                </div>
+                <div class="col-md-3">
+                    <select name="estado" id="estado" class="form-select form-select-sm" style="height:28px; font-size:0.75rem; border-color:#D4C4A8;">
+                        <option value="">Todos</option>
+                        <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activos</option>
+                        <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Inactivos</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex gap-1">
+                    <button type="submit" class="btn btn-sm" style="background:#8B7355; color:#fff; height:28px; font-size:0.72rem;"><i class="fas fa-filter me-1"></i>Filtrar</button>
+                    <a href="{% url 'pedidos:chofer_list' %}" class="btn btn-sm btn-outline-secondary" style="height:28px; font-size:0.72rem; line-height:16px;"><i class="fas fa-undo"></i></a>
+                </div>
+            </form>
+
+            {% if page_obj %}
+            <div class="table-responsive" style="background: white; border-radius: 6px;">
+                <table class="table-piedra tabla-nombre-completo mb-0">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>RUT</th>
+                            <th>Tipo</th>
+                            <th style="width: 48px; text-align: center;">Est.</th>
+                            <th style="width: 80px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="choferes-tbody">
+                        {% for chofer in page_obj %}
+                        <tr>
+                            <td style="font-weight:700; color:#6F5B44;">{{ chofer.codigo }}</td>
+                            <td class="td-nombre">{{ chofer.nombre }}</td>
+                            <td>{{ chofer.rut }}</td>
+                            <td>{{ chofer.get_tipo_display }}</td>
+                            <td class="text-center">
+                                <span class="estado-dot {% if chofer.activo %}estado-dot-activo{% else %}estado-dot-inactivo{% endif %}" title="{% if chofer.activo %}Activo{% else %}Inactivo{% endif %}"></span>
+                            </td>
+                            <td class="td-acciones text-center">
+                                <a href="{% url 'pedidos:chofer_detail' chofer.pk %}" class="ico-32" title="Ver"><i class="fas fa-eye"></i></a>
+                                <a href="#" class="ico-32 btn-editar-chofer" data-id="{{ chofer.pk }}" title="Editar"><i class="fas fa-edit"></i></a>
+                                <a href="{% url 'pedidos:chofer_delete' chofer.pk %}" class="ico-32" title="Eliminar"><i class="fas fa-trash"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-center mt-2">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}" style="color:#8B7355;">‹</a></li>
+                    {% endif %}
+                    <li class="page-item active"><span class="page-link" style="background:#8B7355; border-color:#8B7355;">{{ page_obj.number }}</span></li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}" style="color:#8B7355;">›</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-3" style="background:white; border-radius:6px; color:#8B7355;">No hay choferes.</div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <div class="modal fade" id="choferModal" tabindex="-1" aria-labelledby="choferModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="border: 2px solid #E8DCC8; border-radius: 15px;">
-            <div class="modal-header stats-card-piedra" style="border: none; padding: 20px 30px; position: relative; border-radius: 15px 15px 0 0;">
-                <div class="stats-bg-icon" style="font-size: 5rem; right: 20px; top: 0; opacity: 0.1;">
-                    <i class="fas fa-user-tie"></i>
-                </div>
-                <div class="stats-content" style="position: relative; z-index: 2;">
-                    <h5 class="modal-title" id="choferModalLabel" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">
-                        <span style="font-weight: 300;" id="modal-action">Nuevo</span> <span style="font-weight: 700;">Chofer</span>
-                    </h5>
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0.5);"></button>
+        <div class="modal-content" style="border: none; border-radius: 8px; overflow: hidden;">
+            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid var(--color-piedra-borde); padding: 8px 16px;">
+                <h5 class="modal-title" id="choferModalLabel" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1.1rem;">
+                    <span id="modal-action">Nuevo</span> Chofer
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-4" id="chofer-modal-body"></div>
+            <div class="modal-body py-2" id="chofer-modal-body" style="background: #FAFAF8;"></div>
         </div>
     </div>
 </div>
@@ -232,7 +130,6 @@
 <script>
 $(document).ready(function() {
     const confirmButtonColor = '#6F5B44';
-
     $('#btnNuevoChofer').click(function() {
         $.ajax({
             url: '{% url "pedidos:chofer_create" %}',
@@ -246,8 +143,8 @@ $(document).ready(function() {
             error: function() { Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el formulario', confirmButtonColor: confirmButtonColor }); }
         });
     });
-
-    $(document).on('click', '.btn-editar-chofer', function() {
+    $(document).on('click', '.btn-editar-chofer', function(e) {
+        e.preventDefault();
         var choferId = $(this).data('id');
         $.ajax({
             url: '/pedidos/choferes/' + choferId + '/editar/',
@@ -261,11 +158,9 @@ $(document).ready(function() {
             error: function() { Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el formulario', confirmButtonColor: confirmButtonColor }); }
         });
     });
-
     $(document).on('submit', '#chofer-form', function(e) {
         e.preventDefault();
         var form = $(this);
-        
         $.ajax({
             url: form.attr('action'),
             type: 'POST',

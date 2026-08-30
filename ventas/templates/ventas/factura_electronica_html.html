@@ -174,7 +174,7 @@
 
         .detalle-table td {
             border-right: 1px solid #eee;
-            padding: 2px 2px;
+            padding: 3px 2px;
             vertical-align: top;
         }
 
@@ -349,6 +349,7 @@
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     <div class="factura-container">
 
         <!-- CABECERA -->
@@ -364,7 +365,7 @@
                 <div class="company-name">{{ venta.empresa.nombre }}</div>
                 <div class="company-info">
                     <strong>Casa Matriz:</strong> {{ venta.empresa.get_direccion_dte }}<br>
-                    <strong>{{ venta.empresa.get_ciudad_dte }}</strong><br>
+                    <strong>{{ venta.empresa.get_comuna_dte }}{% if venta.empresa.get_comuna_dte and venta.empresa.get_ciudad_dte %}, {% endif %}{{ venta.empresa.get_ciudad_dte }}</strong><br>
                     Fono: {{ venta.empresa.telefono|default:"Sin teléfono" }}
                 </div>
             </div>
@@ -405,7 +406,7 @@
         <div class="fecha-emision">
             <strong>Fecha:</strong>
             {% load l10n %}
-            {{ venta.fecha|date:"l, d \d\e F \d\e Y"|capfirst }}
+            {{ venta.fecha|date:"d-m-Y" }}
             {% if venta.vendedor %}
             | <strong>Vendedor:</strong> {{ venta.vendedor.nombre }}
             {% else %}
@@ -421,8 +422,7 @@
                         <span class="receptor-label">Señor(es):</span>
                     </div>
                     <div class="receptor-cell" colspan="3" style="padding-left: 0px; text-align: left;">
-                        <strong>{% if venta.cliente %}{{ venta.cliente.nombre|default:"Cliente General" }}{% else
-                            %}Cliente General{% endif %}</strong>
+                        <strong>{{ receptor_display.nombre|default:"Cliente General" }}</strong>
                     </div>
                 </div>
             </div>
@@ -432,67 +432,56 @@
                         <span class="receptor-label">RUT</span>
                     </div>
                     <div class="receptor-cell">
-                        {% if venta.cliente %}{{ venta.cliente.rut|default:"Sin RUT" }}{% else %}Sin RUT{% endif %}
+                        {{ receptor_display.rut|default:"Sin RUT" }}
                     </div>
                     <div class="receptor-cell">
                         <span class="receptor-label">Dirección</span>
                     </div>
                     <div class="receptor-cell">
-                        {% if venta.cliente %}{{ venta.cliente.direccion|default:"Sin dirección" }}{% else %}Sin
-                        dirección{% endif %}
+                        {{ receptor_display.direccion|default:"Sin dirección" }}
                     </div>
                 </div>
             </div>
-            {% if venta.cliente and venta.cliente.giro %}
             <div class="receptor-grid">
                 <div class="receptor-row">
                     <div class="receptor-cell">
                         <span class="receptor-label">Giro</span>
                     </div>
                     <div class="receptor-cell" colspan="3" style="padding-left: 0px; text-align: left;">
-                        {{ venta.cliente.giro }}
+                        {{ receptor_display.giro|default:"-" }}
                     </div>
                 </div>
             </div>
-            {% endif %}
-            {% if venta.cliente %}
-            {% if venta.cliente.ciudad or venta.cliente.comuna %}
             <div class="receptor-grid">
                 <div class="receptor-row">
-                    {% if venta.cliente.comuna %}
                     <div class="receptor-cell">
                         <span class="receptor-label">Comuna</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.cliente.comuna }}
+                        {{ receptor_display.comuna|default:"-" }}
                     </div>
-                    {% endif %}
-                    {% if venta.cliente.ciudad %}
                     <div class="receptor-cell">
                         <span class="receptor-label">Ciudad</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.cliente.ciudad }}
+                        {{ receptor_display.ciudad|default:"-" }}
                     </div>
-                    {% endif %}
                 </div>
             </div>
-            {% endif %}
-            {% endif %}
-            {% if venta.cliente and venta.cliente.telefono %}
+            {% if receptor_display.telefono %}
             <div class="receptor-grid">
                 <div class="receptor-row">
                     <div class="receptor-cell">
                         <span class="receptor-label">Teléfono</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.cliente.telefono }}
+                        {{ receptor_display.telefono }}
                     </div>
                     <div class="receptor-cell">
                         <span class="receptor-label">Email</span>
                     </div>
                     <div class="receptor-cell">
-                        {{ venta.cliente.email|default:"-" }}
+                        {{ receptor_display.email|default:"-" }}
                     </div>
                 </div>
             </div>
@@ -515,7 +504,12 @@
                 {% for detalle in detalles %}
                 <tr>
                     <td class="col-afecto">{{ detalle.articulo.codigo }}</td>
-                    <td class="col-detalle">{{ detalle.articulo.nombre }}</td>
+                    <td class="col-detalle">
+                        {{ detalle.articulo.nombre }}
+                        {% if detalle.comentario and detalle.comentario != detalle.articulo.nombre %}
+                        <div style="margin-top: 3px; font-size: 6.5pt; line-height: 1.3; letter-spacing: 0.01em; color: #6F5B44;">{{ detalle.comentario }}</div>
+                        {% endif %}
+                    </td>
                     <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
                     <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
                     <td class="col-descuento">
@@ -544,6 +538,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% include "includes/visor_observacion.html" with observacion=venta.observaciones %}
 
         <!-- SECCIÓN INFERIOR: TIMBRE Y TOTALES -->
         <div class="footer-section">
@@ -632,10 +627,13 @@
                     {% for fp in formas_pago_list %}
                     <div class="payment-method">{{ fp.forma_pago }}: ${{ fp.monto|format_miles }}</div>
                     {% endfor %}
+                {% if condicion_pago_display and venta.saldo_pendiente > 0 %}
+                <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|format_miles }}</div>
+                {% endif %}
                     {% elif venta.forma_pago %}
                     <div class="payment-method">{{ venta.forma_pago.nombre }}</div>
                     {% if venta.forma_pago.es_cuenta_corriente and venta.saldo_pendiente > 0 %}
-                    <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|floatformat:"0" }}</div>
+                <div class="payment-balance">Saldo Pendiente: ${{ venta.saldo_pendiente|format_miles }}</div>
                     {% endif %}
                     {% else %}
                     <div class="payment-method" style="color: #ff0000;">⚠️ No especificada</div>
@@ -654,7 +652,7 @@
                     <div
                         style="font-size: 7pt; margin-bottom: 3px; padding: 3px; background: white; border: 1px solid #e0e0e0; border-radius: 2px;">
                         <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
-                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d-m-Y" }}</div>
                         {% if ref.razon_referencia %}
                         <div style="font-size: 6pt; color: #666; margin-top: 1px;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:15 }}</div>
                         {% endif %}
@@ -683,18 +681,7 @@
 
     </div>
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()"
-            style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            🖨️ Imprimir Factura
-        </button>
-        <button id="btn-cerrar" onclick="safeCloseWindow()"
-            style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            ← Cerrar
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         // Parámetros URL globales
         const urlParams = new URLSearchParams(window.location.search);
@@ -706,32 +693,10 @@
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl });
 
         function safeCloseWindow() {
-            const posUrl = "{% url 'ventas:pos_view' %}";
-            const libroVentasUrl = "{% url 'ventas:libro_ventas' %}";
-            const params = new URLSearchParams(window.location.search);
-            const returnUrlParam = params.get('return_url');
-            const targetUrl = returnUrlParam ? decodeURIComponent(returnUrlParam) : libroVentasUrl;
-
-            console.log('[DTE AUTO] Cerrando ventana. Destino:', targetUrl);
-
-            // Intento 1: postMessage al padre (si existe)
-            try {
-                if (window.opener && !window.opener.closed) {
-                    window.opener.postMessage({ kind: 'print_done', dte_id: '{{ dte.id }}' }, window.location.origin);
-                }
-            } catch (e) { console.log('No se pudo notificar al padre:', e); }
-
-            // Intento 2: window.close()
-            if (window.opener || window.history.length <= 1) {
-                try {
-                    window.close();
-                } catch(e) { console.log(e); }
-            }
-
-            // Intento 3: Redirección inmediata (fallback)
-            setTimeout(() => {
-                window.location.replace(targetUrl);
-            }, 100);
+            cerrarVisor({
+                fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}",
+                message: { kind: 'print_done', dte_id: '{{ dte.id|default:"" }}' }
+            });
         }
 
         // Auto-ejecución

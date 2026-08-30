@@ -37,7 +37,7 @@
 
     .stone-title {
         font-weight: 700;
-        font-size: 1.5rem;
+        font-size: 1.45rem;
         margin: 0;
         color: var(--stone-secondary);
     }
@@ -56,7 +56,7 @@
     .info-column {
         background-color: #fdfbf7;
         border-right: 1px solid var(--stone-light);
-        padding: 2rem;
+        padding: 8px 12px;
     }
 
     .section-title {
@@ -133,7 +133,7 @@
     .totals-box {
         background: #fafafa;
         border-radius: 8px;
-        padding: 1.5rem;
+        padding: 8px 12px;
         border: 1px solid var(--stone-light);
         margin-top: 1.5rem;
     }
@@ -172,33 +172,39 @@
 </style>
 {% endblock %}
 
+{% block extra_head %}
+<style>
+    .section-title { font-size: 0.75rem !important; margin-bottom: 6px !important; padding-bottom: 4px !important; }
+    .info-value { font-size: 0.8rem !important; margin-bottom: 6px !important; }
+    .badge-stone { padding: 2px 8px !important; font-size: 0.7rem !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8;">
     
     <!-- Header -->
-    <div class="stone-header-card p-4 d-flex justify-content-between align-items-center">
+    <div class="stone-header-card d-flex justify-content-between align-items-center" style="padding: 8px 16px; background: var(--gradient-piedra); border: 1px solid var(--color-piedra-borde, #D4C4A8);">
         <div class="d-flex align-items-center">
-            <div class="me-3 p-3 rounded-circle bg-white shadow-sm" style="color: var(--stone-primary);">
-                <i class="fas fa-file-invoice fa-2x"></i>
-            </div>
+            <i class="fas fa-file-invoice me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
             <div>
-                <h1 class="stone-title">
+                <h1 class="stone-title" style="font-weight: 300; color: var(--color-piedra-texto);">
                     {{ documento.get_tipo_documento_display }} 
-                    <span class="fw-light ms-2">#{{ documento.numero_documento }}</span>
+                    <span class="fw-bold">#{{ documento.numero_documento }}</span>
                 </h1>
-                <div class="mt-1 text-muted small fw-bold text-uppercase" style="letter-spacing: 1px;">
+                <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">
                     {{ documento.fecha_emision|date:"d M Y" }} • {{ documento.proveedor.nombre }}
                 </div>
             </div>
         </div>
         <div class="d-flex gap-2">
-            <a href="{% url 'documentos:documento_compra_list' %}" class="btn-stone-outline">
-                <i class="fas fa-arrow-left me-2"></i> Volver
+            <a href="{% url 'documentos:documento_compra_list' %}" class="btn btn-sm" style="background: rgba(93,64,55,0.12); border: 1px solid rgba(93,64,55,0.28); color: #5D4037; font-weight: 600; font-size: 0.75rem;">
+                <i class="fas fa-arrow-left me-1"></i> Volver
             </a>
-            <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn btn-primary" style="background: var(--stone-primary); border-color: var(--stone-primary);">
-                <i class="fas fa-pen me-2"></i> Editar
+            <a href="{% url 'documentos:documento_compra_update' documento.pk %}" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                <i class="fas fa-pen me-1"></i> Editar
             </a>
-            <a href="{% url 'documentos:documento_compra_delete' documento.pk %}" class="btn btn-outline-danger" style="border-color: #ffcdd2;">
+            <a href="{% url 'documentos:documento_compra_delete' documento.pk %}" class="ico-32" title="Eliminar">
                 <i class="fas fa-trash-alt"></i>
             </a>
         </div>
@@ -211,7 +217,7 @@
             <!-- Columna Izquierda: Información -->
             <div class="col-lg-4 info-column">
                 
-                <div class="mb-5">
+                <div class="mb-2">
                     <h5 class="section-title"><i class="fas fa-info-circle me-2"></i> Estados</h5>
                     <div class="d-flex flex-column gap-2">
                         <span class="badge badge-stone w-100 text-center
@@ -229,7 +235,7 @@
                     </div>
                 </div>
 
-                <div class="mb-5">
+                <div class="mb-2">
                     <h5 class="section-title"><i class="fas fa-building me-2"></i> Proveedor</h5>
                     <div class="info-value mb-1 fw-bold text-primary">{{ documento.proveedor.nombre }}</div>
                     <div class="text-muted small">{{ documento.proveedor.rut }}</div>
@@ -242,12 +248,12 @@
                     <div class="row">
                         <div class="col-6">
                             <div class="info-label">Emisión</div>
-                            <div class="info-value">{{ documento.fecha_emision|date:"d/m/Y" }}</div>
+                            <div class="info-value">{{ documento.fecha_emision|date:"d-m-Y" }}</div>
                         </div>
                         {% if documento.fecha_vencimiento %}
                         <div class="col-6">
                             <div class="info-label">Vencimiento</div>
-                            <div class="info-value text-danger">{{ documento.fecha_vencimiento|date:"d/m/Y" }}</div>
+                            <div class="info-value text-danger">{{ documento.fecha_vencimiento|date:"d-m-Y" }}</div>
                         </div>
                         {% endif %}
                     </div>
@@ -277,8 +283,8 @@
             </div>
 
             <!-- Columna Derecha: Items -->
-            <div class="col-lg-8 p-4">
-                <h5 class="section-title mb-4"><i class="fas fa-boxes me-2"></i> Detalle Documento</h5>
+            <div class="col-lg-8 p-2">
+                <h5 class="section-title mb-2"><i class="fas fa-boxes me-2"></i> Detalle Documento</h5>
                 
                 <div class="table-responsive rounded border border-light mb-4">
                     <table class="table-stone">
@@ -343,7 +349,7 @@
     </div>
     
     <div class="text-end mt-3 text-muted small">
-        Creado: {{ documento.fecha_creacion|date:"d/m/Y H:i" }}
+        Creado: {{ documento.fecha_creacion|date:"d-m-Y H:i" }}
     </div>
 </div>
 {% endblock %}

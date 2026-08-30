@@ -83,7 +83,7 @@ class MovimientoCuentaCorriente(models.Model):
         ordering = ['-fecha_movimiento']
     
     def __str__(self):
-        return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d/%m/%Y')}"
+        return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d-%m-%Y')}"
 
 
 class CuentaCorrienteCliente(models.Model):
@@ -175,7 +175,7 @@ class MovimientoCuentaCorrienteCliente(models.Model):
         ordering = ['-fecha_movimiento']
 
     def __str__(self):
-        return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d/%m/%Y')}"
+        return f"{self.get_tipo_movimiento_display()} - {self.monto} - {self.fecha_movimiento.strftime('%d-%m-%Y')}"
 
 
 class DocumentoCliente(models.Model):
@@ -249,4 +249,4 @@ class PagoDocumentoCliente(models.Model):
         ordering = ['-fecha_pago']
     
     def __str__(self):
-        return f"Pago {self.documento.numero_documento} - ${self.monto} - {self.fecha_pago.strftime('%d/%m/%Y')}"
+        return f"Pago {self.documento.numero_documento} - ${self.monto} - {self.fecha_pago.strftime('%d-%m-%Y')}"

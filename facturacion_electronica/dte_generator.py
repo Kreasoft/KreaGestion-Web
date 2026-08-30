@@ -31,6 +31,112 @@ class DTEXMLGenerator:
         self.tipo_dte = tipo_dte
         self.folio = folio
         self.caf = caf
+
+    @staticmethod
+    def _monto_entero(valor):
+        return int(round(float(valor or 0)))
+
+    @staticmethod
+    def extraer_totales_xml(xml_string):
+        """Lee MntNeto / IVA / MntTotal del XML ya generado para alinear TED y BD."""
+        import re
+        xml = xml_string if isinstance(xml_string, str) else xml_string.decode('ISO-8859-1', errors='ignore')
+
+        def _tag(nombre):
+            m = re.search(r'<%s>([^<]+)</%s>' % (nombre, nombre), xml)
+            if not m:
+                return 0
+            try:
+                return int(round(float(m.group(1))))
+            except (TypeError, ValueError):
+                return 0
+
+        return {
+            'neto': _tag('MntNeto'),
+            'exento': _tag('MntExe'),
+            'iva': _tag('IVA'),
+            'total': _tag('MntTotal'),
+        }
+
+    def _obtener_montos_documento(self):
+        """Normaliza montos desde Venta, DTE, NotaCredito o NotaDebito."""
+        monto_neto = getattr(self.documento, 'monto_neto', None)
+        if monto_neto is None:
+            monto_neto = getattr(self.documento, 'subtotal', None)
+        if monto_neto is None:
+            monto_neto = getattr(self.documento, 'neto', 0)
+
+        monto_exento = getattr(self.documento, 'monto_exento', None)
+        if monto_exento is None:
+            monto_exento = getattr(self.documento, 'exento', 0)
+        if monto_exento is None:
+            monto_exento = 0
+
+        monto_iva = getattr(self.documento, 'monto_iva', None)
+        if monto_iva is None:
+            monto_iva = getattr(self.documento, 'iva', 0)
+        if monto_iva is None:
+            monto_iva = 0
+
+        monto_total = getattr(self.documento, 'monto_total', None)
+        if monto_total is None:
+            monto_total = getattr(self.documento, 'total', 0)
+        if monto_total is None:
+            monto_total = 0
+
+        return (
+            self._monto_entero(monto_neto),
+            self._monto_entero(monto_exento),
+            self._monto_entero(monto_iva),
+            self._monto_entero(monto_total),
+        )
+
+    @staticmethod
+    def _normalizar_rut(rut):
+        return str(rut or '').replace('.', '').replace(' ', '').upper()
+
+    def _rut_receptor_efectivo(self):
+        rut = getattr(self.documento, 'rut_receptor', None)
+        if rut:
+            return rut
+        from pedidos.models import OrdenDespacho
+        if isinstance(self.documento, OrdenDespacho):
+            cliente = getattr(getattr(self.documento, 'orden_pedido', None), 'cliente', None)
+            if cliente:
+                return cliente.rut
+        venta = getattr(self.documento, 'venta', None)
+        if venta and getattr(venta, 'cliente', None):
+            return venta.cliente.rut
+        cliente = getattr(self.documento, 'cliente', None)
+        if cliente:
+            return cliente.rut
+        return ''
+
+    def _es_guia_traslado_interno(self):
+        """Traslado interno (IndTraslado=5) solo si el receptor es la misma empresa."""
+        if str(self.tipo_dte) != '52':
+            return False
+        if str(getattr(self.documento, 'tipo_traslado', '') or getattr(self.documento, 'tipo_despacho', '') or '') != '5':
+            return False
+        rut_emp = self._normalizar_rut(getattr(self.empresa, 'rut', ''))
+        rut_rec = self._normalizar_rut(self._rut_receptor_efectivo())
+        if rut_rec and rut_emp and rut_rec != rut_emp:
+            return False
+        return True
+
+    def _ind_traslado_efectivo(self):
+        if str(self.tipo_dte) != '52':
+            return ''
+        ind = str(getattr(self.documento, 'tipo_traslado', '') or '')
+        if not ind:
+            ind = str(getattr(self.documento, 'tipo_despacho', '') or '')
+        if ind == '5' and not self._es_guia_traslado_interno():
+            return '1'
+        return ind
+
+    def _es_guia_sin_valoracion(self):
+        """Guía que no es venta: el SII permite omitir precio (no enviar PrcItem=0)."""
+        return self._ind_traslado_efectivo() in {'4', '5', '6', '8'}
         
     def generar_xml(self):
         """
@@ -126,11 +232,11 @@ class DTEXMLGenerator:
         # Encabezado
         encabezado = self._generar_encabezado(documento)
         
-        # Referencia al documento original (OBLIGATORIO)
-        self._generar_referencia(documento, obligatorio=True)
-        
         # Detalles
         sum_neto = self._generar_detalles(documento)
+
+        # Referencia al documento original (OBLIGATORIO)
+        self._generar_referencia(documento, obligatorio=True)
         
         # Totales (pasando sum_neto calculado)
         self._generar_totales(encabezado, sum_neto=sum_neto)
@@ -144,11 +250,11 @@ class DTEXMLGenerator:
         # Encabezado
         encabezado = self._generar_encabezado(documento)
         
-        # Referencia al documento original (OBLIGATORIO)
-        self._generar_referencia(documento, obligatorio=True)
-        
         # Detalles
         sum_neto = self._generar_detalles(documento)
+
+        # Referencia al documento original (OBLIGATORIO)
+        self._generar_referencia(documento, obligatorio=True)
         
         # Totales (pasando sum_neto calculado)
         self._generar_totales(encabezado, sum_neto=sum_neto)
@@ -200,8 +306,23 @@ class DTEXMLGenerator:
         if self.tipo_dte in ['39', '41']:
             etree.SubElement(id_doc, "IndServicio").text = "3"
         
-        # ORDEN ESTRICTO SII para IDDOC
-        # 1. FmaPago (Si corresponde)
+        # Orden estricto SII para IdDoc:
+        # TipoDTE, Folio, FchEmis, datos de guia 52, FmaPago, FchVenc.
+        if self.tipo_dte == '52':
+            tipo_despacho = str(getattr(self.documento, 'tipo_despacho_sii', None) or '').strip()
+            if tipo_despacho not in ('1', '2', '3'):
+                tipo_despacho = '2'
+            etree.SubElement(id_doc, "TipoDespacho").text = tipo_despacho
+
+            ind_traslado = '1'
+            if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
+                ind_traslado = str(self.documento.tipo_traslado)
+            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
+                ind_traslado = str(self.documento.tipo_despacho)
+            if ind_traslado == '5' and not self._es_guia_traslado_interno():
+                ind_traslado = '1'
+            etree.SubElement(id_doc, "IndTraslado").text = ind_traslado
+
         if self.tipo_dte not in ['39', '41']:
             forma_pago = "1"
             if hasattr(self.documento, 'forma_pago') and self.documento.forma_pago:
@@ -210,30 +331,27 @@ class DTEXMLGenerator:
                 v = self.documento.venta
                 if hasattr(v, 'forma_pago') and v.forma_pago:
                     forma_pago = "2" if getattr(v.forma_pago, 'es_credito', False) else "1"
-            
+
             etree.SubElement(id_doc, "FmaPago").text = forma_pago
 
-        # 2. TipoDespacho e IndTraslado (Solo para Guías 52)
-        if self.tipo_dte == '52':
-            tipo_despacho = '3'
-            if hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
-                tipo_despacho = str(self.documento.tipo_despacho)
-            etree.SubElement(id_doc, "TipoDespacho").text = tipo_despacho
-            
-            ind_traslado = '1'
-            if hasattr(self.documento, 'tipo_traslado') and self.documento.tipo_traslado:
-                ind_traslado = str(self.documento.tipo_traslado)
-            elif hasattr(self.documento, 'tipo_despacho') and self.documento.tipo_despacho:
-                ind_traslado = str(self.documento.tipo_despacho)
-            etree.SubElement(id_doc, "IndTraslado").text = ind_traslado
+        if self._es_guia_traslado_interno():
+            fecha_cancel = getattr(self.documento, 'fecha_emision', None)
+            if fecha_cancel:
+                etree.SubElement(id_doc, "FchCancel").text = fecha_cancel.strftime('%Y-%m-%d')
 
-        # 3. FchVenc (Si corresponde y NO es guía)
-        if self.tipo_dte != '52' and hasattr(self.documento, 'fecha_vencimiento') and self.documento.fecha_vencimiento:
-            etree.SubElement(id_doc, "FchVenc").text = self.documento.fecha_vencimiento.strftime('%Y-%m-%d')
+        if self.tipo_dte != '52':
+            fecha_venc = getattr(self.documento, 'fecha_vencimiento', None)
+            if not fecha_venc:
+                venta_doc = getattr(self.documento, 'venta', None)
+                fecha_venc = getattr(venta_doc, 'fecha_vencimiento', None) if venta_doc else None
+            if fecha_venc:
+                etree.SubElement(id_doc, "FchVenc").text = fecha_venc.strftime('%Y-%m-%d')
 
         # Emisor, Receptor, Transporte
         self._generar_emisor(encabezado)
         self._generar_receptor(encabezado)
+        if self._es_guia_traslado_interno() and getattr(self.documento, 'rut_solicita', None):
+            etree.SubElement(encabezado, "RUTSolicita").text = str(self.documento.rut_solicita).replace('.', '')
         if incluir_transporte and self.tipo_dte == '52':
             self._generar_transporte(encabezado)
             
@@ -245,23 +363,84 @@ class DTEXMLGenerator:
         de transporte disponibles se agregan valores del receptor como destino.
         """
         try:
+            from pedidos.models import OrdenDespacho
             from lxml import etree
             # Contenedor Transporte
             transporte = etree.SubElement(encabezado, "Transporte")
+            documento_persistido = bool(getattr(self.documento, 'pk', None))
 
-            # 1. Dirección de Destino (OBLIGATORIO para Guías)
-            # Intentar obtener desde el documento o del receptor
-            direccion = getattr(self.documento, 'direccion_receptor', '')
-            comuna = getattr(self.documento, 'comuna_receptor', '')
-            ciudad = getattr(self.documento, 'ciudad_receptor', 'SANTIAGO')
+            orden = None
+            if isinstance(self.documento, OrdenDespacho):
+                orden = self.documento
+            elif isinstance(self.documento, DocumentoTributarioElectronico) and documento_persistido:
+                detalle_guia = self.documento.detalles_despacho_guia.select_related(
+                    'orden_despacho__orden_pedido__cliente',
+                    'orden_despacho__vehiculo',
+                    'orden_despacho__chofer',
+                ).first()
+                if detalle_guia:
+                    orden = detalle_guia.orden_despacho
+
+            # 1. Patente del vehículo
+            # En schema SII 2026 debe ir antes del bloque de destino.
+            patente = getattr(self.documento, 'patente_transporte', None)
+            if not patente and hasattr(self.documento, 'vehiculo') and self.documento.vehiculo:
+                patente = self.documento.vehiculo.patente
+            if not patente and orden and getattr(orden, 'vehiculo', None):
+                patente = orden.vehiculo.patente
+            
+            if patente:
+                etree.SubElement(transporte, "Patente").text = patente[:8].replace('-', '').upper()
+
+            patente_carro = (getattr(self.documento, 'patente_carro', None) or '').strip()
+            if patente_carro:
+                etree.SubElement(transporte, "PatenteCarro").text = patente_carro[:8].replace('-', '').upper()
+
+            # 2. RUT del transportista (schema SII: RUTTrans)
+            rut_transp = getattr(self.documento, 'rut_transportista', None)
+            if not rut_transp:
+                rut_transp = getattr(self.empresa, 'rut', None)
+            if rut_transp:
+                etree.SubElement(transporte, "RUTTrans").text = str(rut_transp).replace('.', '')
+
+            # 3. Chofer: el SII exige hijos RUTChofer + NombreChofer (no texto suelto).
+            nombre_chofer, rut_chofer = self._datos_chofer()
+            if nombre_chofer and rut_chofer:
+                chofer_el = etree.SubElement(transporte, "Chofer")
+                etree.SubElement(chofer_el, "RUTChofer").text = rut_chofer
+                etree.SubElement(chofer_el, "NombreChofer").text = nombre_chofer[:30]
+
+            # 4. Dirección de Destino (OBLIGATORIO para Guías)
+            direccion = getattr(self.documento, 'direccion_receptor', '') or ''
+            comuna = getattr(self.documento, 'comuna_receptor', '') or ''
+            ciudad = getattr(self.documento, 'ciudad_receptor', '') or ''
+
+            def _dir_invalida(valor):
+                texto = (valor or '').strip().upper()
+                return not texto or 'DESCONOCIDA' in texto or 'NO DISPONIBLE' in texto
+
+            if _dir_invalida(direccion):
+                direccion = getattr(self.documento, 'direccion_entrega', '') or direccion
+
+            if orden:
+                if _dir_invalida(direccion):
+                    direccion = orden.direccion_entrega or direccion
+                cliente_destino = getattr(getattr(orden, 'orden_pedido', None), 'cliente', None)
+                if cliente_destino:
+                    if _dir_invalida(direccion):
+                        direccion = cliente_destino.direccion or direccion
+                    if _dir_invalida(comuna):
+                        comuna = cliente_destino.comuna if isinstance(cliente_destino.comuna, str) else comuna
+                    if not ciudad:
+                        ciudad = getattr(cliente_destino, 'ciudad', '') or ciudad
 
             # Si no hay datos en el documento, intentar desde la relación cliente o transferencia
-            if not direccion:
+            if _dir_invalida(direccion):
                 if hasattr(self.documento, 'cliente') and self.documento.cliente:
                     direccion = self.documento.cliente.direccion
                     comuna = self.documento.cliente.comuna
                     ciudad = getattr(self.documento.cliente, 'ciudad', 'SANTIAGO')
-                elif isinstance(self.documento, DocumentoTributarioElectronico):
+                elif isinstance(self.documento, DocumentoTributarioElectronico) and documento_persistido:
                     transf = self.documento.transferencias.first()
                     if transf and transf.bodega_destino and transf.bodega_destino.sucursal:
                         suc = transf.bodega_destino.sucursal
@@ -273,31 +452,75 @@ class DTEXMLGenerator:
             etree.SubElement(transporte, "CmnaDest").text = (comuna or 'COMUNA DESCONOCIDA')[:20]
             etree.SubElement(transporte, "CiudadDest").text = (ciudad or 'SANTIAGO')[:20]
 
-            # 2. Patente del vehículo (Opcional)
-            # Intentar desde campo directo, relación vehiculo o default
-            patente = getattr(self.documento, 'patente_transporte', None)
-            if not patente and hasattr(self.documento, 'vehiculo') and self.documento.vehiculo:
-                patente = self.documento.vehiculo.patente
-            
-            if patente:
-                etree.SubElement(transporte, "Patente").text = patente[:8].replace('-', '').upper()
-
-            # 3. RUT del transportista (Opcional)
-            rut_transp = getattr(self.documento, 'rut_transportista', None)
-            if rut_transp:
-                etree.SubElement(transporte, "RUTTransp").text = rut_transp.replace('.', '')
-
-            # 4. Chofer (Opcional)
-            nombre_chofer = getattr(self.documento, 'nombre_chofer', None)
-            if not nombre_chofer and hasattr(self.documento, 'chofer') and self.documento.chofer:
-                nombre_chofer = self.documento.chofer.nombre
-            
-            if nombre_chofer:
-                etree.SubElement(transporte, "Chofer").text = nombre_chofer[:30]
+            fecha_salida = getattr(self.documento, 'fecha_salida', None) or getattr(self.documento, 'fecha_emision', None)
+            hora_salida = getattr(self.documento, 'hora_salida', None)
+            fecha_llegada = getattr(self.documento, 'fecha_llegada', None) or fecha_salida
+            if fecha_salida:
+                try:
+                    etree.SubElement(transporte, "FchSalida").text = fecha_salida.strftime('%Y-%m-%d')
+                except Exception:
+                    etree.SubElement(transporte, "FchSalida").text = str(fecha_salida)[:10]
+            if hora_salida:
+                try:
+                    etree.SubElement(transporte, "HraSalida").text = hora_salida.strftime('%H:%M:%S')
+                except Exception:
+                    texto_hora = str(hora_salida).strip()
+                    if len(texto_hora) == 5:
+                        texto_hora += ':00'
+                    etree.SubElement(transporte, "HraSalida").text = texto_hora[:8]
+            elif fecha_salida:
+                from django.utils import timezone as dj_tz
+                etree.SubElement(transporte, "HraSalida").text = dj_tz.localtime().strftime('%H:%M:%S')
+            if fecha_llegada:
+                try:
+                    etree.SubElement(transporte, "FchLlegada").text = fecha_llegada.strftime('%Y-%m-%d')
+                except Exception:
+                    etree.SubElement(transporte, "FchLlegada").text = str(fecha_llegada)[:10]
 
         except Exception as e:
             # No romper el flujo si falla: solo loguear.
             print(f"[WARN] Error al generar seccion Transporte: {e}")
+
+    def _datos_chofer(self):
+        """Nombre y RUT del chofer desde el DTE, la venta o el maestro de choferes."""
+        nombre = (getattr(self.documento, 'nombre_chofer', None) or '').strip()
+        rut = ''
+        chofer = getattr(self.documento, 'chofer', None)
+        if chofer:
+            nombre = nombre or (chofer.nombre or '').strip()
+            rut = str(chofer.rut or '').replace('.', '').strip()
+        venta = getattr(self.documento, 'venta', None)
+        if venta:
+            venta_chofer = getattr(venta, 'chofer', None)
+            if venta_chofer:
+                nombre = nombre or (venta_chofer.nombre or '').strip()
+                rut = rut or str(venta_chofer.rut or '').replace('.', '').strip()
+        if (not nombre or not rut) and isinstance(self.documento, DocumentoTributarioElectronico) and getattr(self.documento, 'pk', None):
+            detalle_guia = self.documento.detalles_despacho_guia.select_related(
+                'orden_despacho__chofer'
+            ).first()
+            orden_chofer = getattr(getattr(detalle_guia, 'orden_despacho', None), 'chofer', None)
+            if orden_chofer:
+                nombre = nombre or (orden_chofer.nombre or '').strip()
+                rut = rut or str(orden_chofer.rut or '').replace('.', '').strip()
+        from pedidos.models import OrdenDespacho
+        if (not nombre or not rut) and isinstance(self.documento, OrdenDespacho) and getattr(self.documento, 'chofer', None):
+            orden_chofer = self.documento.chofer
+            nombre = nombre or (orden_chofer.nombre or '').strip()
+            rut = rut or str(orden_chofer.rut or '').replace('.', '').strip()
+        if nombre and not rut:
+            try:
+                from pedidos.models_transporte import Chofer
+                empresa = getattr(self.documento, 'empresa', None) or self.empresa
+                encontrado = Chofer.objects.filter(empresa=empresa, nombre__iexact=nombre).first()
+                if not encontrado:
+                    encontrado = Chofer.objects.filter(empresa=empresa, nombre__icontains=nombre[:18]).first()
+                if encontrado:
+                    rut = str(encontrado.rut or '').replace('.', '').strip()
+                    nombre = (encontrado.nombre or nombre).strip()
+            except Exception:
+                pass
+        return nombre, rut
     
     def _generar_emisor(self, encabezado):
         """Genera datos del emisor"""
@@ -309,7 +532,7 @@ class DTEXMLGenerator:
         
         # Para boletas (39/41) usar tags específicos, para facturas usar estándar
         if self.tipo_dte in ['39', '41']:
-            # Esquema GDExpress para boletas
+            # Esquema SII para boletas
             razon_social = self.empresa.razon_social_sii or self.empresa.razon_social
             etree.SubElement(emisor, "RznSocEmisor").text = razon_social[:100]
             
@@ -323,14 +546,17 @@ class DTEXMLGenerator:
             giro = self.empresa.giro_sii or self.empresa.giro or "Comercio"
             etree.SubElement(emisor, "GiroEmis").text = giro[:80]
         
-        # Teléfono y CorreoEmisor - NO incluir en boletas (39/41). Guías 52 sí (estructura KreaDTE/DTEBox).
+        # Teléfono y CorreoEmisor - NO incluir en boletas (39/41). Guías 52 sí (estructura KreaDTE/SII).
         if self.tipo_dte not in ['39', '41']:
             etree.SubElement(emisor, "Telefono").text = (self.empresa.telefono or "")[:20]
             etree.SubElement(emisor, "CorreoEmisor").text = (self.empresa.email or "")[:80]
         
         if self.tipo_dte not in ['39', '41']:
-            acteco = self.empresa.codigo_actividad_economica or "0"
-            etree.SubElement(emisor, "Acteco").text = str(acteco)
+            from facturacion_electronica.validacion_envio import MENSAJE_ACTECO_INVALIDO, normalizar_acteco
+            acteco = normalizar_acteco(getattr(self.empresa, 'codigo_actividad_economica', None))
+            if not acteco:
+                raise ValueError(MENSAJE_ACTECO_INVALIDO)
+            etree.SubElement(emisor, "Acteco").text = acteco
         
         # Dirección
         direccion = self.empresa.direccion_casa_matriz or self.empresa.direccion
@@ -355,6 +581,7 @@ class DTEXMLGenerator:
     def _generar_receptor(self, encabezado):
         """Genera datos del receptor de forma robusta."""
         receptor = etree.SubElement(encabezado, "Receptor")
+        documento_persistido = bool(getattr(self.documento, 'pk', None))
 
         # Obtener datos del receptor desde el objeto DTE (self.documento)
         rut_receptor = getattr(self.documento, 'rut_receptor', None)
@@ -375,8 +602,35 @@ class DTEXMLGenerator:
                 comuna = cliente.comuna if isinstance(cliente.comuna, str) else ''
 
         # Si el documento es un DTE que proviene de una transferencia
-        if not rut_receptor and isinstance(self.documento, DocumentoTributarioElectronico):
+        transf = None
+        if isinstance(self.documento, DocumentoTributarioElectronico) and documento_persistido:
             transf = self.documento.transferencias.first()
+
+        if transf and self._es_guia_traslado_interno():
+            bodega_dest = transf.bodega_destino
+            rut_receptor = rut_receptor or self.empresa.rut
+            razon_social = razon_social or self.empresa.razon_social
+            giro = giro or self.empresa.giro_sii or self.empresa.giro or 'TRASLADO INTERNO'
+
+            if bodega_dest and bodega_dest.sucursal:
+                direccion = direccion or bodega_dest.sucursal.direccion or ''
+                comuna = comuna or bodega_dest.sucursal.comuna or ''
+                ciudad_recep_transfer = bodega_dest.sucursal.ciudad or ''
+            else:
+                direccion = direccion or getattr(self.documento, 'direccion_receptor', '') or ''
+                comuna = comuna or getattr(self.documento, 'comuna_receptor', '') or ''
+                ciudad_recep_transfer = getattr(self.documento, 'ciudad_receptor', '') or ''
+
+            if not direccion:
+                direccion = getattr(self.documento, 'direccion_destino', '') or ''
+            if not comuna:
+                comuna = getattr(self.documento, 'comuna_destino', '') or ''
+            if not ciudad_recep_transfer:
+                ciudad_recep_transfer = getattr(self.documento, 'ciudad_destino', '') or ''
+        else:
+            ciudad_recep_transfer = ''
+
+        if not rut_receptor and isinstance(self.documento, DocumentoTributarioElectronico) and documento_persistido:
             if transf:
                 # El receptor es la bodega de destino
                 bodega_dest = transf.bodega_destino
@@ -420,7 +674,7 @@ class DTEXMLGenerator:
         etree.SubElement(receptor, "RUTRecep").text = rut_receptor.replace('.', '')
         etree.SubElement(receptor, "RznSocRecep").text = razon_social[:100]
         
-        # GiroRecep - OBLIGATORIO para facturas y guías según SII y DTEBox
+        # GiroRecep - OBLIGATORIO para facturas y guías según SII y SII
         if self.tipo_dte not in ['39', '41']:
             giro_final = (giro or 'PARTICULAR').strip()
             if not giro_final:
@@ -448,76 +702,131 @@ class DTEXMLGenerator:
             ciudad_recep = getattr(self.documento.cliente, 'ciudad', '') or 'SANTIAGO'
         if hasattr(self.documento, 'ciudad_receptor') and self.documento.ciudad_receptor:
             ciudad_recep = self.documento.ciudad_receptor[:20]
+        if ciudad_recep_transfer:
+            ciudad_recep = ciudad_recep_transfer[:20]
         etree.SubElement(receptor, "CiudadRecep").text = (ciudad_recep or 'SANTIAGO')[:20]
     
     def _generar_totales(self, encabezado, sum_neto=None):
         """Genera los totales del documento"""
         totales = etree.SubElement(encabezado, "Totales")
+
+        if self._es_guia_sin_valoracion():
+            etree.SubElement(totales, "MntTotal").text = "0"
+            return
         
-        # Obtener los montos desde el objeto DTE (self.documento)
-        monto_neto = getattr(self.documento, 'monto_neto', 0) or 0
-        monto_exento = getattr(self.documento, 'monto_exento', 0) or 0
-        monto_iva = getattr(self.documento, 'monto_iva', 0) or 0
-        monto_total = getattr(self.documento, 'monto_total', 0) or 0
+        monto_neto, monto_exento, monto_iva, monto_total = self._obtener_montos_documento()
+
+        # Boleta afecta: el detalle se mantiene en bruto, pero el SII repara
+        # el documento si Totales no informa los parciales afectos.
+        if self.tipo_dte == '39':
+            monto_total_final = self._monto_entero(monto_total)
+            monto_exento_final = self._monto_entero(monto_exento)
+            monto_neto_final = self._monto_entero(monto_neto)
+            if monto_neto_final <= 0 and monto_total_final > 0:
+                monto_neto_final = int(round((monto_total_final - monto_exento_final) / 1.19))
+
+            iva_final = self._monto_entero(monto_iva)
+            if iva_final <= 0 or (monto_neto_final + monto_exento_final + iva_final) != monto_total_final:
+                iva_final = monto_total_final - monto_neto_final - monto_exento_final
+            if iva_final < 0:
+                iva_final = 0
+
+            etree.SubElement(totales, "MntNeto").text = str(monto_neto_final)
+            if monto_exento_final > 0:
+                etree.SubElement(totales, "MntExe").text = str(monto_exento_final)
+            etree.SubElement(totales, "IVA").text = str(iva_final)
+            etree.SubElement(totales, "MntTotal").text = str(monto_total_final)
+            return
         
         # Si sum_neto está disponible (calculado desde los items), USARLO para MntNeto
         if sum_neto is not None and self.tipo_dte not in ['34', '41']:
-            monto_neto = sum_neto
-
-        # Para boletas (tipo 39): los precios al cliente INCLUYEN IVA.
-        # El SII requiere que MntNeto = precio sin IVA = MntTotal / 1.19
-        # Si monto_neto == monto_total (precios con IVA almacenados como neto), recalcular.
-        if self.tipo_dte in ['39'] and monto_iva > 0:
-            monto_total_real = int(round(float(monto_total)))
-            monto_neto_real = int(round(monto_total_real / 1.19))
-            monto_iva_real = monto_total_real - monto_neto_real
-            monto_neto = monto_neto_real
-            monto_iva = monto_iva_real
+            monto_neto = self._monto_entero(sum_neto)
 
         # Monto Neto - incluir para todos excepto exentos (34, 41)
-        # IMPORTANTE: Para boletas afectas (39) se ENVIA MntNeto pero NO IVA/TasaIVA en el esquema estricto
         if self.tipo_dte not in ['34', '41']:
             etree.SubElement(totales, "MntNeto").text = str(int(round(monto_neto)))
         
         # Monto Exento - incluir para todos
         etree.SubElement(totales, "MntExe").text = str(int(round(monto_exento)))
-        
-        # TasaIVA - Solo para facturas y guías (NO boletas 39, 41)
-        if self.tipo_dte in ['33', '34', '52', '56', '61'] and monto_iva > 0:
-            etree.SubElement(totales, "TasaIVA").text = "19"
-        
-        # IVA - Incluir en Facturas (33), Boletas Afectas (39) y Guías (52)
-        # Para guías tipo 52: calcular IVA como 19% del neto (como KreaDTE-Cloud)
+
         iva_final = 0
-        if self.tipo_dte in ['33', '39', '52', '56', '61'] and monto_total > 0:
+        if self.tipo_dte in ['33', '39', '52', '56', '61']:
             if self.tipo_dte == '52':
-                # Para guías: IVA = 19% del neto (sum_neto si está disponible)
                 iva_final = int(round(monto_neto * 0.19))
+            elif self.tipo_dte in ['33', '56', '61']:
+                # El SII exige IVA = round(Tasa * MntNeto). No reutilizar un IVA
+                # calculado sobre precios brutos ni la suma de IVA por línea.
+                iva_final = int(round(float(monto_neto) * 0.19)) if monto_neto else 0
             else:
-                # Para otros: usar IVA del documento o calcular como diferencia
-                iva_final = int(round(float(monto_iva))) if monto_iva > 0 else (int(round(float(monto_total))) - int(round(float(monto_neto))) - int(round(float(monto_exento))))
-                if iva_final < 0: iva_final = 0
+                if monto_iva > 0:
+                    iva_final = self._monto_entero(monto_iva)
+                elif monto_total > 0:
+                    iva_final = self._monto_entero(monto_total) - self._monto_entero(monto_neto) - self._monto_entero(monto_exento)
+                if iva_final < 0:
+                    iva_final = 0
+
+        # TasaIVA - Solo para facturas y guías (NO boletas 39, 41)
+        if self.tipo_dte in ['33', '34', '52', '56', '61'] and iva_final > 0:
+            etree.SubElement(totales, "TasaIVA").text = "19"
+
+        if self.tipo_dte in ['33', '39', '52', '56', '61'] and iva_final > 0:
             etree.SubElement(totales, "IVA").text = str(iva_final)
-        
-        # Monto Total - Asegurar consistencia (Suma de Neto + Exento + IVA)
-        # Algunos registros antiguos pueden tener totales inconsistentes que causan 500 en DTEBox
-        monto_total_calculado = int(round(float(monto_neto))) + int(round(float(monto_exento))) + int(round(float(monto_iva)))
 
-        if self.tipo_dte == '52' and sum_neto is not None:
-            # Para guías con sum_neto: usar el cálculo específico de guías
-            monto_total_final = monto_neto + iva_final + monto_exento
-            etree.SubElement(totales, "MntTotal").text = str(int(round(monto_total_final)))
+        monto_total_calculado = self._monto_entero(monto_neto) + self._monto_entero(monto_exento) + self._monto_entero(iva_final)
+        etree.SubElement(totales, "MntTotal").text = str(int(round(monto_total_calculado)))
+
+    @staticmethod
+    def _numero_precio(valor):
+        texto = str(valor if valor not in (None, '') else '0').strip()
+        if not texto:
+            return 0.0
+        if ',' in texto:
+            texto = texto.replace('.', '').replace(',', '.')
+        try:
+            return float(texto)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _cantidad_precio_item(self, item):
+        if hasattr(item, 'item_pedido') and hasattr(item.item_pedido, 'articulo'):
+            articulo = item.item_pedido.articulo
+            nombre = getattr(articulo, 'nombre', None) or 'Item sin nombre'
+            cantidad = self._numero_precio(item.cantidad) or 1.0
+            precio = self._numero_precio(item.item_pedido.precio_unitario)
+        elif hasattr(item, 'articulo') and item.articulo:
+            articulo = item.articulo
+            nombre = articulo.nombre or getattr(item, 'descripcion', None) or 'Item sin nombre'
+            cantidad = self._numero_precio(item.cantidad) or 1.0
+            precio = self._numero_precio(item.precio_unitario)
         else:
-            # Para todos los demás (especialmente Facturas), usar el total asegurado
-            etree.SubElement(totales, "MntTotal").text = str(monto_total_calculado)
+            articulo = getattr(item, 'articulo', None)
+            nombre = getattr(item, 'descripcion', None) or 'Item sin nombre'
+            if not nombre:
+                nombre = 'Item sin nombre'
+            cantidad = self._numero_precio(getattr(item, 'cantidad', 1)) or 1.0
+            precio = self._numero_precio(getattr(item, 'precio_unitario', 0))
 
+        if precio <= 0:
+            total = self._numero_precio(
+                getattr(item, 'precio_total', 0) or getattr(item, 'total', 0)
+            )
+            if total > 0 and cantidad > 0:
+                precio = total / cantidad
+        if precio <= 0 and articulo:
+            precio = self._numero_precio(getattr(articulo, 'precio_venta', 0))
+            if precio <= 0:
+                bruto = self._numero_precio(getattr(articulo, 'precio_final', 0))
+                if bruto > 0:
+                    precio = bruto / 1.19
+        return cantidad, precio, articulo, nombre
     
     def _generar_detalles(self, documento):
         """Genera los detalles (items) del documento"""
-        from ventas.models import Venta, NotaCredito
+        from ventas.models import Venta, NotaCredito, NotaDebito
         from pedidos.models import OrdenDespacho
 
         items = []
+        documento_persistido = bool(getattr(self.documento, 'pk', None))
         # CRÍTICO: Verificar DocumentoTributarioElectronico PRIMERO porque tiene orden_despacho como ManyToMany
         if isinstance(self.documento, DocumentoTributarioElectronico):
             # Flujo desde POS/Despacho: los items vienen de la venta asociada al DTE
@@ -527,26 +836,38 @@ class DTEXMLGenerator:
                 if venta_asociada and hasattr(venta_asociada, 'ventadetalle_set'):
                     items = venta_asociada.ventadetalle_set.all()
             # Si no hay ninguna de las anteriores, intentar con transferencias
-            elif self.documento.transferencias.exists():
+            elif documento_persistido and self.documento.transferencias.exists():
                 transf = self.documento.transferencias.first()
                 if transf:
                     items = transf.detalles.all()
+            elif documento_persistido:
+                if str(self.tipo_dte) in ['33', '34']:
+                    items_fact = self.documento.detalles_despacho_factura.filter(cantidad__gt=0)
+                    if items_fact.exists():
+                        items = items_fact
+                if not items:
+                    items_guia = self.documento.detalles_despacho_guia.filter(cantidad__gt=0)
+                    if items_guia.exists():
+                        items = items_guia
         elif isinstance(self.documento, Venta):
             items = self.documento.ventadetalle_set.all()
         elif isinstance(self.documento, NotaCredito):
             items = self.documento.items.all()
         elif isinstance(self.documento, OrdenDespacho):
-            # Flujo desde orden de despacho: obtener items desde la relación 'items'
-            items = self.documento.items.all()
+            # Flujo desde orden de despacho: omitir líneas en cero
+            items = self.documento.items.filter(cantidad__gt=0)
         elif hasattr(self.documento, 'orden_despacho'):
             # Wrapper con orden_despacho (solo si NO es un ManyRelatedManager)
             # Verificar si orden_despacho es un objeto individual, no un ManyRelatedManager
-            orden_despacho = self.documento.orden_despacho
+            if isinstance(self.documento, DocumentoTributarioElectronico) and not documento_persistido:
+                orden_despacho = None
+            else:
+                orden_despacho = self.documento.orden_despacho
             # Si tiene método .all(), es un ManyRelatedManager, usar .first()
             if hasattr(orden_despacho, 'all'):
                 orden_despacho = orden_despacho.first()
             if orden_despacho and hasattr(orden_despacho, 'detalleordendespacho_set'):
-                items = orden_despacho.detalleordendespacho_set.all()
+                items = orden_despacho.detalleordendespacho_set.filter(cantidad__gt=0)
         else:
             # Soportar otros objetos genéricos
             if hasattr(self.documento, 'items') and self.documento.items is not None:
@@ -563,6 +884,50 @@ class DTEXMLGenerator:
                 # Caso extremo: el documento tiene una relación venta
                 items = self.documento.venta.ventadetalle_set.all()
 
+        items = [
+            item for item in items
+            if float(getattr(item, 'cantidad', 1) or 0) > 0
+        ]
+        if not items:
+            raise ValueError("No hay líneas con cantidad mayor a 0 para generar el DTE")
+
+        monto_total_doc = self._monto_entero(
+            getattr(self.documento, 'monto_total', None)
+            or getattr(self.documento, 'total', 0)
+            or 0
+        )
+        monto_neto_doc = self._monto_entero(
+            getattr(self.documento, 'monto_neto', None)
+            or getattr(self.documento, 'subtotal', 0)
+            or 0
+        )
+
+        total_items_raw = 0
+        for item in items:
+            cantidad_preview, precio_preview, _articulo, _nombre = self._cantidad_precio_item(item)
+            total_items_raw += int(round(cantidad_preview * precio_preview))
+
+        tolerancia_boleta = max(1, len(items) or 1)
+        boleta_items_son_netos = False
+        if self.tipo_dte == '39' and monto_total_doc > 0:
+            if abs(total_items_raw - monto_total_doc) <= tolerancia_boleta:
+                boleta_items_son_netos = False
+            elif monto_neto_doc > 0 and abs(total_items_raw - monto_neto_doc) <= tolerancia_boleta:
+                boleta_items_son_netos = True
+            elif abs(int(round(total_items_raw * 1.19)) - monto_total_doc) <= (tolerancia_boleta * 2):
+                boleta_items_son_netos = True
+
+        # Factura/guía: si la suma de líneas ≈ neto, ya son netos (facturador directo / pedidos).
+        # Si la suma ≈ total, son brutos (POS). Nunca asumir bruto solo porque hay IVA.
+        factura_items_son_brutos = False
+        if self.tipo_dte not in ['39', '41'] and total_items_raw > 0:
+            if monto_neto_doc > 0 and abs(total_items_raw - monto_neto_doc) <= tolerancia_boleta:
+                factura_items_son_brutos = False
+            elif monto_total_doc > 0 and abs(total_items_raw - monto_total_doc) <= tolerancia_boleta:
+                factura_items_son_brutos = True
+            elif monto_neto_doc > 0 and abs(int(round(total_items_raw / 1.19)) - monto_neto_doc) <= tolerancia_boleta:
+                factura_items_son_brutos = True
+
         total_neto_items = 0
         for index, item in enumerate(items, start=1):
             detalle = etree.SubElement(documento, "Detalle")
@@ -574,26 +939,7 @@ class DTEXMLGenerator:
             if self.tipo_dte in ['34', '41']:
                 etree.SubElement(detalle, "IndExe").text = "1"
             
-            # Nombre del item - soportar tanto VentaDetalle como DetalleOrdenDespacho
-            if hasattr(item, 'item_pedido') and hasattr(item.item_pedido, 'articulo'):
-                # Es un DetalleOrdenDespacho
-                nombre_item = item.item_pedido.articulo.nombre
-                articulo = item.item_pedido.articulo
-                cantidad = float(item.cantidad)
-                precio_unitario = float(item.item_pedido.precio_unitario)
-            elif hasattr(item, 'articulo') and item.articulo:
-                # Es un VentaDetalle
-                nombre_item = item.articulo.nombre
-                articulo = item.articulo
-                cantidad = float(item.cantidad)
-                precio_unitario = float(item.precio_unitario)
-            else:
-                # Fallback genérico
-                nombre_item = getattr(item, 'descripcion', 'Item sin nombre')
-                if not nombre_item: nombre_item = "Item sin nombre"
-                articulo = getattr(item, 'articulo', None)
-                cantidad = float(getattr(item, 'cantidad', 1))
-                precio_unitario = float(getattr(item, 'precio_unitario', 0))
+            cantidad, precio_unitario, articulo, nombre_item = self._cantidad_precio_item(item)
             
             # Código del item - incluir para todos (KreaDTE incluye CdgItem para guías también)
             codigo_item = None
@@ -612,13 +958,15 @@ class DTEXMLGenerator:
             descripcion_item = None
             if hasattr(item, 'descripcion') and item.descripcion:
                 descripcion_item = item.descripcion
+            elif hasattr(item, 'comentario') and item.comentario:
+                descripcion_item = item.comentario
             elif articulo and hasattr(articulo, 'descripcion') and articulo.descripcion:
                 descripcion_item = articulo.descripcion
             # Solo incluir DscItem si es diferente del nombre (como KreaDTE: {% if detached.descripcion != detached.producto.nombre %})
             if descripcion_item and descripcion_item != nombre_item:
                 etree.SubElement(detalle, "DscItem").text = descripcion_item[:1000]
             
-            # Cantidad (sin decimales para DTEBox)
+            # Cantidad (sin decimales para SII)
             if cantidad == int(cantidad):
                 etree.SubElement(detalle, "QtyItem").text = str(int(cantidad))
             else:
@@ -637,31 +985,41 @@ class DTEXMLGenerator:
             # Precio unitario y Monto: SII requiere NETO para Facturas/Guías, y BRUTO para Boletas
             es_boleta = self.tipo_dte in ['39', '41']
             
-            if es_boleta:
-                # Caso Boleta: Usar precios brutos (tal como vienen si son del POS)
-                precio_final = int(round(precio_unitario))
-                monto_final = int(round(cantidad * precio_unitario))
+            if self._es_guia_sin_valoracion():
+                monto_final = 0
+            elif es_boleta:
+                # Para boleta afecta el XML debe ir en bruto. Si la venta viene
+                # guardada en neto, la convertimos antes de serializar.
+                if self.tipo_dte == '39' and boleta_items_son_netos:
+                    precio_final = int(round(precio_unitario * 1.19))
+                    monto_final = int(round(cantidad * precio_unitario * 1.19))
+                else:
+                    precio_final = int(round(precio_unitario))
+                    monto_final = int(round(cantidad * precio_unitario))
             else:
-                # Caso Factura/Guía: SII requiere precios NETOS
-                # Si sospechamos que el precio es bruto (comparando con los totales del documento), lo convertimos
-                monto_total_doc = float(getattr(self.documento, 'monto_total', 0) or 0)
-                monto_neto_doc = float(getattr(self.documento, 'monto_neto', 0) or 0)
-                
-                # Si el total coincide con la suma de precios unitarios * cantidades, es muy probable que sean brutos
-                # O si neto + iva == total y el precio_unitario es alto
-                if monto_total_doc > 0 and monto_neto_doc > 0 and monto_total_doc != monto_neto_doc:
-                    # El documento tiene IVA. Los precios unitarios de los items deben ser netos.
-                    # Asumimos que si vienen del POS son brutos y los neteamos.
+                # Factura/Guía: el SII exige neto. El POS suele guardar BRUTO;
+                # el facturador directo y los pedidos guardan NETO. No netear dos veces.
+                if factura_items_son_brutos:
                     precio_neto = precio_unitario / 1.19
                     precio_final = int(round(precio_neto))
-                    # El monto del item también debe ser neto
                     monto_final = int(round(cantidad * precio_neto))
                 else:
-                    # Ya parecen ser netos o el documento es exento
                     precio_final = int(round(precio_unitario))
                     monto_final = int(round(cantidad * precio_unitario))
 
-            etree.SubElement(detalle, "PrcItem").text = str(precio_final)
+            if (
+                not self._es_guia_sin_valoracion()
+                and str(self.tipo_dte) in ('33', '34', '39', '41', '52', '56', '61')
+                and (precio_final <= 0 or monto_final <= 0)
+            ):
+                raise ValueError(
+                    f'El producto "{nombre_item}" tiene precio o total 0. '
+                    'Este documento no puede emitirse así. '
+                    'Corrija el precio del artículo. No se usará un folio.'
+                )
+
+            if not self._es_guia_sin_valoracion():
+                etree.SubElement(detalle, "PrcItem").text = str(precio_final)
             etree.SubElement(detalle, "MontoItem").text = str(monto_final)
             
             total_neto_items += monto_final
@@ -670,7 +1028,7 @@ class DTEXMLGenerator:
     
     def _generar_referencia(self, documento, obligatorio=False):
         """Genera referencias a otros documentos"""
-        from ventas.models import Venta, NotaCredito
+        from ventas.models import Venta, NotaCredito, NotaDebito
 
         # Caso para Nota de Crédito (referencia obligatoria)
         if isinstance(self.documento, NotaCredito):
@@ -690,6 +1048,31 @@ class DTEXMLGenerator:
 
             etree.SubElement(referencia, "RazonRef").text = self.documento.motivo[:90]
 
+        elif isinstance(self.documento, NotaDebito):
+            if not (
+                self.documento.tipo_doc_afectado and
+                self.documento.numero_doc_afectado and
+                self.documento.fecha_doc_afectado
+            ):
+                if obligatorio:
+                    raise ValueError("La Nota de Débito requiere un documento de referencia válido")
+                return
+
+            referencia = etree.SubElement(documento, "Referencia")
+            etree.SubElement(referencia, "NroLinRef").text = "1"
+            etree.SubElement(referencia, "TpoDocRef").text = self.documento.tipo_doc_afectado
+            etree.SubElement(referencia, "FolioRef").text = str(self.documento.numero_doc_afectado)
+            etree.SubElement(referencia, "FchRef").text = self.documento.fecha_doc_afectado.strftime('%Y-%m-%d')
+
+            cod_ref_map = {
+                'CORRIGE_TEXTO': '2',
+                'AUMENTA_MONTO': '3',
+                'INTERESES': '3',
+                'OTROS': '3',
+            }
+            etree.SubElement(referencia, "CodRef").text = cod_ref_map.get(self.documento.tipo_nd, '3')
+            etree.SubElement(referencia, "RazonRef").text = (self.documento.motivo or 'Ajuste de documento')[:90]
+
         # Caso para Venta con referencia opcional (ej. Guía de Despacho)
         elif isinstance(self.documento, Venta) and hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
             ref = self.documento.documento_referencia
@@ -703,6 +1086,9 @@ class DTEXMLGenerator:
                 etree.SubElement(referencia, "FchRef").text = ref.fecha_emision.strftime('%Y-%m-%d')
             if hasattr(self.documento, 'razon_referencia') and self.documento.razon_referencia:
                 etree.SubElement(referencia, "RazonRef").text = self.documento.razon_referencia[:90]
+
+        elif obligatorio:
+            raise ValueError("El documento requiere al menos una referencia tributaria válida")
 
     def generar_xml_desde_dte(self):
         """
@@ -739,10 +1125,11 @@ class DTEXMLGenerator:
         etree.SubElement(dd, "FE").text = self.documento.fecha_emision.strftime('%Y-%m-%d')
         etree.SubElement(dd, "RR").text = self.documento.rut_receptor.replace('.', '')
         etree.SubElement(dd, "RSR").text = self.documento.razon_social_receptor[:40]
-        etree.SubElement(dd, "MNT").text = str(int(self.documento.monto_total))
+        mnt_ted = 0 if self._es_guia_sin_valoracion() else int(self.documento.monto_total)
+        etree.SubElement(dd, "MNT").text = str(mnt_ted)
         etree.SubElement(dd, "IT1").text = "DTE" 
 
-        # Agregar CAF placeholder (REQUERIDO por DTEBox en Boletas)
+        # Agregar CAF placeholder (REQUERIDO por SII en Boletas)
         if self.caf:
             caf_element = etree.SubElement(dd, "CAF", version="1.0")
             da = etree.SubElement(caf_element, "DA")

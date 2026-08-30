@@ -5,9 +5,29 @@
 
 {% block page_title %}Transferencias de Inventario - GestionCloud{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS -->
+{% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    body { background: #FAFAF8 !important; }
+    .form-control, .form-select, .form-control-stone, .form-select-stone {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
+        accent-color: #6F5B44 !important;
+    }
+    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+    .stat-card { min-height: 52px !important; }
+    .stat-content { padding: 8px 10px !important; }
+    .stat-icon-full { font-size: 42px !important; opacity: 0.12 !important; }
+    .stat-value { font-size: 1.2rem !important; }
+    .stone-filter-box { padding: 8px !important; margin-bottom: 8px !important; }
+</style>
+{% endblock %}
+{% block extra_css %}
 <style>
     /* VARIABLES ESTILO PIEDRA */
     :root {
@@ -134,7 +154,7 @@
     }
     .transfer-filter-grid {
         display: grid;
-        grid-template-columns: minmax(210px, 1.35fr) minmax(120px, 0.75fr) minmax(155px, 0.95fr) minmax(155px, 0.95fr) minmax(260px, 1.15fr) auto;
+        grid-template-columns: minmax(210px, 1.35fr) minmax(120px, 0.75fr) minmax(155px, 0.95fr) minmax(155px, 0.95fr) minmax(150px, 0.9fr) minmax(260px, 1.15fr) auto;
         gap: 0.65rem;
         align-items: end;
     }
@@ -223,32 +243,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-            <!-- CARD PRINCIPAL -->
-            <div class="single-card-container">
-                <!-- HEADER -->
-                <div class="stone-header-premium">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-dolly"></i>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-dolly me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Transferencias</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">Movimientos entre bodegas</div>
+                            </div>
                         </div>
-                        <div class="header-text">
-                            <h1>Transferencias de <span class="fw-bold">Inventario</span></h1>
-                            <p>Gestión de movimientos entre bodegas.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <a href="{% url 'inventario:transferencia_create' %}" class="header-btn btn-action-primary">
-                            <i class="fas fa-plus me-2"></i> Nueva Transferencia
+                        <a href="{% url 'inventario:transferencia_create' %}" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                            <i class="fas fa-plus me-1"></i> Nueva Transferencia
                         </a>
                     </div>
                 </div>
 
-                <!-- BODY -->
-                <div class="card-body p-4">
-                    
-                    <!-- STATS INSIDE CARD -->
-                    <div class="row g-3 mb-4">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-3">
                             <div class="stat-card stat-card-1">
                                 <div class="stat-content">
@@ -334,6 +349,13 @@
                                 </select>
                             </div>
                             <div>
+                                <label class="form-label small fw-bold text-muted mb-1">Ordenar Por</label>
+                                <select name="orden" class="form-select-stone">
+                                    <option value="transferencia" {% if orden_actual == 'transferencia' %}selected{% endif %}>N° Transferencia</option>
+                                    <option value="guia" {% if orden_actual == 'guia' %}selected{% endif %}>N° Guía</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label class="form-label small fw-bold text-muted mb-1">Desde / Hasta</label>
                                 <div class="date-range-compact">
                                     <input type="date" name="desde" class="form-control-stone" aria-label="Fecha desde" title="Fecha desde" value="{{ request.GET.desde|default:fecha_desde }}">
@@ -341,8 +363,8 @@
                                 </div>
                             </div>
                              <div>
-                                <button type="submit" class="header-btn filter-submit-btn" style="background-color: var(--stone-secondary); color: white;">
-                                    <i class="fas fa-filter me-2"></i> Filtrar
+                                <button type="submit" class="btn btn-sm filter-submit-btn" style="background: #8B7355; color: white; font-size: 0.75rem; border: none;">
+                                    <i class="fas fa-filter me-1"></i> Filtrar
                                 </button>
                             </div>
                         </form>
@@ -350,7 +372,7 @@
 
                     <!-- TABLA -->
                     <div class="table-responsive">
-                        <table class="table-piedra">
+                        <table class="table-piedra tabla-nombre-completo mb-0">
                             <thead>
                                 <tr>
                                     <th>Folio</th>
@@ -368,67 +390,69 @@
                                 {% for transferencia in page_obj %}
                                 <tr>
                                     <td><span class="fw-bold" style="color: var(--stone-primary);">{{ transferencia.numero_folio }}</span></td>
-                                    <td>{{ transferencia.fecha_transferencia|date:"d/m/Y H:i" }}</td>
-                                    <td>{{ transferencia.bodega_origen.nombre }}</td>
-                                    <td>{{ transferencia.bodega_destino.nombre }}</td>
+                                    <td>{{ transferencia.fecha_transferencia|date:"d-m-Y H:i" }}</td>
+                                    <td class="td-nombre">{{ transferencia.bodega_origen.nombre }}</td>
+                                    <td class="td-nombre">{{ transferencia.bodega_destino.nombre }}</td>
                                     <td><span class="badge rounded-pill bg-light text-dark border">{{ transferencia.detalles.count }}</span></td>
                                     <td>
                                         {% if transferencia.guia_despacho %}
-                                            <div class="d-flex flex-column" style="gap: 2px;">
-                                                <span class="fw-bold" style="font-size: 0.75rem;">N° {{ transferencia.guia_despacho.folio }}</span>
-                                                {% if transferencia.guia_despacho.estado_sii == 'aceptado' %}
-                                                    <span class="badge w-100" style="background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; font-size: 0.65rem;">ACEPTADO</span>
-                                                {% elif transferencia.guia_despacho.estado_sii == 'rechazado' %}
-                                                    <span class="badge w-100" style="background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; font-size: 0.65rem;">RECHAZADO</span>
-                                                {% elif transferencia.guia_despacho.track_id %}
-                                                    <span class="badge w-100" style="background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; font-size: 0.65rem;">EN PROCESO</span>
-                                                {% else %}
-                                                    <span class="badge w-100 font-monospace" style="background: #F5F5F5; color: #616161; border: 1px solid #E0E0E0; font-size: 0.65rem;">GENERADA</span>
-                                                {% endif %}
-                                            </div>
+                                            <span class="fw-bold">N° {{ transferencia.guia_despacho.folio }}</span>
+                                            <span class="badge" style="{{ transferencia.guia_despacho.get_estado_sii_real_badge_style }}">
+                                                {{ transferencia.guia_despacho.get_estado_sii_real_display|upper }}
+                                            </span>
                                         {% else %}
                                             <span class="text-muted small">Sin Guía</span>
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="text-center">
                                         {% if transferencia.estado == 'pendiente' %}
-                                            <span class="badge-stone bg-pendiente">Pendiente</span>
+                                            <span class="estado-dot estado-dot-suspendido" title="Pendiente"></span>
                                         {% elif transferencia.estado == 'confirmado' %}
-                                            <span class="badge-stone bg-confirmado">Confirmado</span>
+                                            <span class="estado-dot estado-dot-activo" title="Confirmado"></span>
                                         {% elif transferencia.estado == 'cancelado' %}
-                                            <span class="badge-stone bg-cancelado">Cancelado</span>
+                                            <span class="estado-dot estado-dot-inactivo" title="Cancelado"></span>
                                         {% endif %}
                                     </td>
                                     <td><small class="text-muted">{{ transferencia.creado_por.get_full_name|default:transferencia.creado_por.username }}</small></td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <a href="{% url 'inventario:transferencia_detail' transferencia.pk %}" class="btn-icon-stone" title="Ver Detalle">
+                                    <td class="td-acciones text-center">
+                                            <a href="{% url 'inventario:transferencia_detail' transferencia.pk %}" class="ico-32" title="Ver Detalle">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             {% if transferencia.estado == 'confirmado' %}
                                                 {% if transferencia.guia_despacho %}
-                                                    <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}" target="_blank" class="btn-icon-stone" title="Imprimir Guía SII">
-                                                        <i class="fas fa-print" style="color: #6B8E23;"></i>
+                                                    {% if transferencia.guia_despacho.puede_emitir_documento_tributario %}
+                                                    <a href="{% url 'inventario:transferencia_imprimir_guia' transferencia.pk %}?return_url={{ request.get_full_path|urlencode }}" target="_blank" rel="opener" class="ico-32" title="Imprimir Guía SII">
+                                                        <i class="fas fa-print"></i>
                                                     </a>
+                                                    {% else %}
+                                                    <span class="ico-32" title="{{ transferencia.guia_despacho.get_mensaje_no_emitible }}" style="opacity: 0.45; cursor: not-allowed;">
+                                                        <i class="fas fa-ban"></i>
+                                                    </span>
+                                                    {% endif %}
                                                 {% else %}
                                                     <button type="button"
-                                                            class="btn-icon-stone btn-generar-guia"
+                                                            class="ico-32 btn-generar-guia"
                                                             title="Generar Guía SII"
                                                             data-url="{% url 'inventario:transferencia_generar_guia' transferencia.pk %}"
                                                             data-folio="{{ transferencia.numero_folio }}">
-                                                        <i class="fas fa-file-invoice" style="color: #6B8E23;"></i>
+                                                        <i class="fas fa-file-invoice"></i>
                                                     </button>
                                                 {% endif %}
                                             {% endif %}
                                             {% if transferencia.estado != 'cancelado' %}
-                                                <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" class="btn-icon-stone" title="Editar">
+                                                {% if transferencia.puede_editar %}
+                                                <a href="{% url 'inventario:transferencia_create' %}?edit={{ transferencia.pk }}" class="ico-32" title="Editar">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="{% url 'inventario:transferencia_cancelar' transferencia.pk %}" class="btn-icon-stone" title="Cancelar" onclick="return confirm('¿Cancelar esta transferencia?')">
-                                                    <i class="fas fa-times text-danger"></i>
+                                                {% else %}
+                                                <span class="ico-32" title="{{ transferencia.motivo_no_editable }}" style="opacity: 0.4; cursor: not-allowed;">
+                                                    <i class="fas fa-lock"></i>
+                                                </span>
+                                                {% endif %}
+                                                <a href="{% url 'inventario:transferencia_cancelar' transferencia.pk %}" class="ico-32" title="Cancelar" onclick="return confirm('¿Cancelar esta transferencia?')">
+                                                    <i class="fas fa-times"></i>
                                                 </a>
                                             {% endif %}
-                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -547,24 +571,33 @@ async function generarGuiaTransferencia(url, folio, button) {
         }
 
         if (!response.ok || !data.success) {
-            throw new Error(data.error || `No se pudo generar la guía (${response.status}).`);
+            const error = new Error(data.error || `No se pudo generar la guía (${response.status}).`);
+            error.reloadAfter = !!data.reload;
+            throw error;
         }
 
         await mostrarAlertaGuia({
             icon: 'success',
             title: 'Guía generada',
-            html: `Guía <strong>N° ${data.folio}</strong> generada correctamente.`,
+            html: data.message || `Guía <strong>N° ${data.folio}</strong> generada correctamente.`,
             confirmButtonColor: '#8B7355'
         });
+
+        if (data.print_url) {
+            window.open(data.print_url, '_blank');
+        }
         window.location.reload();
     } catch (error) {
         if (button) button.disabled = false;
-        mostrarAlertaGuia({
+        await mostrarAlertaGuia({
             icon: 'error',
             title: 'Error',
             text: error.message || 'No se pudo generar la guía',
             confirmButtonColor: '#8B7355'
         });
+        if (error.reloadAfter) {
+            window.location.reload();
+        }
     }
 }
 

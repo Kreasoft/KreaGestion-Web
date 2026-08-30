@@ -1,247 +1,354 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block body_class %}show-top-bar{% endblock %}
-{% block title %}Opciones Principales - GestionCloud{% endblock %}
+{% block title %}Centro de Ayuda - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+  .help-page { color: #5D4037; }
+  .help-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 10px 14px; margin-bottom: 10px; border: 1px solid #E8DCC8; border-radius: 10px;
+    background: linear-gradient(135deg, #efebe9 0%, #E8DCC8 100%);
+  }
+  .help-header h1 { margin: 0; font-size: 1.2rem; font-weight: 600; color: #5D4037; }
+  .help-header p { margin: 0; font-size: 0.75rem; color: #6F5B44; }
+  .help-icon { width: 36px; height: 36px; border-radius: 8px; background: #FAFAF8; color: #C76F43;
+    display: grid; place-items: center; font-size: 1rem; border: 1px solid #E8DCC8; flex-shrink: 0; }
+  .help-search { height: 28px; min-width: 220px; padding: 2px 10px 2px 28px; border: 1px solid #D4C4A8;
+    border-radius: 7px; background: #FAFAF8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236F5B44' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3-3'/%3E%3C/svg%3E") no-repeat 8px center;
+    font-size: 0.75rem; color: #5D4037; }
+  .help-search:focus { outline: none; border-color: #8B7355; box-shadow: 0 0 0 2px rgba(111,91,68,.18); }
+  .help-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .help-step { background: #fff; border: 1px solid #E8DCC8; border-radius: 8px; padding: 8px 10px; }
+  .help-step b { display: block; font-size: 0.72rem; color: #C76F43; letter-spacing: .3px; text-transform: uppercase; }
+  .help-step span { display: block; font-size: 0.78rem; font-weight: 600; color: #4b382f; margin: 2px 0; }
+  .help-step small { color: #6F5B44; font-size: 0.7rem; line-height: 1.3; }
+  .help-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .help-nav { position: sticky; top: 8px; background: #fff; border: 1px solid #E8DCC8; border-radius: 8px; padding: 8px; }
+  .help-nav a { display: block; padding: 5px 8px; border-radius: 6px; color: #5D4037; text-decoration: none;
+    font-size: 0.72rem; font-weight: 600; }
+  .help-nav a:hover { background: #F5EEE4; color: #5D4037; }
+  .help-topic { background: #fff; border: 1px solid #E8DCC8; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  .help-topic summary { list-style: none; cursor: pointer; padding: 8px 12px; font-size: 0.85rem; font-weight: 700;
+    color: #5D4037; background: #FAFAF8; display: flex; align-items: center; gap: 8px; }
+  .help-topic summary::-webkit-details-marker { display: none; }
+  .help-topic summary i { color: #C76F43; width: 16px; text-align: center; }
+  .help-topic summary:after { content: "▸"; margin-left: auto; color: #8B7355; font-size: 0.7rem; }
+  .help-topic[open] summary:after { content: "▾"; }
+  .help-topic .help-body { padding: 10px 12px 12px; font-size: 0.78rem; line-height: 1.45; color: #4b382f; }
+  .help-topic ol, .help-topic ul { margin: 6px 0 8px; padding-left: 18px; }
+  .help-topic li { margin-bottom: 3px; }
+  .help-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .help-links a { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: 6px;
+    border: 1px solid #D4C4A8; background: #F5EEE4; color: #5D4037; text-decoration: none; font-size: 0.72rem; font-weight: 600; }
+  .help-links a:hover { background: #E8DCC8; color: #5D4037; border-color: #8B7355; }
+  .help-tip { margin-top: 8px; padding: 7px 9px; border-radius: 6px; background: #EEF3EA; border: 1px solid #C5D9B4;
+    color: #3F6B42; font-size: 0.72rem; }
+  .help-warn { margin-top: 8px; padding: 7px 9px; border-radius: 6px; background: #F6EBD4; border: 1px solid #E8D4A8;
+    color: #8A6A2A; font-size: 0.72rem; }
+  .help-empty { display: none; text-align: center; padding: 18px; color: #6F5B44; font-size: 0.8rem; }
+  .help-faq dt { font-weight: 700; margin-top: 8px; color: #5D4037; }
+  .help-faq dd { margin: 2px 0 0; color: #6F5B44; }
+  @media (max-width: 900px) {
+    .help-steps, .help-layout { grid-template-columns: 1fr; }
+    .help-nav { position: static; display: flex; flex-wrap: wrap; gap: 4px; }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <!-- Header Principal -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);">
-                        <div class="card-body text-center text-white py-5">
-                            <i class="fas fa-cogs fa-4x mb-3" style="color: rgba(255, 255, 255, 0.8);"></i>
-                            <h1 class="display-4 mb-3">Opciones Principales</h1>
-                            <p class="lead mb-0">Accede a todas las funcionalidades del sistema de gestión empresarial</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tarjetas de Opciones Principales -->
-            <div class="row">
-                <!-- Gestión de Inventario -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm" style="border: none; transition: transform 0.3s ease, box-shadow 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'; this.style.boxShadow='0 15px 35px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                        <div class="card-header" style="background: linear-gradient(135deg, #2E8B57 0%, #3CB371 100%); border: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-box fa-2x text-white me-3"></i>
-                                <div>
-                                    <h5 class="mb-0 text-white">Gestión de Inventario</h5>
-                                    <small class="text-white-50">Administra productos, categorías y stock</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Gestiona tu catálogo de productos, crea categorías, define unidades de medida y controla el inventario de tu negocio.</p>
-                            <div class="d-grid gap-2">
-                                <a href="{% url 'articulos:articulo_list' %}" class="btn btn-outline-success">
-                                    <i class="fas fa-box me-2"></i>Ver Artículos
-                                </a>
-                                <a href="{% url 'articulos:categoria_list' %}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-tags me-2"></i>Categorías
-                                </a>
-                                <a href="{% url 'articulos:unidad_medida_list' %}" class="btn btn-outline-secondary">
-                                    <i class="fas fa-ruler me-2"></i>Unidades
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Ventas y Facturación -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm" style="border: none; transition: transform 0.3s ease, box-shadow 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'; this.style.boxShadow='0 15px 35px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                        <div class="card-header" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); border: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-shopping-cart fa-2x text-white me-3"></i>
-                                <div>
-                                    <h5 class="mb-0 text-white">Ventas y Facturación</h5>
-                                    <small class="text-white-50">Procesa ventas y genera facturas</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Procesa ventas, genera facturas, gestiona clientes y controla el flujo de ingresos de tu empresa.</p>
-                            <div class="d-grid gap-2">
-                                <a href="#" class="btn btn-outline-warning">
-                                    <i class="fas fa-shopping-cart me-2"></i>Nueva Venta
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-file-invoice me-2"></i>Facturas
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-users me-2"></i>Clientes
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Compras y Proveedores -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm" style="border: none; transition: transform 0.3s ease, box-shadow 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'; this.style.boxShadow='0 15px 35px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                        <div class="card-header" style="background: linear-gradient(135deg, #DAA520 0%, #FFD700 100%); border: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-truck fa-2x text-white me-3"></i>
-                                <div>
-                                    <h5 class="mb-0 text-white">Compras y Proveedores</h5>
-                                    <small class="text-white-50">Gestiona compras y proveedores</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Administra tus compras, gestiona proveedores, controla órdenes de compra y optimiza tu cadena de suministro.</p>
-                            <div class="d-grid gap-2">
-                                <a href="#" class="btn btn-outline-warning">
-                                    <i class="fas fa-shopping-bag me-2"></i>Nueva Compra
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-truck me-2"></i>Proveedores
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-clipboard-list me-2"></i>Órdenes
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reportes y Análisis -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm" style="border: none; transition: transform 0.3s ease, box-shadow 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'; this.style.boxShadow='0 15px 35px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                        <div class="card-header" style="background: linear-gradient(135deg, #CD853F 0%, #DEB887 100%); border: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-chart-bar fa-2x text-white me-3"></i>
-                                <div>
-                                    <h5 class="mb-0 text-white">Reportes y Análisis</h5>
-                                    <small class="text-white-50">Analiza el rendimiento del negocio</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Genera reportes detallados, analiza ventas, controla inventario y toma decisiones basadas en datos.</p>
-                            <div class="d-grid gap-2">
-                                <a href="#" class="btn btn-outline-info">
-                                    <i class="fas fa-chart-line me-2"></i>Ventas
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-warehouse me-2"></i>Inventario
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-file-alt me-2"></i>Reportes
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Configuración del Sistema -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm" style="border: none; transition: transform 0.3s ease, box-shadow 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'; this.style.boxShadow='0 15px 35px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                        <div class="card-header" style="background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); border: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-cog fa-2x text-white me-3"></i>
-                                <div>
-                                    <h5 class="mb-0 text-white">Configuración</h5>
-                                    <small class="text-white-50">Personaliza el sistema</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Configura empresas, usuarios, parámetros del sistema y personaliza la experiencia según tus necesidades.</p>
-                            <div class="d-grid gap-2">
-                                <a href="{% url 'empresas:empresa_list' %}" class="btn btn-outline-primary">
-                                    <i class="fas fa-building me-2"></i>Empresas
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-users me-2"></i>Usuarios
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-sliders-h me-2"></i>Parámetros
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Documentos y Archivos -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card h-100 shadow-sm" style="border: none; transition: transform 0.3s ease, box-shadow 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'; this.style.boxShadow='0 15px 35px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'">
-                        <div class="card-header" style="background: linear-gradient(135deg, #e17055 0%, #fdcb6e 100%); border: none;">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-file-alt fa-2x text-white me-3"></i>
-                                <div>
-                                    <h5 class="mb-0 text-white">Documentos</h5>
-                                    <small class="text-white-50">Gestiona archivos y documentos</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <p class="text-muted mb-4">Organiza documentos, genera reportes en PDF, gestiona plantillas y mantén un archivo digital organizado.</p>
-                            <div class="d-grid gap-2">
-                                <a href="#" class="btn btn-outline-danger">
-                                    <i class="fas fa-file-pdf me-2"></i>Generar PDF
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-folder me-2"></i>Archivos
-                                </a>
-                                <a href="#" class="btn btn-outline-secondary">
-                                    <i class="fas fa-template me-2"></i>Plantillas
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Accesos Rápidos -->
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); border: none;">
-                        <div class="card-body text-center text-white">
-                            <h5 class="mb-3">
-                                <i class="fas fa-bolt me-2"></i>Accesos Rápidos
-                            </h5>
-                            <div class="row">
-                                <div class="col-md-3 mb-2">
-                                    <a href="{% url 'articulos:articulo_create' %}" class="btn btn-light btn-sm w-100">
-                                        <i class="fas fa-plus me-1"></i>Nuevo Artículo
-                                    </a>
-                                </div>
-                                <div class="col-md-3 mb-2">
-                                    <a href="#" class="btn btn-light btn-sm w-100">
-                                        <i class="fas fa-shopping-cart me-1"></i>Nueva Venta
-                                    </a>
-                                </div>
-                                <div class="col-md-3 mb-2">
-                                    <a href="#" class="btn btn-light btn-sm w-100">
-                                        <i class="fas fa-chart-bar me-1"></i>Ver Reportes
-                                    </a>
-                                </div>
-                                <div class="col-md-3 mb-2">
-                                    <a href="{% url 'dashboard' %}" class="btn btn-light btn-sm w-100">
-                                        <i class="fas fa-home me-1"></i>Dashboard
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="container-fluid help-page py-2">
+  <header class="help-header">
+    <div class="d-flex align-items-center gap-2">
+      <span class="help-icon"><i class="fas fa-life-ring"></i></span>
+      <div>
+        <h1>Centro de Ayuda</h1>
+        <p>Cómo usar GestionCloud en el día a día. Busca un tema o abre la guía del módulo.</p>
+      </div>
     </div>
+    <input id="ayuda-q" class="help-search" type="search" placeholder="Buscar: CAF, caja, stock, DTE…" aria-label="Buscar en la ayuda">
+  </header>
+
+  <section class="help-steps" aria-label="Primeros pasos">
+    <div class="help-step"><b>Paso 1</b><span>Empresa y sucursal</span><small>Revisa RUT, giro, sucursales y certificado antes de emitir documentos.</small></div>
+    <div class="help-step"><b>Paso 2</b><span>Artículos y stock</span><small>Crea el catálogo, carga inventario inicial y define bodegas.</small></div>
+    <div class="help-step"><b>Paso 3</b><span>Vender y cobrar</span><small>El POS genera el vale o ticket. Caja lo procesa y emite el DTE.</small></div>
+    <div class="help-step"><b>Paso 4</b><span>Folios y reportes</span><small>Mantén CAF vigentes y consulta informes, libro de ventas y tesorería.</small></div>
+  </section>
+
+  <div class="help-layout">
+    <nav class="help-nav" aria-label="Temas de ayuda">
+      <a href="#inicio">Inicio y empresa</a>
+      <a href="#articulos">Artículos y precios</a>
+      <a href="#inventario">Inventario</a>
+      <a href="#ventas">Ventas y caja</a>
+      <a href="#dte">Facturación electrónica</a>
+      <a href="#compras">Compras</a>
+      <a href="#pedidos">Pedidos y despacho</a>
+      <a href="#tesoreria">Tesorería</a>
+      <a href="#produccion">Producción</a>
+      <a href="#informes">Informes</a>
+      <a href="#usuarios">Usuarios</a>
+      <a href="#faq">Preguntas frecuentes</a>
+    </nav>
+
+    <div id="help-topics">
+      <details class="help-topic" id="inicio" open>
+        <summary><i class="fas fa-building"></i> Inicio, empresa y sucursal</summary>
+        <div class="help-body">
+          <p>Todo lo que hagas queda asociado a la <strong>empresa activa</strong> de la sesión. Si ves datos de otra empresa, cámbiala desde el menú o el selector del dashboard.</p>
+          <ol>
+            <li>Completa los datos de la empresa: RUT, razón social, giro, dirección y resolución SII.</li>
+            <li>Crea las sucursales. Los CAF, cajas y ventas se filtran por sucursal.</li>
+            <li>Define bodegas. El stock nunca es “global”: siempre pertenece a una bodega.</li>
+            <li>En el dashboard elige la bodega con la que vas a trabajar.</li>
+          </ol>
+          <div class="help-links">
+            <a href="{% url 'empresas:editar_empresa_activa' %}"><i class="fas fa-pen"></i>Datos de la empresa</a>
+            <a href="{% url 'empresas:sucursal_list' %}"><i class="fas fa-store"></i>Sucursales</a>
+            <a href="{% url 'bodegas:bodega_list' %}"><i class="fas fa-warehouse"></i>Bodegas</a>
+            <a href="{% url 'dashboard' %}"><i class="fas fa-th-large"></i>Dashboard</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="articulos">
+        <summary><i class="fas fa-box"></i> Artículos, categorías y precios</summary>
+        <div class="help-body">
+          <p>El catálogo es la base de ventas, compras, inventario y producción. Un artículo necesita código, nombre, unidad, categoría e IVA.</p>
+          <ol>
+            <li>Crea categorías y unidades de medida antes de cargar muchos productos.</li>
+            <li>En Lista de Artículos da de alta cada producto. El código de barras se usa en el POS.</li>
+            <li>Usa Listas de Precios para mayorista/minorista y Precios Especiales para un cliente concreto.</li>
+            <li>Cambio masivo de precios actualiza varios artículos a la vez (porcentaje o valor).</li>
+            <li>Los kits agrupan varios productos en una oferta. En el POS se descuentan los componentes.</li>
+          </ol>
+          <div class="help-tip">Si un producto no aparece en el POS, revisa que esté activo, tenga precio y pertenezca a la empresa/sucursal correcta.</div>
+          <div class="help-links">
+            <a href="{% url 'articulos:articulo_list' %}"><i class="fas fa-list"></i>Artículos</a>
+            <a href="{% url 'articulos:categoria_list' %}"><i class="fas fa-tags"></i>Categorías</a>
+            <a href="{% url 'articulos:lista_precio_list' %}"><i class="fas fa-dollar-sign"></i>Listas de precios</a>
+            <a href="{% url 'articulos:articulo_cambio_masivo_precios' %}"><i class="fas fa-layer-group"></i>Cambio masivo</a>
+            <a href="{% url 'articulos:kit_oferta_list' %}"><i class="fas fa-gift"></i>Kits</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="inventario">
+        <summary><i class="fas fa-boxes"></i> Inventario y stock</summary>
+        <div class="help-body">
+          <p>Las ventas y compras mueven stock solas. Usa ajustes y carga inicial solo para corregir o partir de cero.</p>
+          <ol>
+            <li><strong>Carga inicial:</strong> primera existencia por bodega (Excel o edición manual).</li>
+            <li><strong>Control de stock:</strong> existencias actuales, mínimos y productos agotados.</li>
+            <li><strong>Ajustes:</strong> entrada o salida justificada (merma, hallazgo, corrección).</li>
+            <li><strong>Transferencias:</strong> mueven mercadería entre bodegas. Pueden generar guía.</li>
+            <li><strong>Kardex:</strong> historial de un artículo. Úsalo si “desapareció” stock.</li>
+          </ol>
+          <div class="help-warn">No edites el stock a mano en la ficha del artículo para “cuadrar”. Eso rompe la trazabilidad. Haz un ajuste.</div>
+          <div class="help-links">
+            <a href="{% url 'inventario:stock_list' %}"><i class="fas fa-boxes"></i>Control de stock</a>
+            <a href="{% url 'inventario:carga_inicial' %}"><i class="fas fa-file-import"></i>Carga inicial</a>
+            <a href="{% url 'inventario:ajustes_list' %}"><i class="fas fa-sliders-h"></i>Ajustes</a>
+            <a href="{% url 'inventario:transferencia_list' %}"><i class="fas fa-exchange-alt"></i>Transferencias</a>
+            <a href="{% url 'inventario:kardex_articulo' %}"><i class="fas fa-history"></i>Kardex</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="ventas">
+        <summary><i class="fas fa-cash-register"></i> Ventas, vales y caja</summary>
+        <div class="help-body">
+          <p>El flujo normal es: <strong>POS → vale o ticket → Caja procesa → DTE</strong>. El POS no envía la boleta o factura al SII por sí solo; eso ocurre al procesar en Caja, con la caja abierta y CAF disponible.</p>
+          <ol>
+            <li>Abre una caja en <em>Caja → Aperturas</em> con el fondo inicial.</li>
+            <li>Vende en el POS. El documento queda como vale interno o ticket facturable.</li>
+            <li>En <em>Procesar venta</em> busca el ticket, elige boleta o factura y confirma.</li>
+            <li>Al cierre de turno cuenta el efectivo, registra la diferencia y cierra la apertura.</li>
+            <li>Las cotizaciones no descuentan stock hasta que se convierten en venta.</li>
+            <li>Notas de crédito anulan o corrigen un DTE ya emitido. Notas de débito aumentan el monto.</li>
+          </ol>
+          <div class="help-tip">En el POS, F1 abre la ayuda de ofertas, kits y código comodín. El cliente genérico se usa en boletas; la factura siempre pide RUT.</div>
+          <div class="help-links">
+            <a href="{% url 'ventas:pos_view' %}"><i class="fas fa-shopping-cart"></i>Punto de venta</a>
+            <a href="{% url 'caja:apertura_list' %}"><i class="fas fa-door-open"></i>Aperturas de caja</a>
+            <a href="{% url 'caja:procesar_venta_buscar' %}"><i class="fas fa-receipt"></i>Procesar venta</a>
+            <a href="{% url 'ventas:ticket_list' %}"><i class="fas fa-list"></i>Tickets</a>
+            <a href="{% url 'ventas:vale_list' %}"><i class="fas fa-file-contract"></i>Vales</a>
+            <a href="{% url 'ventas:libro_ventas' %}"><i class="fas fa-book"></i>Libro de ventas</a>
+            <a href="{% url 'ventas:libro_guias' %}"><i class="fas fa-truck"></i>Libro de guías</a>
+            <a href="{% url 'clientes:cliente_list' %}"><i class="fas fa-user-friends"></i>Clientes</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="dte">
+        <summary><i class="fas fa-file-invoice"></i> Facturación electrónica y CAF</summary>
+        <div class="help-body">
+          <p>Sin CAF vigente no se puede timbrar. Cada tipo de documento (33 factura, 39 boleta, 52 guía, 61 nota de crédito, 56 nota de débito) usa su propio rango de folios, por sucursal.</p>
+          <ol>
+            <li>Descarga el CAF desde el SII e impórtalo en Control de Folios.</li>
+            <li>Verifica que el certificado digital de la empresa esté cargado y vigente.</li>
+            <li>Al emitir, el sistema toma el siguiente folio del CAF activo de esa sucursal.</li>
+            <li>El DTE se firma y se envía al SII. El monitor muestra aceptados, rechazados y pendientes.</li>
+            <li>Si el SII rechaza, corrige el dato (RUT, montos, referencia) y reenvía. No reutilices el folio a mano.</li>
+          </ol>
+          <div class="help-warn">Cuando queden pocos folios, el dashboard muestra alerta. Carga un CAF nuevo antes de agotar el actual para no detener la caja.</div>
+          <div class="help-links">
+            <a href="{% url 'facturacion_electronica:listar_cafs' %}"><i class="fas fa-key"></i>Control de folios CAF</a>
+            <a href="{% url 'facturacion_electronica:dte_list' %}"><i class="fas fa-file-alt"></i>Documentos DTE</a>
+            <a href="{% url 'facturacion_electronica:monitor_envios' %}"><i class="fas fa-satellite-dish"></i>Monitor de envíos</a>
+            <a href="{% url 'ventas:facturar_guias_list' %}"><i class="fas fa-truck"></i>Facturar guías</a>
+            <a href="{% url 'ventas:facturar_directo' %}"><i class="fas fa-file-circle-plus"></i>Facturador directo</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="compras">
+        <summary><i class="fas fa-shopping-bag"></i> Compras y proveedores</summary>
+        <div class="help-body">
+          <ol>
+            <li>Mantén el maestro de proveedores con RUT y razón social iguales al SII.</li>
+            <li>La orden de compra es el pedido al proveedor. No ingresa stock hasta recepcionar o registrar el documento.</li>
+            <li>El documento de compra (factura recibida) registra la compra, el costo y, si corresponde, el ingreso a bodega.</li>
+            <li>Facturas SII descarga el registro de compras del Servicio. Úsalo para no tipear facturas a mano.</li>
+          </ol>
+          <div class="help-links">
+            <a href="{% url 'proveedores:proveedor_list' %}"><i class="fas fa-truck"></i>Proveedores</a>
+            <a href="{% url 'compras:orden_compra_list' %}"><i class="fas fa-clipboard-list"></i>Órdenes de compra</a>
+            <a href="{% url 'documentos:documento_compra_list' %}"><i class="fas fa-file-invoice"></i>Documentos de compra</a>
+            <a href="{% url 'compras:facturas_recibidas_sii' %}"><i class="fas fa-cloud-download-alt"></i>Facturas SII</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="pedidos">
+        <summary><i class="fas fa-dolly"></i> Órdenes de clientes y despacho</summary>
+        <div class="help-body">
+          <p>Las órdenes de pedido reservan o preparan mercadería para un cliente, distintas de una venta de mostrador.</p>
+          <ol>
+            <li>Crea la orden de pedido con cliente, bodega y líneas.</li>
+            <li>Si la empresa usa despacho, genera la orden de despacho y la hoja de ruta.</li>
+            <li>Asigna vehículo y chofer. La guía de despacho (tipo 52) documenta el traslado.</li>
+            <li>Después puedes facturar las guías pendientes desde Ventas.</li>
+          </ol>
+          <div class="help-links">
+            <a href="{% url 'pedidos:orden_pedido_list' %}"><i class="fas fa-clipboard-list"></i>Órdenes de pedido</a>
+            <a href="{% url 'ventas:facturar_guias_list' %}"><i class="fas fa-file-invoice"></i>Facturar guías</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="tesoreria">
+        <summary><i class="fas fa-wallet"></i> Tesorería y cuentas corrientes</summary>
+        <div class="help-body">
+          <p>Cuando la forma de pago es cuenta corriente, la factura no se cobra en el acto: queda como saldo del cliente.</p>
+          <ol>
+            <li>Revisa el saldo en Cuenta corriente clientes y registra abonos.</li>
+            <li>Los documentos vencidos aparecen en el dashboard como cobros pendientes.</li>
+            <li>La cuenta corriente de proveedores funciona igual hacia afuera: facturas por pagar y pagos.</li>
+          </ol>
+          <div class="help-links">
+            <a href="{% url 'tesoreria:cuenta_corriente_cliente_list' %}"><i class="fas fa-user"></i>Cta. cte. clientes</a>
+            <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}"><i class="fas fa-truck"></i>Cta. cte. proveedores</a>
+            <a href="{% url 'tesoreria:registrar_pago' %}"><i class="fas fa-money-bill"></i>Registrar pago</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="produccion">
+        <summary><i class="fas fa-industry"></i> Producción</summary>
+        <div class="help-body">
+          <ol>
+            <li>Define la receta: producto terminado y materias primas con cantidades.</li>
+            <li>Crea una orden de producción indicando cuánto vas a fabricar.</li>
+            <li>Al iniciar y finalizar, el sistema descuenta insumos y suma el producto terminado a la bodega.</li>
+            <li>El reporte de producción muestra órdenes, cantidades y costos.</li>
+          </ol>
+          <div class="help-links">
+            <a href="{% url 'produccion:receta_list' %}"><i class="fas fa-flask"></i>Recetas</a>
+            <a href="{% url 'produccion:orden_list' %}"><i class="fas fa-tasks"></i>Órdenes</a>
+            <a href="{% url 'produccion:reporte_produccion' %}"><i class="fas fa-chart-bar"></i>Reporte</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="informes">
+        <summary><i class="fas fa-chart-line"></i> Informes y utilidades</summary>
+        <div class="help-body">
+          <p>Informes cruza ventas, stock y utilidad. Utilidades sirve para importar, exportar y mantenimiento; úsalo con cuidado en producción.</p>
+          <div class="help-links">
+            <a href="{% url 'informes:dashboard' %}"><i class="fas fa-chart-pie"></i>Informes</a>
+            <a href="{% url 'ventas:libro_ventas' %}"><i class="fas fa-book"></i>Libro de ventas</a>
+            <a href="{% url 'ventas:libro_guias' %}"><i class="fas fa-truck"></i>Libro de guías</a>
+            <a href="{% url 'utilidades:dashboard' %}"><i class="fas fa-tools"></i>Utilidades</a>
+            <a href="{% url 'utilidades:exportar_datos' %}"><i class="fas fa-file-export"></i>Exportar datos</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="usuarios">
+        <summary><i class="fas fa-users-cog"></i> Usuarios y permisos</summary>
+        <div class="help-body">
+          <ol>
+            <li>Cada persona debe tener su usuario. No compartas claves: el sistema bloquea tras varios intentos fallidos.</li>
+            <li>Los permisos se asignan por grupo (cajero, vendedor, administrador). El cajero ve caja y ventas; el vendedor, su operación.</li>
+            <li>Puedes restringir sucursal: el usuario solo opera en la que tiene asignada.</li>
+            <li>Edita tu propio perfil desde Usuario en el menú superior del dashboard.</li>
+          </ol>
+          <div class="help-links">
+            <a href="{% url 'usuarios:usuario_list' %}"><i class="fas fa-users"></i>Usuarios</a>
+            <a href="{% url 'usuarios:usuario_edit' request.user.id %}"><i class="fas fa-user"></i>Mi perfil</a>
+          </div>
+        </div>
+      </details>
+
+      <details class="help-topic" id="faq">
+        <summary><i class="fas fa-circle-question"></i> Preguntas frecuentes</summary>
+        <div class="help-body">
+          <dl class="help-faq">
+            <dt>La venta no aparece en el dashboard</dt>
+            <dd>El tablero muestra documentos <strong>confirmados</strong>. Un vale o ticket en borrador no suma hasta que Caja lo procesa.</dd>
+            <dt>No puedo emitir boleta o factura</dt>
+            <dd>Comprueba caja abierta, CAF del tipo de documento con folios, certificado vigente y sucursal correcta.</dd>
+            <dt>El stock no bajó después de vender</dt>
+            <dd>El descuento ocurre al confirmar la venta procesada. Revisa kardex del artículo y la bodega activa.</dd>
+            <dt>El SII rechazó un DTE</dt>
+            <dd>Abre el monitor de envíos, lee el motivo (RUT, folio, montos, referencia) y reenvía. No inventes un folio nuevo.</dd>
+            <dt>Cambié de empresa y “desaparecieron” los datos</dt>
+            <dd>Es normal: cada empresa tiene su propio catálogo, ventas y CAF. Vuelve a la empresa titular desde el selector.</dd>
+            <dt>¿Dónde está la ayuda del POS?</dt>
+            <dd>Dentro del punto de venta, tecla F1: ofertas, kits y código 001. Esta página cubre el resto del sistema.</dd>
+          </dl>
+        </div>
+      </details>
+
+      <p class="help-empty" id="help-empty">No hay temas que coincidan con la búsqueda.</p>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
-
-
-
-
-
-
-
-
-
+{% block extra_js_last %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var input = document.getElementById('ayuda-q');
+  var topics = document.querySelectorAll('.help-topic');
+  var empty = document.getElementById('help-empty');
+  if (!input) return;
+  input.addEventListener('input', function () {
+    var q = (input.value || '').toLowerCase().trim();
+    var visible = 0;
+    topics.forEach(function (el) {
+      var match = !q || el.textContent.toLowerCase().indexOf(q) !== -1;
+      el.hidden = !match;
+      if (match && q) el.open = true;
+      if (match) visible += 1;
+    });
+    empty.style.display = visible ? 'none' : 'block';
+  });
+});
+</script>
+{% endblock %}

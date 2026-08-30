@@ -50,6 +50,7 @@ urlpatterns = [
     
     # API
     path('api/listas-precios/', views.api_listas_precios, name='api_listas_precios'),
+    path('api/buscar-f10/', views.api_buscar_articulos_f10, name='api_buscar_articulos_f10'),
     
     # Homologación de Códigos
     path('<int:articulo_id>/homologacion/', views.homologacion_list, name='homologacion_list'),

@@ -6,9 +6,31 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS -->
+{% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    body { background: #FAFAF8 !important; }
+    .form-control, .form-select, .form-control-stone, .form-select-stone {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
+        accent-color: #6F5B44 !important;
+    }
+    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+    .select2-container .select2-selection--single { height: 28px !important; border: 1px solid #D4C4A8 !important; border-radius: 4px !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 26px !important; font-size: 0.75rem !important; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 26px !important; }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single { border-color: #6F5B44 !important; }
+    .info-card { padding: 8px 10px !important; min-height: 52px; }
+    .info-value { font-size: 1rem !important; }
+</style>
+{% endblock %}
+{% block extra_css %}
 <style>
     /* VARIABLES ESTILO PIEDRA */
     :root {
@@ -190,45 +212,41 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-12">
-            
-            <div class="single-card-container">
-                
-                <!-- HEADER STONE PREMIUM -->
-                <div class="stone-header-premium">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-clipboard-list"></i>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-list me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Kardex</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">Historial de movimientos por artículo</div>
+                            </div>
                         </div>
-                        <div class="header-text">
-                            <h1>Kardex de <span class="fw-bold">Artículo</span></h1>
-                            <p>Historial completo de movimientos por producto.</p>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2">
+                        <div class="d-flex gap-2">
                         {% if articulo %}
-                            <button onclick="window.print()" class="header-btn">
-                                <i class="fas fa-print me-2"></i> Imprimir
+                            <button type="button" onclick="window.print()" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-print me-1"></i> Imprimir
                             </button>
-                            <button onclick="exportarExcel()" class="header-btn">
-                                <i class="fas fa-file-excel me-2"></i> Exportar
+                            <button type="button" onclick="exportarExcelKardex()" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-file-excel me-1"></i> Exportar
                             </button>
                         {% endif %}
-                        <a href="{% url 'inventario:stock_list' %}" class="header-btn">
-                            <i class="fas fa-arrow-left me-2"></i> Volver
+                        <a href="{% url 'inventario:stock_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                            <i class="fas fa-arrow-left me-1"></i> Volver
                         </a>
+                        </div>
                     </div>
                 </div>
 
-                <div class="card-body p-4">
-                    
-                    <!-- FILTROS -->
-                    <div class="stone-filter-box">
-                        <form method="get" class="row g-3 align-items-end">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+                    <div class="py-2 px-2 mb-2" style="background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 6px;">
+                        <form method="get" class="row g-2 align-items-end">
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted mb-1">Artículo</label>
+                                <div class="d-flex gap-1 align-items-center">
                                 <select name="articulo" id="select-articulo" class="form-select-stone" required style="width: 100%;">
                                     <option value=""></option>
                                     {% for art in articulos %}
@@ -241,6 +259,10 @@
                                     </option>
                                     {% endfor %}
                                 </select>
+                                <button type="button" class="btn btn-sm btn-articulos-f10" data-articulos-f10 title="Buscar artículos (F10)">
+                                    <i class="fas fa-search me-1"></i>F10
+                                </button>
+                                </div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
@@ -262,8 +284,8 @@
                                 <input type="date" name="fecha_hasta" class="form-control-stone" value="{{ fecha_hasta }}">
                             </div>
                             <div class="col-md-2">
-                                <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
-                                    <i class="fas fa-search me-2"></i> Consultar
+                                <button type="submit" class="btn btn-sm w-100" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                                    <i class="fas fa-search me-1"></i> Consultar
                                 </button>
                             </div>
                         </form>
@@ -271,7 +293,7 @@
 
                     {% if articulo %}
                     <!-- RESUMEN -->
-                    <div class="row g-3 mb-4">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-4">
                             <div class="info-card" style="background: linear-gradient(135deg, #FFFFFF 0%, #F5F1E8 100%); border: 1px solid #E8DCC8;">
                                 <span class="info-label" style="color: #8B7355;">ARTÍCULO SELECCIONADO</span>
@@ -305,7 +327,7 @@
 
                     <!-- TABLA KARDEX -->
                     <div class="table-responsive">
-                        <table class="table-piedra">
+                        <table class="table-piedra tabla-nombre-completo mb-0">
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
@@ -323,7 +345,7 @@
                             <tbody>
                                 {% for mov in movimientos %}
                                 <tr>
-                                    <td>{{ mov.fecha|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ mov.fecha|date:"d-m-Y H:i" }}</td>
                                     <td>
                                         {% if mov.tipo_codigo == 'entrada' %}
                                             <span class="badge-mov bg-entrada">Entrada</span>
@@ -419,43 +441,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function exportarExcel() {
-    {% if articulo %}
-    let tabla = '<table border="1">';
-    tabla += '<tr><th colspan="10" style="background:#8B7355;color:white;padding:10px;">KARDEX DE ARTÍCULO</th></tr>';
-    tabla += '<tr><th colspan="10">Artículo: {{ articulo.codigo }} - {{ articulo.nombre|escapejs }}</th></tr>';
-    tabla += '<tr><th colspan="10">Bodega: {{ bodega.nombre|default:"Todas"|escapejs }}</th></tr>';
-    tabla += '<tr><th colspan="10">Período: {{ fecha_desde }} al {{ fecha_hasta }}</th></tr>';
-    tabla += '<tr><th colspan="10">Saldo Actual: {{ saldo_actual|format_miles }}</th></tr>';
-    tabla += '<tr><th>Fecha</th><th>Tipo</th><th>Documento</th><th>Detalle</th><th>Origen</th><th>Destino</th><th>Entrada</th><th>Salida</th><th>Saldo</th><th>Usuario</th></tr>';
-    
-    {% for mov in movimientos %}
-    tabla += '<tr>';
-    tabla += '<td>{{ mov.fecha|date:"d/m/Y H:i" }}</td>';
-    tabla += '<td>{{ mov.tipo }}</td>';
-    tabla += '<td>{{ mov.documento|escapejs }}</td>';
-    tabla += '<td>{{ mov.detalle|escapejs }}</td>';
-    tabla += '<td>{{ mov.bodega_origen|escapejs }}</td>';
-    tabla += '<td>{{ mov.bodega_destino|escapejs }}</td>';
-    tabla += '<td>{{ mov.entrada|format_miles }}</td>';
-    tabla += '<td>{{ mov.salida|format_miles }}</td>';
-    tabla += '<td>{{ mov.saldo|format_miles }}</td>';
-    tabla += '<td>{{ mov.usuario|escapejs }}</td>';
-    tabla += '</tr>';
-    {% endfor %}
-    tabla += '</table>';
-    
-    const blob = new Blob([tabla], { type: 'application/vnd.ms-excel' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'kardex_{{ articulo.codigo }}.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    {% else %}
-    alert('Seleccione un artículo primero');
-    {% endif %}
+function exportarExcelKardex() {
+    const articuloInput = document.getElementById('select-articulo');
+    const bodegaInput = document.querySelector('[name="bodega"]');
+    const fechaDesdeInput = document.querySelector('[name="fecha_desde"]');
+    const fechaHastaInput = document.querySelector('[name="fecha_hasta"]');
+    const articulo = articuloInput ? articuloInput.value : '';
+    if (!articulo) {
+        alert('Seleccione un artículo primero');
+        return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('articulo')) {
+        params.set('articulo', articulo);
+    }
+    if (!params.get('bodega')) {
+        params.set('bodega', bodegaInput ? bodegaInput.value || '' : '');
+    }
+    if (!params.get('fecha_desde')) {
+        params.set('fecha_desde', fechaDesdeInput ? fechaDesdeInput.value || '' : '');
+    }
+    if (!params.get('fecha_hasta')) {
+        params.set('fecha_hasta', fechaHastaInput ? fechaHastaInput.value || '' : '');
+    }
+
+    window.location.href = "{% url 'inventario:kardex_articulo_excel' %}?" + params.toString();
 }
 
 const style = document.createElement('style');

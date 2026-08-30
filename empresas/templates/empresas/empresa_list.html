@@ -3,21 +3,39 @@
 
 {% block title %}Lista de Empresas{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container-fluid" style="padding: 8px 12px;">
     <div class="row">
         <div class="col-12">
             <div class="card card-piedra shadow-sm border-0">
-                <div class="card-header card-header-piedra d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0 text-stone-dark fw-bold">
-                        <i class="fas fa-building me-2"></i>
-                        Empresas Registradas
-                    </h4>
-                    <a href="{% url 'empresas:empresa_create' %}" class="btn btn-stone-primary px-4">
-                        <i class="fas fa-plus me-1"></i> Nueva Empresa
-                    </a>
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde, #D4C4A8); padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-building me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Empresas</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
+                                    Empresas registradas en el sistema
+                                </div>
+                            </div>
+                        </div>
+                        <a href="{% url 'empresas:empresa_create' %}" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                            <i class="fas fa-plus me-1"></i> Nueva Empresa
+                        </a>
+                    </div>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body" style="padding: 8px 10px;">
                     {% if messages %}
                         <div class="p-3">
                             {% for message in messages %}
@@ -63,55 +81,35 @@
                                             <td>
                                                 {% if empresa.fecha_limite_pago %}
                                                     <div class="fw-medium {% if empresa.fecha_limite_pago < hoy %}text-danger{% endif %}">
-                                                        {{ empresa.fecha_limite_pago|date:"d/m/Y" }}
+                                                        {{ empresa.fecha_limite_pago|date:"d-m-Y" }}
                                                     </div>
                                                 {% else %}
                                                     <span class="text-muted small">N/A</span>
                                                 {% endif %}
                                             </td>
-                                            <td>
-                                                {% if empresa.estado == 'activa' %}
-                                                    <span class="badge-piedra badge-piedra-success">ACTIVA</span>
-                                                {% elif empresa.estado == 'suspendida' %}
-                                                    <span class="badge-piedra badge-piedra-danger">SUSPENDIDA</span>
-                                                {% else %}
-                                                    <span class="badge-piedra bg-secondary text-white">{{ empresa.get_estado_display|upper }}</span>
-                                                {% endif %}
+                                            <td class="text-center">
+                                                <span class="estado-dot {% if empresa.estado == 'activa' %}estado-dot-activo{% elif empresa.estado == 'suspendida' %}estado-dot-suspendido{% else %}estado-dot-inactivo{% endif %}" title="{{ empresa.get_estado_display }}"></span>
                                             </td>
-                                            <td>
-                                                <div class="d-flex justify-content-center gap-2">
-                                                    <a href="{% url 'empresas:empresa_detail' empresa.pk %}"
-                                                       class="btn-action-piedra"
-                                                       title="Ver detalles">
-                                                        <i class="fas fa-eye"></i>
+                                            <td class="td-acciones text-center">
+                                                <a href="{% url 'empresas:empresa_detail' empresa.pk %}" class="ico-32" title="Ver detalles">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if empresa.estado == 'suspendida' %}
+                                                    <a href="{% url 'empresas:empresa_toggle_status' empresa.pk %}" class="ico-32" title="Reactivar Empresa">
+                                                        <i class="fas fa-play"></i>
                                                     </a>
-                                                    
-                                                    {% if empresa.estado == 'suspendida' %}
-                                                        <a href="{% url 'empresas:empresa_toggle_status' empresa.pk %}"
-                                                           class="btn-action-piedra border-success text-success"
-                                                           title="Reactivar Empresa">
-                                                            <i class="fas fa-play"></i>
-                                                        </a>
-                                                    {% else %}
-                                                        <a href="{% url 'empresas:empresa_toggle_status' empresa.pk %}"
-                                                           class="btn-action-piedra border-dark text-dark"
-                                                           title="Suspender Empresa">
-                                                            <i class="fas fa-pause"></i>
-                                                        </a>
-                                                    {% endif %}
-
-                                                    <a href="{% url 'empresas:empresa_update' empresa.pk %}"
-                                                       class="btn-action-piedra border-warning text-warning"
-                                                       title="Editar">
-                                                        <i class="fas fa-edit"></i>
+                                                {% else %}
+                                                    <a href="{% url 'empresas:empresa_toggle_status' empresa.pk %}" class="ico-32" title="Suspender Empresa">
+                                                        <i class="fas fa-pause"></i>
                                                     </a>
-                                                    <button type="button"
-                                                            class="btn-action-piedra border-danger text-danger"
-                                                            title="Eliminar"
-                                                            onclick="confirmarEliminacion({{ empresa.pk }}, '{{ empresa.nombre }}')">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
+                                                {% endif %}
+                                                <a href="{% url 'empresas:empresa_update' empresa.pk %}" class="ico-32" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button type="button" class="ico-32" title="Eliminar"
+                                                        onclick="confirmarEliminacion({{ empresa.pk }}, '{{ empresa.nombre }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     {% endfor %}
@@ -119,12 +117,11 @@
                             </table>
                         </div>
                     {% else %}
-                        <div class="text-center py-5">
-                            <i class="fas fa-building fa-4x text-muted mb-3"></i>
-                            <h5 class="text-muted">No hay empresas registradas</h5>
-                            <p class="text-muted">Comienza creando tu primera empresa</p>
-                            <a href="{% url 'empresas:empresa_create' %}" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> Crear Primera Empresa
+                        <div class="text-center py-3">
+                            <div style="color: #8B7355; font-weight: 600;">No hay empresas registradas</div>
+                            <div class="text-muted" style="font-size: 0.8rem;">Comienza creando tu primera empresa</div>
+                            <a href="{% url 'empresas:empresa_create' %}" class="btn btn-sm mt-2" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                                <i class="fas fa-plus me-1"></i> Crear Primera Empresa
                             </a>
                         </div>
                     {% endif %}
@@ -138,11 +135,11 @@
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Confirmar Eliminación</h5>
+            <div class="modal-header" style="background: var(--gradient-piedra); padding: 8px 16px; border-bottom: 1px solid #D4C4A8;">
+                <h5 class="modal-title" style="color: var(--color-piedra-texto); font-size: 1rem;">Confirmar Eliminación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 8px 12px !important;">
                 <p>¿Está seguro de que desea eliminar la empresa <strong id="empresaNombre"></strong>?</p>
                 <p class="text-danger">Esta acción no se puede deshacer.</p>
             </div>

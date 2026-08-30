@@ -29,11 +29,12 @@
         <tr>
             <th style="width: 5%;" class="text-center">#</th>
             <th style="width: 12%;">Documento</th>
-            <th style="width: 27%;">Cliente</th>
-            <th style="width: 12%;">Fecha</th>
-            <th style="width: 12%;" class="text-right">Total</th>
-            <th style="width: 12%;" class="text-right">Pagado</th>
-            <th style="width: 12%;" class="text-right">Saldo</th>
+            <th style="width: 22%;">Cliente</th>
+            <th style="width: 10%;">Emisión</th>
+            <th style="width: 10%;">Vence</th>
+            <th style="width: 11%;" class="text-right">Total</th>
+            <th style="width: 11%;" class="text-right">Pagado</th>
+            <th style="width: 11%;" class="text-right">Saldo</th>
             <th style="width: 8%;" class="text-center">Estado</th>
         </tr>
     </thead>
@@ -46,7 +47,8 @@
                 <strong>{{ movimiento.cuenta_corriente.cliente.nombre }}</strong><br>
                 <span class="muted">{{ movimiento.cuenta_corriente.cliente.rut|default:"-" }}</span>
             </td>
-            <td>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
+            <td>{{ movimiento.fecha_movimiento|date:"d-m-Y" }}</td>
+            <td>{{ movimiento.fecha_vencimiento|date:"d-m-Y"|default:"-" }}</td>
             <td class="text-right">${{ movimiento.monto_display|format_miles }}</td>
             <td class="text-right">${{ movimiento.total_pagado|format_miles }}</td>
             <td class="text-right"><strong>${{ movimiento.saldo_pendiente_factura|format_miles }}</strong></td>
@@ -55,6 +57,8 @@
                     <span class="status status-ok">Pagado</span>
                 {% elif movimiento.estado_pago == 'parcial' %}
                     <span class="status status-warn">Parcial</span>
+                {% elif movimiento.estado_pago == 'vencido' %}
+                    <span class="status status-danger">Vencido</span>
                 {% else %}
                     <span class="status status-danger">Pendiente</span>
                 {% endif %}
@@ -62,7 +66,7 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="8" class="no-data">No hay documentos para los filtros seleccionados.</td>
+            <td colspan="9" class="no-data">No hay documentos para los filtros seleccionados.</td>
         </tr>
         {% endfor %}
     </tbody>

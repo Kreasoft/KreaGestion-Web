@@ -543,7 +543,7 @@ def hoja_ruta_exportar_excel(request, pk):
     # Información de la hoja de ruta
     info_data = [
         ('Número de Ruta:', hoja_ruta.numero_ruta),
-        ('Fecha:', hoja_ruta.fecha.strftime('%d/%m/%Y') if hoja_ruta.fecha else ''),
+        ('Fecha:', hoja_ruta.fecha.strftime('%d-%m-%Y') if hoja_ruta.fecha else ''),
         ('Ruta:', f"{hoja_ruta.ruta.codigo} - {hoja_ruta.ruta.nombre}" if hoja_ruta.ruta else ''),
         ('Vehículo:', hoja_ruta.vehiculo.patente if hoja_ruta.vehiculo else ''),
         ('Chofer:', hoja_ruta.chofer.nombre if hoja_ruta.chofer else ''),
@@ -632,7 +632,7 @@ def hoja_ruta_exportar_excel(request, pk):
         
         data_row = [
             factura.folio,
-            factura.fecha_emision.strftime('%d/%m/%Y') if factura.fecha_emision else '',
+            factura.fecha_emision.strftime('%d-%m-%Y') if factura.fecha_emision else '',
             cliente_nombre,
             cliente_rut,
             vendedor_nombre,

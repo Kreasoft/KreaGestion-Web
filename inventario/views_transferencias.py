@@ -5,23 +5,94 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q, Sum
+from django.db.models.functions import Coalesce
 from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta, datetime
+import time
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.core.files.base import ContentFile
 from decimal import Decimal
 import re
+import pytz
 from .models import TransferenciaInventario, Inventario, Stock
 from .forms import TransferenciaInventarioForm
 from core.decorators import requiere_empresa
 from bodegas.models import Bodega
 from articulos.models import Articulo
 from facturacion_electronica.models import ArchivoCAF, DocumentoTributarioElectronico
-from facturacion_electronica.services import DTEService
+from facturacion_electronica.dte_service import DTEService
+from facturacion_electronica.views_dte import _build_receptor_display
 from django.db import IntegrityError
 import json
+
+
+def _fecha_chile_hoy():
+    chile_tz = pytz.timezone('America/Santiago')
+    return timezone.now().astimezone(chile_tz).date()
+
+
+def _build_transferencia_receptor_fallback(transferencia):
+    """Obtiene direccion/comuna/ciudad destino para la guia de transferencia."""
+    class ReceptorFallback:
+        def __init__(self, transferencia):
+            empresa = transferencia.empresa
+            sucursal_destino = getattr(getattr(transferencia, 'bodega_destino', None), 'sucursal', None)
+
+            self.nombre = empresa.nombre or empresa.razon_social or ''
+            self.rut = empresa.rut or ''
+            self.giro = empresa.giro or empresa.giro_sii or ''
+            self.direccion = (
+                getattr(sucursal_destino, 'direccion', None)
+                or empresa.direccion
+                or ''
+            )
+            self.comuna = (
+                getattr(sucursal_destino, 'comuna', None)
+                or empresa.comuna
+                or ''
+            )
+            self.ciudad = (
+                getattr(sucursal_destino, 'ciudad', None)
+                or empresa.ciudad
+                or ''
+            )
+            self.telefono = ''
+            self.email = ''
+
+    return ReceptorFallback(transferencia)
+
+
+def _esperar_validacion_inmediata_guia(service, dte, max_intentos=4, espera_segundos=2):
+    """Consulta el estado del envio por unos segundos para habilitar impresion inmediata."""
+    ultimo_estado = None
+    ultimo_error = None
+
+    for intento in range(max_intentos):
+        try:
+            ultimo_estado = service.consultar_estado_dte(dte)
+            dte.refresh_from_db()
+            estado_real = dte.get_estado_sii_real()
+
+            if estado_real in {'aceptado', 'aceptado_reparos', 'rechazado'}:
+                return {
+                    'validated': True,
+                    'estado_real': estado_real,
+                    'glosa': dte.glosa_sii or (ultimo_estado or {}).get('glosa') or '',
+                }
+        except Exception as exc:
+            ultimo_error = str(exc)
+
+        if intento < max_intentos - 1:
+            time.sleep(espera_segundos)
+
+    dte.refresh_from_db()
+    return {
+        'validated': False,
+        'estado_real': dte.get_estado_sii_real(),
+        'glosa': dte.glosa_sii or (ultimo_estado or {}).get('glosa') or ultimo_error or '',
+    }
 
 
 @login_required
@@ -32,7 +103,7 @@ def transferencia_list(request):
         empresa=request.empresa
     ).select_related(
         'bodega_origen', 'bodega_destino', 'creado_por', 'guia_despacho'
-    ).prefetch_related('detalles').order_by('-fecha_transferencia')
+    ).prefetch_related('detalles')
     
     # Filtros
     estado = request.GET.get('estado')
@@ -74,6 +145,15 @@ def transferencia_list(request):
         fecha_transferencia__date__gte=fecha_desde,
         fecha_transferencia__date__lte=fecha_hasta
     )
+
+    orden = request.GET.get('orden', 'guia')
+    if orden == 'guia':
+        transferencias = transferencias.annotate(
+            folio_guia_orden=Coalesce('guia_despacho__folio', 0)
+        ).order_by('-folio_guia_orden', '-numero_folio', '-fecha_transferencia')
+    else:
+        orden = 'transferencia'
+        transferencias = transferencias.order_by('-numero_folio', '-guia_despacho__folio', '-fecha_transferencia')
     
     # Paginación
     paginator = Paginator(transferencias, 20)
@@ -99,6 +179,7 @@ def transferencia_list(request):
         'titulo': 'Transferencias de Inventario',
         'fecha_desde': fecha_desde.isoformat(),
         'fecha_hasta': fecha_hasta.isoformat(),
+        'orden_actual': orden,
     }
     
     return render(request, 'inventario/transferencia_list.html', context)
@@ -113,11 +194,18 @@ def transferencia_create(request):
     transferencia_edit = None
     if edit_id:
         transferencia_edit = get_object_or_404(
-            TransferenciaInventario,
+            TransferenciaInventario.objects.select_related('guia_despacho'),
             pk=edit_id,
             empresa=request.empresa,
-            estado__in=['pendiente', 'confirmado']  # Permitir editar tanto pendientes como confirmadas
+            estado__in=['pendiente', 'confirmado']
         )
+        if not transferencia_edit.puede_editar():
+            messages.warning(
+                request,
+                transferencia_edit.motivo_no_editable() or
+                'Esta transferencia no se puede editar.'
+            )
+            return redirect('inventario:transferencia_detail', pk=transferencia_edit.pk)
     
     if request.method == 'POST':
         # Sanitizar posibles separadores no numéricos en IDs (e.g., NBSP en "2\xa0023")
@@ -257,22 +345,20 @@ def transferencia_create(request):
                         
                         cantidad = Decimal(str(item['cantidad']))
                         
-                        # Verificar stock disponible en bodega origen
-                        try:
-                            stock_origen = Stock.objects.get(
-                                empresa=request.empresa,
-                                bodega=transferencia.bodega_origen,
-                                articulo=articulo
-                            )
-                            
-                            if stock_origen.cantidad < cantidad:
-                                raise ValueError(
-                                    f'Stock insuficiente para {articulo.nombre}. '
-                                    f'Disponible: {stock_origen.cantidad}, Solicitado: {cantidad}'
-                                )
-                        except Stock.DoesNotExist:
+                        stock_origen, _ = Stock.objects.get_or_create(
+                            empresa=request.empresa,
+                            bodega=transferencia.bodega_origen,
+                            articulo=articulo,
+                            defaults={
+                                'cantidad': 0,
+                                'precio_promedio': Decimal('0'),
+                            }
+                        )
+
+                        if articulo.control_stock and stock_origen.cantidad < cantidad:
                             raise ValueError(
-                                f'No hay stock disponible de {articulo.nombre} en la bodega origen.'
+                                f'Stock insuficiente para {articulo.nombre}. '
+                                f'Disponible: {stock_origen.cantidad}, Solicitado: {cantidad}'
                             )
                         
                         # Usar precio de venta del artículo para valorizar
@@ -392,8 +478,8 @@ def transferencia_create(request):
 def transferencia_detail(request, pk):
     """Ver detalle de una transferencia"""
     transferencia = get_object_or_404(
-        TransferenciaInventario, 
-        pk=pk, 
+        TransferenciaInventario.objects.select_related('guia_despacho'),
+        pk=pk,
         empresa=request.empresa
     )
     
@@ -505,22 +591,31 @@ def api_stock_disponible(request):
         cantidad_reservada = Decimal('0')
     
     try:
-        stock = Stock.objects.get(
+        stock = Stock.objects.select_related('articulo').get(
             empresa=request.empresa,
             bodega_id=bodega_id,
             articulo_id=articulo_id
         )
         disponible = max(Decimal('0'), stock.cantidad - cantidad_reservada)
+        control_stock = bool(getattr(stock.articulo, 'control_stock', True))
         return JsonResponse({
             'stock_disponible': float(disponible),
             'stock_en_bodega': float(stock.cantidad),
-            'precio_promedio': float(stock.precio_promedio)
+            'precio_promedio': float(stock.precio_promedio),
+            'control_stock': control_stock,
         })
     except Stock.DoesNotExist:
+        control_stock = True
+        try:
+            articulo = Articulo.objects.get(id=articulo_id, empresa=request.empresa)
+            control_stock = bool(articulo.control_stock)
+        except Articulo.DoesNotExist:
+            pass
         return JsonResponse({
             'stock_disponible': 0,
             'stock_en_bodega': 0,
-            'precio_promedio': 0
+            'precio_promedio': 0,
+            'control_stock': control_stock,
         })
 
 
@@ -539,6 +634,14 @@ def transferencia_imprimir_guia(request, pk):
         return redirect('inventario:transferencia_detail', pk=pk)
     
     dte = transferencia.guia_despacho
+    receptor_fallback = _build_transferencia_receptor_fallback(transferencia)
+
+    if not dte.puede_emitir_documento_tributario:
+        messages.error(
+            request,
+            dte.get_mensaje_no_emitible()
+        )
+        return redirect('inventario:transferencia_detail', pk=pk)
     
     # ASEGURAR TIMBRE PDF417 si falta o es placeholder, pero tenemos el TED
     # El placeholder tiene un tamaño pequeño (~2KB) comparado con un PDF417 real (>10KB)
@@ -563,6 +666,7 @@ def transferencia_imprimir_guia(request, pk):
     context = {
         'guia': dte,  # Usar 'guia' como nombre de variable para el template
         'dte': dte,
+        'receptor_display': _build_receptor_display(dte, fallback_cliente=receptor_fallback),
         'transferencia': transferencia,
         'detalles': detalles,
         'subtotal': subtotal,
@@ -578,7 +682,7 @@ def transferencia_imprimir_guia(request, pk):
 @requiere_empresa
 @require_POST
 def transferencia_generar_guia(request, pk):
-    """Generar guía de despacho electrónica para una transferencia"""
+    """Genera, envia y valida una guia de transferencia en un solo flujo."""
     try:
         transferencia = get_object_or_404(
             TransferenciaInventario,
@@ -607,228 +711,120 @@ def transferencia_generar_guia(request, pk):
                 'success': False,
                 'error': 'No se encontró sucursal para la empresa'
             })
-        
-        # USAR FolioService CENTRALIZADO para asignación de folios
+
+        receptor_fallback = _build_transferencia_receptor_fallback(transferencia)
+        detalles = transferencia.detalles.all()
+        subtotal = sum(detalle.total for detalle in detalles)
+        iva = subtotal * Decimal('0.19')
+        total = subtotal + iva
+
         with transaction.atomic():
-            # NOTA: obtener_siguiente_folio retorna (folio, caf) - 2 valores
             folio, caf = FolioService.obtener_siguiente_folio(
                 empresa=request.empresa,
                 tipo_documento='52',
                 sucursal=sucursal
             )
-            
+
             if not caf or not folio:
                 return JsonResponse({
                     'success': False,
                     'error': f'No hay CAF activo disponible para Guías de Despacho (52) en sucursal {sucursal.nombre}. Por favor, cargue un CAF tipo 52.'
                 })
-            
-            # Verificar que el CAF esté vigente
+
             if not caf.esta_vigente():
                 return JsonResponse({
                     'success': False,
                     'error': 'El CAF de Guías de Despacho ha vencido'
                 })
-            
-            # Calcular totales
-            detalles = transferencia.detalles.all()
-            subtotal = sum(detalle.total for detalle in detalles)
-            iva = subtotal * Decimal('0.19')
-            total = subtotal + iva
-            
-            # Generar DTE completo con timbre usando el servicio
-            try:
-                from facturacion_electronica.dte_service import DTEService as DTEServiceReal
-                from facturacion_electronica.dte_generator import DTEXMLGenerator
-                from facturacion_electronica.firma_electronica import FirmadorDTE
-                from facturacion_electronica.pdf417_generator import PDF417Generator
-                
-                # Preparar datos para el generador de XML
-                # Crear objeto temporal tipo venta para el generador
-                class TransferenciaWrapper:
-                    def __init__(self, transferencia, subtotal, iva, total):
-                        self.empresa = transferencia.empresa
-                        self.cliente = None
-                        self.tipo_documento = '52'
-                        self.fecha_emision = timezone.localtime(timezone.now()).date()
-                        # IndTraslado obligatorio para guías: 5 = Traslado interno (transferencias entre sucursales)
-                        self.tipo_traslado = '5'
-                        self.tipo_despacho = '3'  # 3 = Traslado propio
-                        self.forma_pago = '1'
-                        # Receptor (es la misma empresa para traslado interno)
-                        self.rut_receptor = transferencia.empresa.rut
-                        self.razon_social_receptor = transferencia.empresa.nombre
-                        self.giro_receptor = transferencia.empresa.giro
-                        self.direccion_receptor = transferencia.empresa.direccion
-                        self.comuna_receptor = transferencia.empresa.comuna
-                        self.ciudad_receptor = transferencia.empresa.ciudad
-                        # Montos (usar nombres exactos esperados por el generador)
-                        self.monto_neto = subtotal
-                        self.monto_exento = Decimal('0')
-                        self.monto_iva = iva
-                        self.monto_total = total
-                        self.descuento = Decimal('0')
-                        self.items = transferencia.detalles
-                        
-                venta_wrapper = TransferenciaWrapper(transferencia, subtotal, iva, total)
-                
-                # 1. Generar XML del DTE
-                generator = DTEXMLGenerator(request.empresa, venta_wrapper, '52', folio, caf)
-                xml_sin_firmar = generator.generar_xml()
-                
-                # 2. Firmar el XML
-                firmador = FirmadorDTE(
-                    request.empresa.certificado_digital.path,
-                    request.empresa.password_certificado
-                )
-                xml_firmado = firmador.firmar_xml(xml_sin_firmar)
-                
-                # 3. Generar TED (Timbre Electrónico)
-                ted_xml = None
-                pdf417_data = None
-                
-                # Intentar usar DTEBox para timbrar si está habilitado
-                if getattr(request.empresa, 'dtebox_habilitado', False):
-                    try:
-                        from facturacion_electronica.dtebox_service import DTEBoxService
-                        dtebox = DTEBoxService(request.empresa)
-                        print(f"Solicitando timbre a DTEBox para Guía {folio}...")
-                        res_dtebox = dtebox.timbrar_dte(xml_firmado, '52')
-                        if res_dtebox['success'] and res_dtebox.get('ted'):
-                            ted_xml = res_dtebox['ted']
-                            print("✅ Timbre obtenido exitosamente desde DTEBox")
-                    except Exception as e_dtebox:
-                        print(f"⚠️ Error al timbrar con DTEBox: {e_dtebox}. Intentando local...")
 
-                # Si no se obtuvo de DTEBox, generar localmente
-                if not ted_xml:
-                    print("Generando timbre localmente (Offline)...")
-                    dte_data = {
-                        'rut_emisor': request.empresa.rut,
-                        'tipo_dte': '52',
-                        'folio': folio,
-                        'fecha_emision': timezone.now().date().strftime('%Y-%m-%d'),
-                        'rut_receptor': request.empresa.rut,
-                        'razon_social_receptor': request.empresa.nombre,
-                        'monto_total': int(total),
-                        'item_1': 'Guía de Despacho Electrónica',
-                    }
-                    
-                    # Extraer datos reales del CAF
-                    datos_caf = {'modulo': '', 'exponente': ''}
-                    try:
-                        # Usar el método existente en DTEService para parsear el CAF
-                        service_temp = DTEServiceReal(request.empresa)
-                        datos_parsed = service_temp._parsear_datos_caf(caf)
-                        datos_caf['modulo'] = datos_parsed.get('M', 'MODULO_ERROR')
-                        datos_caf['exponente'] = datos_parsed.get('E', 'EXPONENTE_ERROR')
-                    except Exception as e_caf:
-                        print(f"Error parseando CAF: {e_caf}")
-                        datos_caf['modulo'] = 'ERROR'
-                        datos_caf['exponente'] = 'ERROR'
+            from facturacion_electronica.sii_crypto import obtener_rut_certificado
+            dte = DocumentoTributarioElectronico.objects.create(
+                empresa=request.empresa,
+                caf_utilizado=caf,
+                tipo_dte='52',
+                folio=folio,
+                fecha_emision=_fecha_chile_hoy(),
+                tipo_traslado='5',
+                usuario_creacion=request.user,
+                rut_emisor=request.empresa.rut,
+                razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
+                giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
+                direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
+                comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
+                rut_receptor=request.empresa.rut,
+                razon_social_receptor=receptor_fallback.nombre,
+                giro_receptor=receptor_fallback.giro,
+                direccion_receptor=receptor_fallback.direccion,
+                comuna_receptor=receptor_fallback.comuna,
+                ciudad_receptor=receptor_fallback.ciudad,
+                monto_neto=subtotal.quantize(Decimal('1')),
+                monto_exento=Decimal('0'),
+                monto_iva=iva.quantize(Decimal('1')),
+                monto_total=total.quantize(Decimal('1')),
+                estado_sii='generado'
+            )
 
-                    caf_data = {
-                        'rut_emisor': request.empresa.rut,
-                        'razon_social': request.empresa.razon_social_sii or request.empresa.razon_social,
-                        'tipo_documento': '52',
-                        'folio_desde': caf.folio_desde,
-                        'folio_hasta': caf.folio_hasta,
-                        'fecha_autorizacion': caf.fecha_autorizacion.strftime('%Y-%m-%d'),
-                        'modulo': datos_caf['modulo'],
-                        'exponente': datos_caf['exponente'],
-                        'firma': caf.firma_electronica,
-                    }
-                    
-                    ted_xml = firmador.generar_ted(dte_data, caf_data)
-                
-                # Generar datos PDF417 (siempre necesario para la imagen)
-                pdf417_data = firmador.generar_datos_pdf417(ted_xml)
-                
-                # 4. Crear DTE en BD
-                dte = DocumentoTributarioElectronico.objects.create(
-                    empresa=request.empresa,
-                    caf_utilizado=caf,
-                    tipo_dte='52',
-                    folio=folio,
-                    fecha_emision=timezone.localtime(timezone.now()).date(),
-                    tipo_traslado='5',  # Traslado interno
-                    tipo_despacho='3',
-                    forma_pago='1',
-                    usuario_creacion=request.user,
-                    # Emisor
-                    rut_emisor=request.empresa.rut,
-                    razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
-                    giro_emisor=request.empresa.giro_sii or request.empresa.giro or '',
-                    direccion_emisor=request.empresa.direccion_casa_matriz or request.empresa.direccion or '',
-                    comuna_emisor=request.empresa.comuna_casa_matriz or request.empresa.comuna or '',
-                    # Receptor (usar datos de la empresa para traslado interno)
-                    rut_receptor=request.empresa.rut,
-                    razon_social_receptor=request.empresa.nombre,
-                    giro_receptor=request.empresa.giro or '',
-                    direccion_receptor=request.empresa.direccion or '',
-                    comuna_receptor=request.empresa.comuna or '',
-                    ciudad_receptor=request.empresa.ciudad or '',
-                    # Montos
-                    monto_neto=subtotal.quantize(Decimal('1')),
-                    monto_exento=Decimal('0'),
-                    monto_iva=iva.quantize(Decimal('1')),
-                    monto_total=total.quantize(Decimal('1')),
-                    # XML y Timbre
-                    xml_dte=xml_sin_firmar,
-                    xml_firmado=xml_firmado,
-                    timbre_electronico=ted_xml,
-                    datos_pdf417=pdf417_data,
-                    # Estado
-                    estado_sii='generado'
-                )
-                
-                # 5. Generar imagen PDF417
-                PDF417Generator.guardar_pdf417_en_dte(dte)
-                
-                print(f"✅ Guía de Despacho generada con timbre: Folio {folio}")
-                
-            except Exception as e:
-                import traceback
-                print(f"❌ Error generando DTE con timbre: {e}")
-                traceback.print_exc()
-                
-                # Crear DTE básico sin timbre
-                dte = DocumentoTributarioElectronico.objects.create(
-                    empresa=request.empresa,
-                    caf_utilizado=caf,
-                    tipo_dte='52',
-                    folio=folio,
-                    fecha_emision=timezone.now().date(),
-                    tipo_traslado='5',
-                    usuario_creacion=request.user,
-                    rut_emisor=request.empresa.rut,
-                    razon_social_emisor=request.empresa.razon_social_sii or request.empresa.razon_social,
-                    rut_receptor=request.empresa.rut,
-                    razon_social_receptor=request.empresa.nombre,
-                    monto_neto=subtotal.quantize(Decimal('1')),
-                    monto_exento=Decimal('0'),
-                    monto_iva=iva.quantize(Decimal('1')),
-                    monto_total=total.quantize(Decimal('1')),
-                    estado_sii='generado'
-                )
-                # Intentar guardar un PDF417 placeholder para visualización
-                try:
-                    dte.timbre_electronico = 'DOCUMENTO SIN TIMBRE - PLACEHOLDER'
-                    dte.save(update_fields=['timbre_electronico'])
-                    from facturacion_electronica.pdf417_generator import PDF417Generator
-                    PDF417Generator.guardar_pdf417_en_dte(dte)
-                except Exception as e2:
-                    print(f"⚠️ No se pudo generar timbre placeholder: {e2}")
-            
-            # Asociar guía a la transferencia
+            # Estos valores se usan durante la generacion del XML, pero no existen como
+            # campos persistidos en el modelo DocumentoTributarioElectronico.
+            dte.tipo_despacho = '3'
+            dte.forma_pago = '1'
+            dte.rut_solicita = obtener_rut_certificado(
+                request.empresa.certificado_digital.path,
+                request.empresa.password_certificado,
+            ) or request.empresa.rut
+
             transferencia.guia_despacho = dte
-            transferencia.save()
-            
+            transferencia.save(update_fields=['guia_despacho'])
+
+            service = DTEService(request.empresa)
+            service.procesar_dte_existente(dte)
+
+        dte.refresh_from_db()
+        service = DTEService(request.empresa)
+        envio = service.enviar_dte_al_sii(dte)
+        validacion = _esperar_validacion_inmediata_guia(service, dte)
+        dte.refresh_from_db()
+
+        estado_real = dte.get_estado_sii_real()
+        print_url = None
+        if estado_real in {'aceptado', 'aceptado_reparos'}:
+            print_url = reverse('inventario:transferencia_imprimir_guia', kwargs={'pk': transferencia.pk})
+
+        if estado_real == 'rechazado':
+            return JsonResponse({
+                'success': False,
+                'folio': dte.folio,
+                'dte_id': dte.id,
+                'track_id': dte.track_id,
+                'estado_real': estado_real,
+                'error': dte.glosa_sii or validacion.get('glosa') or 'La guía fue rechazada por el SII.',
+                'reload': True,
+            }, status=422)
+
+        if print_url:
             return JsonResponse({
                 'success': True,
-                'folio': folio,
-                'message': f'Guía de Despacho N° {folio} generada exitosamente'
+                'folio': dte.folio,
+                'dte_id': dte.id,
+                'track_id': envio.get('track_id'),
+                'estado_real': estado_real,
+                'validated': True,
+                'printable': True,
+                'print_url': f'{print_url}?return_url={reverse("inventario:transferencia_detail", kwargs={"pk": transferencia.pk})}',
+                'message': f'Guía N° {dte.folio} validada por el SII y lista para impresión.'
             })
+
+        return JsonResponse({
+            'success': True,
+            'folio': dte.folio,
+            'dte_id': dte.id,
+            'track_id': envio.get('track_id'),
+            'estado_real': estado_real,
+            'validated': False,
+            'printable': False,
+            'message': 'La guía fue generada y enviada, pero el SII aún no entrega validación final. La impresión quedará habilitada cuando sea aceptada.',
+            'reload': True,
+        })
             
     except ValueError as e:
         return JsonResponse({

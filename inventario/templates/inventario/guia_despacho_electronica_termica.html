@@ -79,36 +79,29 @@
             line-height: 1.3;
         }
 
-        .company-rut {
-            font-size: 9pt;
-            font-weight: bold;
-            margin: 2mm 0;
-        }
-
-        /* Cuadro del Documento */
-        .document-box {
+        /* Un solo recuadro SII: RUT + tipo + folio */
+        table.sii-id-box {
+            width: 100%;
             border: 2px solid #000;
-            padding: 2mm;
-            text-align: center;
-            margin: 3mm 0;
-            background: #fff;
+            border-collapse: collapse;
+            margin: 3mm 0 2mm 0;
         }
 
-        .document-type {
+        table.sii-id-box td {
+            border: 0;
+            text-align: center;
+            padding: 2.5mm 2mm;
+            background: #fff;
             font-size: 10pt;
             font-weight: bold;
-            margin-bottom: 1mm;
+            line-height: 1.35;
         }
 
-        .document-folio {
-            font-size: 12pt;
-            font-weight: bold;
-            margin-bottom: 1mm;
-        }
-
-        .document-fecha {
+        .document-meta {
+            text-align: center;
             font-size: 8pt;
-            margin-top: 1mm;
+            margin-bottom: 2mm;
+            line-height: 1.35;
         }
 
         /* Datos del Cliente y Despacho */
@@ -188,6 +181,16 @@
             padding: 1mm 0;
         }
 
+        .total-row-separated {
+            margin-top: 2.2mm;
+            padding-top: 2.1mm;
+            border-top: 1px dotted #999;
+        }
+
+        .total-row-emphasis {
+            font-size: 9.7pt;
+        }
+
         .total-label {
             font-weight: bold;
         }
@@ -242,9 +245,11 @@
         @media print {
             body {
                 width: 80mm;
+                padding-top: 0;
             }
 
-            .no-print {
+            .no-print,
+            .visor-actions {
                 display: none !important;
             }
 
@@ -252,10 +257,45 @@
                 margin: 0;
             }
         }
+
+        @media screen {
+            body {
+                padding-top: 56px;
+            }
+        }
+
+        .visor-actions {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #FAFAF8;
+            border-bottom: 1px solid #E8DCC8;
+        }
+
+        .visor-actions button {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        .visor-actions .btn-imprimir { background: #5F8D62; }
+        .visor-actions .btn-volver { background: #6F5B44; }
+        .visor-actions .btn-cerrar { background: #C76F43; }
     </style>
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     {% for i in copias_range %}
     <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
@@ -266,58 +306,91 @@
             {% endif %}
 
             <div class="company-name">{{ empresa.nombre }}</div>
-            <div class="company-rut">RUT: {{ empresa.rut }}</div>
             <div class="company-info">
                 {{ empresa.get_direccion_dte }}<br>
-                {{ empresa.get_ciudad_dte }}<br>
+                {{ empresa.get_comuna_dte }}{% if empresa.get_comuna_dte and empresa.get_ciudad_dte %}, {% endif %}{{ empresa.get_ciudad_dte }}<br>
                 Fono: {{ empresa.telefono|default:"Sin teléfono" }}
             </div>
         </div>
 
-        <!-- CUADRO DEL DOCUMENTO -->
-        <div class="document-box">
-            <div class="document-type">GUÍA DE DESPACHO ELECTRÓNICA</div>
-            <div class="document-folio">
-                N° {{ dte.folio }}
-            </div>
-            <div class="document-fecha">
-                {% load l10n %}
-                {{ dte.fecha_emision|date:"d/m/Y" }}
-            </div>
-            <div style="font-size: 7pt; margin-top: 1mm;">
-                SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
-            </div>
+        <table class="sii-id-box" cellspacing="0" cellpadding="0" width="100%">
+            <tr>
+                <td align="center" style="border: 0;">
+                    RUT {{ dte.rut_emisor|default:empresa.rut }}<br>
+                    GUÍA DE DESPACHO ELECTRÓNICA<br>
+                    N° {{ dte.folio }}
+                </td>
+            </tr>
+        </table>
+        <div class="document-meta">
+            {% load l10n %}
+            {{ dte.fecha_emision|date:"d-m-Y" }}{% if venta and venta.fecha_vencimiento %} · Vence {{ venta.fecha_vencimiento|date:"d-m-Y" }}{% endif %}<br>
+            SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
+            {% if venta and venta.numero_venta %}
+            <br>VALE REF: #{{ venta.numero_venta }}
+            {% endif %}
         </div>
 
         <!-- DATOS DEL RECEPTOR -->
         <div class="cliente-section">
             <div class="cliente-row">
                 <span class="cliente-label">Receptor:</span>
-                <span>{{ dte.razon_social_receptor|default:"Cliente" }}</span>
+                <span>{{ receptor_display.nombre|default:dte.razon_social_receptor|default:"Cliente" }}</span>
             </div>
             <div class="cliente-row">
                 <span class="cliente-label">RUT:</span>
-                <span>{{ dte.rut_receptor|default:"-" }}</span>
+                <span>{{ receptor_display.rut|default:dte.rut_receptor|default:"-" }}</span>
             </div>
-            {% if dte.direccion_receptor %}
             <div class="cliente-row">
                 <span class="cliente-label">Dirección:</span>
-                <span>{{ dte.direccion_receptor }}</span>
+                <span>{{ receptor_display.direccion|default:dte.direccion_receptor|default:"-" }}</span>
             </div>
-            {% endif %}
+            <div class="cliente-row">
+                <span class="cliente-label">Comuna:</span>
+                <span>{{ receptor_display.comuna|default:dte.comuna_receptor|default:"-" }}</span>
+            </div>
+            <div class="cliente-row">
+                <span class="cliente-label">Ciudad:</span>
+                <span>{{ receptor_display.ciudad|default:dte.ciudad_receptor|default:"-" }}</span>
+            </div>
+            <div class="cliente-row">
+                <span class="cliente-label">Bodega:</span>
+                <span>{{ bodega_display|default:"-" }}</span>
+            </div>
             <div class="cliente-row">
                 <span class="cliente-label">Tipo Traslado:</span>
                 {% if dte.tipo_traslado %}
-                {# Si existe en DTE, usarlo #}
                 <span>{{ dte.get_tipo_traslado_display }}</span>
                 {% elif venta and venta.tipo_despacho %}
-                {# Si no, buscar en venta #}
                 <span>{{ venta.get_tipo_despacho_display }}</span>
                 {% else %}
-                {# Si no hay nada, mostrar error o default solo si no es 52 #}
                 <span>{{ dte.get_tipo_traslado_display|default:"-" }}</span>
                 {% endif %}
             </div>
+            {% if dte.patente_transporte or dte.vehiculo %}
+            <div class="cliente-row">
+                <span class="cliente-label">Patente:</span>
+                <span>{{ dte.patente_transporte|default:dte.vehiculo.patente }}</span>
+            </div>
+            {% endif %}
+            {% if dte.nombre_chofer or dte.chofer %}
+            <div class="cliente-row">
+                <span class="cliente-label">Chofer:</span>
+                <span>{{ dte.nombre_chofer|default:dte.chofer.nombre }}{% if dte.chofer.rut %} ({{ dte.chofer.rut }}){% endif %}</span>
+            </div>
+            {% endif %}
+            {% if dte.fecha_salida %}
+            <div class="cliente-row">
+                <span class="cliente-label">Salida:</span>
+                <span>{{ dte.fecha_salida|date:"d-m-Y" }}{% if dte.hora_salida %} {{ dte.hora_salida|time:"H:i" }}{% endif %}</span>
+            </div>
+            {% endif %}
+            {% if dte.fecha_llegada %}
+            <div class="cliente-row">
+                <span class="cliente-label">Llegada:</span>
+                <span>{{ dte.fecha_llegada|date:"d-m-Y" }}</span>
+            </div>
+            {% endif %}
         </div>
 
         <!-- DATOS DE TRANSPORTE -->
@@ -328,21 +401,45 @@
         <!-- DETALLE DE PRODUCTOS -->
         <div class="productos-section">
             <div class="productos-header">DETALLE DE PRODUCTOS</div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 7.2pt; table-layout: fixed;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #000;">
+                        <th style="width: 42%; text-align: left; font-weight: bold;">PRODUCTO</th>
+                        <th style="width: 14%; text-align: right; font-weight: bold;">CANT</th>
+                        <th style="width: 20%; text-align: right; font-weight: bold;">P.UN</th>
+                        <th style="width: 24%; text-align: right; font-weight: bold;">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1mm 2mm 1mm 0; vertical-align: bottom; font-weight: bold;">
+                    <td style="width: 42%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.35mm 1mm 1.35mm 0; vertical-align: bottom; font-weight: bold;">
                         {% if detalle.item_pedido %}{{ detalle.item_pedido.articulo.nombre }}{% else %}{{ detalle.articulo.nombre }}{% endif %}
                     </td>
-                    <td style="width: 30%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1mm 0; vertical-align: bottom;">
+                    <td style="width: 14%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
                         {% if detalle.item_pedido %}
                         {{ detalle.cantidad|floatformat:0 }} {{ detalle.item_pedido.articulo.unidad_medida.simbolo|default:"UN" }}
                         {% else %}
                         {{ detalle.cantidad|floatformat:0 }} {{ detalle.articulo.unidad_medida.simbolo|default:"UN" }}
                         {% endif %}
                     </td>
+                    <td style="width: 20%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
+                        {% if detalle.item_pedido %}
+                        ${{ detalle.item_pedido.precio_unitario|format_precio }}
+                        {% else %}
+                        ${{ detalle.precio_unitario|format_precio }}
+                        {% endif %}
+                    </td>
+                    <td style="width: 24%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
+                        {% if detalle.item_pedido %}
+                        ${{ detalle.item_pedido.get_total|format_precio }}
+                        {% else %}
+                        ${{ detalle.precio_total|format_precio }}
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
+                </tbody>
             </table>
         </div>
 
@@ -350,13 +447,13 @@
         {% if venta %}
         <div class="totales-section">
             {% if venta.neto %}
-            <div class="total-row">
+            <div class="total-row total-row-emphasis">
                 <span class="total-label">Neto:</span>
                 <span class="total-value">${{ venta.neto|format_precio }}</span>
             </div>
             {% endif %}
             {% if venta.iva %}
-            <div class="total-row">
+            <div class="total-row total-row-separated total-row-emphasis">
                 <span class="total-label">IVA (19%):</span>
                 <span class="total-value">${{ venta.iva|format_precio }}</span>
             </div>
@@ -376,7 +473,7 @@
             <div style="font-size: 7pt; margin-bottom: 1mm; padding: 1mm; background: #f5f5f5; border-radius: 2mm;">
                 <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
                 <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{
-                    ref.fecha_referencia|date:"d/m/Y" }}</div>
+                    ref.fecha_referencia|date:"d-m-Y" }}</div>
                 {% if ref.razon_referencia %}
                 <div style="font-size: 6pt; color: #666;"><strong>Razón:</strong> {{
                     ref.razon_referencia|truncatewords:10 }}</div>
@@ -407,7 +504,7 @@
         {% endif %}
 
         <!-- OBSERVACIONES -->
-        {% if venta and venta.observaciones %}
+        {% if venta and venta.observaciones and "Ticket generado" not in venta.observaciones %}
         <div style="border-top: 1px dashed #000; padding-top: 2mm; margin-top: 2mm; font-size: 7pt;">
             <strong>Observaciones:</strong><br>
             {{ venta.observaciones|truncatewords:30 }}
@@ -417,7 +514,7 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ empresa.nombre }}<br>
-            Impreso: {{ dte.fecha_emision|date:"d/m/Y" }}<br>
+            Impreso: {{ dte.fecha_emision|date:"d-m-Y" }}<br>
             Gracias por su preferencia
         </div>
 
@@ -428,63 +525,11 @@
     </div>
     {% endfor %}
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()"
-            style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            🖨️ Imprimir
-        </button>
-        <button onclick="cerrarVentana()"
-            style="padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            📋 Libro de Ventas
-        </button>
-        <button onclick="cerrarVentana()"
-            style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            ← Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         // Definir cerrarVentana en el scope global para que sea accesible desde onclick
         window.cerrarVentana = function() {
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const referrer = document.referrer;
-
-            // Si es un popup, cerrarlo INSTANTÁNEAMENTE para no bloquear el POS
-            if (window.opener) {
-                console.log('[GUIA] Cerrando popup...');
-                window.close();
-                // Fallback por si window.close es bloqueado
-                setTimeout(() => {
-                    if (!window.closed) {
-                         if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
-                         else window.close();
-                    }
-                }, 100);
-                return;
-            }
-
-            // PRIORIDAD: Si hay return_url y no es popup, ir ahí
-            if (returnUrl) {
-                console.log('[GUIA] Volviendo a:', decodeURIComponent(returnUrl));
-                window.location.href = decodeURIComponent(returnUrl);
-                return;
-            }
-
-            // Fallback: usar referrer si viene del POS
-            if (referrer && referrer.includes('/pos/')) {
-                console.log('[GUIA] Volviendo al POS (referrer)');
-                window.location.href = referrer;
-                return;
-            }
-
-            // Fallback: volver atrás o al libro de ventas
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
         };
 
         (function () {

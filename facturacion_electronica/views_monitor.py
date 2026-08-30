@@ -18,8 +18,10 @@ def monitor_envios(request):
     # Obtener DTEs pendientes y en proceso
     dtes_pendientes = DocumentoTributarioElectronico.objects.filter(
         empresa=request.empresa,
-        estado_sii__in=['pendiente', 'enviando', 'generado']
+        estado_sii__in=['pendiente', 'enviando', 'generado', 'enviado', 'error_envio']
     ).select_related('venta').order_by('-fecha_emision')[:50]
+    dtes_pendientes = list(dtes_pendientes)
+    DocumentoTributarioElectronico.refrescar_estados_visibles(dtes_pendientes, limit=50)
     
     # Obtener estadísticas del sender
     sender = get_background_sender()
@@ -44,6 +46,12 @@ def reenviar_dte(request, dte_id):
             id=dte_id,
             empresa=request.empresa
         )
+
+        if not dte.puede_enviarse_al_sii:
+            return JsonResponse({
+                'success': False,
+                'message': 'Este DTE no esta disponible para reenvio al SII'
+            })
         
         # Agregar a la cola de envío
         sender = get_background_sender()
@@ -77,10 +85,10 @@ def reenviar_multiples(request):
     Reenvía múltiples DTEs pendientes
     """
     try:
-        # Obtener todos los DTEs pendientes
+        # Obtener todos los DTEs reenviables
         dtes_pendientes = DocumentoTributarioElectronico.objects.filter(
             empresa=request.empresa,
-            estado_sii='pendiente'
+            estado_sii__in=['pendiente', 'generado', 'firmado', 'error_envio']
         )
         
         dte_ids = list(dtes_pendientes.values_list('id', flat=True))

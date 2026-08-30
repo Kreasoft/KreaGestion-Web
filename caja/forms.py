@@ -12,12 +12,13 @@ class CajaForm(forms.ModelForm):
     
     class Meta:
         model = Caja
-        fields = ['numero', 'nombre', 'descripcion', 'sucursal', 'bodega', 'activo']
+        fields = ['numero', 'nombre', 'descripcion', 'sucursal', 'estacion_trabajo', 'bodega', 'activo']
         widgets = {
             'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 001'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Caja Principal'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción de la caja'}),
             'sucursal': forms.Select(attrs={'class': 'form-select'}),
+            'estacion_trabajo': forms.Select(attrs={'class': 'form-select'}),
             'bodega': forms.Select(attrs={'class': 'form-select'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -25,6 +26,7 @@ class CajaForm(forms.ModelForm):
             'numero': 'Número de Caja',
             'nombre': 'Nombre de la Caja',
             'descripcion': 'Descripción',
+            'estacion_trabajo': 'Estación de trabajo (POS)',
             'bodega': 'Bodega (para descuento de stock)',
             'activo': 'Caja Activa',
         }
@@ -36,8 +38,25 @@ class CajaForm(forms.ModelForm):
         if self.empresa:
             self.fields['sucursal'].queryset = Sucursal.objects.filter(empresa=self.empresa)
             self.fields['bodega'].queryset = Bodega.objects.filter(empresa=self.empresa)
+            self.fields['estacion_trabajo'].queryset = EstacionTrabajo.objects.filter(
+                empresa=self.empresa, activo=True
+            ).select_related('sucursal').order_by('numero')
             self.fields['bodega'].empty_label = "Seleccione una bodega"
             self.fields['sucursal'].empty_label = "Seleccione una sucursal"
+            self.fields['estacion_trabajo'].empty_label = "Sin asignar"
+            self.fields['estacion_trabajo'].required = False
+        else:
+            self.fields['estacion_trabajo'].queryset = EstacionTrabajo.objects.none()
+
+    def clean(self):
+        cleaned = super().clean()
+        sucursal = cleaned.get('sucursal')
+        estacion = cleaned.get('estacion_trabajo')
+        if estacion and self.empresa and estacion.empresa_id != self.empresa.id:
+            raise ValidationError('La estación de trabajo no pertenece a esta empresa.')
+        if estacion and sucursal and estacion.sucursal_id and estacion.sucursal_id != sucursal.id:
+            raise ValidationError('La estación de trabajo no pertenece a la sucursal seleccionada.')
+        return cleaned
 
 
 class AperturaCajaForm(forms.ModelForm):
@@ -54,22 +73,14 @@ class AperturaCajaForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         self.empresa = kwargs.pop('empresa', None)
+        sucursal = kwargs.pop('sucursal', None)
         super().__init__(*args, **kwargs)
         
         if self.empresa:
             # Solo mostrar cajas activas que no tengan apertura activa
             cajas_base = Caja.objects.filter(empresa=self.empresa, activo=True)
-            
-            # FILTRAR POR SUCURSAL SI EL USUARIO ES CAJERO
-            # Nota: Necesitamos acceder al usuario que está usando el form.
-            # Asumiendo que el usuario se pasa opcionalmente o lo manejamos por contexto en la vista.
-            # En Django, usualmente se pasa el usuario al form en el init.
-            user = kwargs.get('user', None) # Intento obtenerlo de kwargs si se pasó
-            
-            # Si no se pasó explícitamente, intentamos buscarlo en el perfil del sistema si es posible
-            # pero lo más robusto es que la vista lo maneje. 
-            # Por ahora, si no hay filtro de sucursal explícito aquí, usaremos la lógica de la vista que ya corregimos.
-            # Sin embargo, para mayor seguridad, añadimos el filtro si el usuario está disponible.
+            if sucursal is not None:
+                cajas_base = cajas_base.filter(sucursal=sucursal)
             
             cajas_disponibles = []
             for caja in cajas_base:

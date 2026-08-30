@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load format_filters %}
+
+{% block title %}XML RCV {{ documento.tipo_dte }}-{{ documento.folio }} - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background: #FAFAF8 !important; }
+    .rcv-xml-pre {
+        margin: 0;
+        padding: 10px 12px;
+        background: rgba(255,255,255,0.72);
+        border: 1px solid #E8DCC8;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        line-height: 1.45;
+        color: #5D4037;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: calc(100vh - 180px);
+        overflow: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139,115,85,0.15);">
+        <div class="card-header d-flex justify-content-between align-items-center" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+            <div>
+                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #5D4037; font-size: 1.45rem;">
+                    XML <span class="fw-bold">Registro RCV</span>
+                    <span style="font-size: 0.85rem; opacity: 0.7;">· DTE {{ documento.tipo_dte }} folio {{ documento.folio }}</span>
+                </h2>
+                <div style="font-size: 0.75rem; color: #5D4037; opacity: 0.75;">
+                    {{ documento.razon_social_emisor }} · {{ documento.rut_emisor }} · {{ documento.fecha_emision|date:"d-m-Y" }} · {{ documento.monto_total|format_moneda }}
+                </div>
+            </div>
+            <div class="d-flex gap-1">
+                <a href="{% url 'compras:facturas_recibidas_sii' %}" class="btn btn-sm" style="background: rgba(93,64,55,.12); border: 1px solid rgba(93,64,55,.28); color: #5D4037; font-weight: 600; font-size: 0.75rem;">Volver</a>
+                <button type="button" class="btn btn-sm" style="background:#fff;border:1px solid #D4C4A8;color:#5D4037;font-weight:600;font-size:0.75rem;" onclick="if(history.length>1){history.back()}else{location.href='{% url 'compras:facturas_recibidas_sii' %}'}">Cerrar</button>
+                <a href="{% url 'compras:ver_registro_rcv_xml' documento.pk %}?raw=1" class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                    <i class="fas fa-download me-1"></i>Descargar XML
+                </a>
+            </div>
+        </div>
+        <div class="card-body" style="padding: 8px 10px;">
+            <div class="mb-2" style="font-size: 0.68rem; color: #8B7355;">
+                Representación del registro en el RCV del SII. No es el DTE original firmado.
+            </div>
+            <pre class="rcv-xml-pre">{{ xml_texto }}</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}

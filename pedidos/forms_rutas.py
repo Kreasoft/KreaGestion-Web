@@ -21,37 +21,37 @@ class RutaForm(forms.ModelForm):
         ]
         widgets = {
             'codigo': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Ej: RUTA-01, NORTE-01',
                 'required': True
             }),
             'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Ej: Ruta Norte, Ruta Centro',
                 'required': True
             }),
             'descripcion': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'Descripción detallada de la ruta, zonas que cubre, etc.'
+                'class': 'form-control form-control-sm',
+                'rows': 2,
+                'placeholder': 'Zonas que cubre, etc.'
             }),
             'vehiculo': forms.Select(attrs={
-                'class': 'form-control',
+                'class': 'form-select form-select-sm',
                 'required': True
             }),
             'chofer': forms.Select(attrs={
-                'class': 'form-control',
+                'class': 'form-select form-select-sm',
                 'required': True
             }),
             'acompanante': forms.Select(attrs={
-                'class': 'form-control'
+                'class': 'form-select form-select-sm'
             }),
             'dias_visita': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Ej: Lunes, Miércoles, Viernes'
             }),
             'orden_visita': forms.NumberInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'min': 0,
                 'placeholder': 'Orden de visita (1, 2, 3...)'
             }),

@@ -66,7 +66,7 @@ def global_notifications_processor(request):
                     'urgencia': 'danger' if dias <= 5 else 'warning',
                     'mensaje': f'CAF {caf.get_tipo_documento_display()} vence en {dias} días',
                     'documento': caf.get_tipo_documento_display(),
-                    'detalle': f'Vence el {caf.fecha_vencimiento.strftime("%d/%m/%Y")}'
+                    'detalle': f'Vence el {caf.fecha_vencimiento.strftime("%d-%m-%Y")}'
                 })
             
             # Alerta por Cantidad (bajo stock)

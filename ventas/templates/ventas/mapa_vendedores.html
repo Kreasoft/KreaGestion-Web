@@ -3,33 +3,41 @@
 
 {% block page_title %}Monitoreo de Vendedores - GestionCloud{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+</style>
+{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
-    #map { height: 650px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; z-index: 1; }
+    #map { height: 650px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; z-index: 1; }
     .seller-popup { font-family: 'Poppins', sans-serif; min-width: 150px; }
     .seller-name { font-weight: bold; color: #8B7355; font-size: 1rem; }
     .btn-terroso { background-color: #8B7355; color: white; border: none; }
     .btn-terroso:hover { background-color: #6F5B44; color: white; }
     .legend-card { position: absolute; top: 10px; right: 10px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 0.8rem; }
+    .vendedor-pin { background: none !important; border: none !important; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="main-content">
-    <div class="container-fluid mt-4">
-        <div class="row mb-4">
+    <div class="container-fluid" style="padding: 8px 12px;">
+        <div class="row mb-2">
             <div class="col-md-8">
-                <h2 class="fw-bold mb-0">Ruta de Fuerza de Venta</h2>
-                <p class="text-muted">Visualización en tiempo real de la última ubicación reportada por sus vendedores.</p>
+                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto, #5D4037); font-size: 1.45rem;">Gestión de <span class="fw-bold">Vendedores</span></h2>
+                <div class="mb-0" style="font-size: 0.75rem; color: #5D4037; opacity: 0.75;">Última ubicación reportada por la fuerza de venta.</div>
             </div>
             <div class="col-md-4 text-md-end">
-                <div class="btn-group">
-                    <button onclick="location.reload()" class="btn btn-terroso">
-                        <i class="fas fa-sync me-2"></i> ACTUALIZAR MAPA
+                <div class="d-flex gap-2 justify-content-md-end">
+                    <button onclick="location.reload()" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                        <i class="fas fa-sync me-1"></i> Actualizar
                     </button>
-                    <a href="{% url 'ventas:vendedor_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-list me-2"></i> LISTADO
+                    <a href="{% url 'ventas:vendedor_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                        <i class="fas fa-list me-1"></i> Listado
                     </a>
                 </div>
             </div>
@@ -41,14 +49,14 @@
                 <div class="legend-card">
                     <div class="fw-bold mb-1 border-bottom pb-1">Leyenda</div>
                     <div class="d-flex align-items-center mb-1">
-                        <i class="fas fa-map-marker-alt text-primary me-2"></i> Posición Reportada
+                        <i class="fas fa-map-marker-alt me-2" style="color: #C76F43;"></i> Posición Reportada
                     </div>
                     <div class="text-muted small">* Datos actualizados desde la App Móvil</div>
                 </div>
             </div>
         </div>
         
-        <div class="row mt-4">
+        <div class="row mt-2">
             <div class="col-12">
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white">
@@ -72,11 +80,11 @@
                                             <div class="fw-bold">{{ v.nombre }}</div>
                                             <div class="small text-muted">{{ v.codigo }}</div>
                                         </td>
-                                        <td>{{ v.fecha_pos|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ v.fecha_pos|date:"d-m-Y H:i" }}</td>
                                         <td><code class="small">{{ v.lat|stringformat:".6f" }}, {{ v.lng|stringformat:".6f" }}</code></td>
                                         <td class="text-end">
-                                            <button onclick="centrarMapa({{ v.lat|stringformat:"f" }}, {{ v.lng|stringformat:"f" }}, '{{ v.nombre }}')" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-crosshairs me-1"></i> Ir alpunto
+                                            <button onclick="centrarMapa({{ v.lat|stringformat:"f" }}, {{ v.lng|stringformat:"f" }}, '{{ v.nombre }}')" class="btn btn-sm" style="background: #FAFAF8; border: 1px solid #D4C4A8; color: #5D4037; font-weight: 600;">
+                                                <i class="fas fa-crosshairs me-1"></i> Ir al punto
                                             </button>
                                         </td>
                                     </tr>
@@ -113,13 +121,19 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         map = L.map('map').setView([-33.4489, -70.6693], 12);
-        
-        // Usar CartoDB Light para un look más "Premium" y evitar bloqueos de Referer de OSM
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19
         }).addTo(map);
+
+        var pinIcon = L.divIcon({
+            className: 'vendedor-pin',
+            html: '<i class="fas fa-map-marker-alt" style="color:#C76F43;font-size:28px;filter:drop-shadow(0 1px 2px rgba(93,64,55,0.45));"></i>',
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+            popupAnchor: [0, -24]
+        });
 
         var groupMarkers = [];
         {% for v in vendedores %}
@@ -127,14 +141,14 @@
             var lat = parseFloat("{{ v.lat|stringformat:"f" }}");
             var lng = parseFloat("{{ v.lng|stringformat:"f" }}");
             
-            var marker = L.marker([lat, lng]).addTo(map);
+            var marker = L.marker([lat, lng], { icon: pinIcon }).addTo(map);
             marker.bindPopup(`
                 <div class="seller-popup">
                     <div class="seller-name">{{ v.nombre }}</div>
                     <div class="small"><b>Código:</b> {{ v.codigo }}</div>
                     <hr class="my-1">
                     <div class="small text-muted">Última ubicación:</div>
-                    <div class="small">{{ v.fecha_pos|date:"d/m/Y H:i" }}</div>
+                    <div class="small">{{ v.fecha_pos|date:"d-m-Y H:i" }}</div>
                 </div>
             `);
             markers["{{ v.nombre }}"] = marker;

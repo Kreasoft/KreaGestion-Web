@@ -5,8 +5,44 @@
 
 {% block title %}Procesar Venta - {{ ticket.numero_venta }}{% endblock %}
 
-{% block extra_css %}
+{% block extra_head %}
 <style>
+
+    .stone-header-premium { padding: 8px 16px !important; border-bottom: 2px solid #D4C4A8 !important; }
+    .header-icon-box { width: 34px !important; height: 34px !important; font-size: 0.95rem !important; border-radius: 8px !important; }
+    .header-text h1 { font-size: 1.45rem !important; color: var(--color-piedra-texto, #5D4037) !important; }
+    .header-text p { font-size: 0.75rem !important; }
+    .stat-card { min-height: 52px !important; }
+    .stat-content { padding: 6px 10px !important; }
+    .stat-value { font-size: 1.15rem !important; }
+    .stat-icon-full { font-size: 2rem !important; }
+    .stat-icon { font-size: 1.6rem !important; }
+    .stone-filter-box { padding: 8px 10px !important; margin-bottom: 8px !important; border-radius: 8px !important; }
+    .form-control-stone, .form-select-stone,
+    input[type="text"], input[type="number"], input[type="date"], textarea, select,
+    .form-control, .form-select {
+        padding: 2px 8px !important; font-size: 0.75rem !important; min-height: 26px !important; height: 28px !important;
+        border: 1px solid #D4C4A8 !important; border-radius: 6px !important;
+    }
+    textarea.form-control, textarea.form-control-stone, textarea { height: auto !important; min-height: 52px !important; }
+    .form-control-stone:focus, .form-select-stone:focus,
+    input:focus, textarea:focus, select:focus, .form-control:focus, .form-select:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.18) !important; outline: none !important;
+    }
+    .form-check-input:checked { background-color: #6F5B44 !important; border-color: #6F5B44 !important; }
+    .form-check-input:focus { box-shadow: 0 0 0 0.2rem rgba(111,91,68,0.25) !important; border-color: #6F5B44 !important; }
+    .btn-action-primary, .header-btn.btn-action-primary {
+        background: var(--color-verde-oliva, #8B8B3A) !important; border: 1px solid #6F6F2E !important; color: #fff !important;
+        font-size: 0.75rem !important; font-weight: 700 !important; padding: 4px 12px !important;
+    }
+    .header-btn { font-size: 0.75rem !important; padding: 4px 10px !important; color: #5D4037 !important; }
+    .modal-header, .modal-header-stone, .stone-modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .single-card-container { margin-top: 0 !important; margin-bottom: 8px !important; }
+    .table-piedra tbody tr { height: 32px !important; }
+    .table-piedra tbody td { padding: 2px 8px !important; font-size: 0.75rem !important; }
+    .table-piedra thead th { padding: 6px 8px !important; font-size: 0.65rem !important; }
+
     /* VARIABLES ESTILO PIEDRA - PROCESAR VENTA */
     :root {
         --stone-primary: #8B7355;
@@ -37,7 +73,7 @@
     /* HEADER PREMIUM */
     .stone-header-premium {
         background: var(--stone-gradient);
-        padding: 1.25rem 1.5rem;
+        padding: 8px 16px;
         border-bottom: 1px solid var(--stone-light);
         display: flex;
         align-items: center;
@@ -45,7 +81,7 @@
     }
     
     .header-icon-box {
-        width: 48px; height: 48px; 
+        width: 34px; height: 34px; 
         background: rgba(255, 255, 255, 0.8); 
         backdrop-filter: blur(4px);
         border-radius: 12px; 
@@ -56,7 +92,7 @@
     }
 
     .header-text h1 {
-        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
+        color: var(--stone-text); font-size: 1.45rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
     }
     .header-text p {
         color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
@@ -83,11 +119,11 @@
     .stone-card-header {
         background: #F4F2EE; border-bottom: 1px solid #E8DCC8; padding: 0.75rem 1.25rem; font-weight: 600; color: var(--stone-text); font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;
     }
-    .stone-card-body { padding: 1.25rem; }
+    .stone-card-body { padding: 8px 16px; }
 
     /* RESUMEN BOX PREMIUM */
     .resumen-box-premium {
-        background: #F4F2EE; border: 1px solid var(--stone-light); border-radius: 12px; padding: 1.25rem;
+        background: #F4F2EE; border: 1px solid var(--stone-light); border-radius: 12px; padding: 8px 16px;
     }
     .resumen-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; color: #795548; }
     .resumen-row strong { color: var(--stone-text); }
@@ -117,16 +153,36 @@
 
     /* TICKET ITEMS LIST */
     .ticket-item-row {
-        padding: 0.5rem 0; border-bottom: 1px solid #F5F1E8; display: flex; justify-content: space-between; align-items: flex-start;
+        padding: 2px 0; border-bottom: 1px solid #F5F1E8; display: flex; justify-content: space-between; align-items: center;
     }
-    .ticket-item-name { font-size: 0.85rem; font-weight: 600; color: var(--stone-text); line-height: 1.2; }
-    .ticket-item-subtext { font-size: 0.75rem; color: #8d6e63; }
-    .ticket-item-total { font-weight: 700; color: var(--stone-secondary); font-size: 0.9rem; }
+    .ticket-item-name { font-size: 0.75rem; font-weight: 600; color: var(--stone-text); line-height: 1.15; }
+    .ticket-item-subtext { font-size: 0.68rem; color: #8d6e63; }
+    .ticket-item-total { font-weight: 700; color: var(--stone-secondary); font-size: 0.75rem; }
+
+    .stone-card-info { margin-bottom: 8px !important; border-radius: 8px !important; }
+    .stone-card-header { padding: 5px 10px !important; font-size: 0.78rem !important; }
+    .stone-card-body { padding: 6px 10px !important; }
+    .form-label-stone { font-size: 0.65rem !important; margin-bottom: 2px !important; letter-spacing: 0.3px; }
+    .resumen-box-premium { padding: 6px 8px !important; border-radius: 8px !important; }
+    .resumen-row { margin-bottom: 2px !important; font-size: 0.75rem !important; }
+    .resumen-total { padding-top: 4px !important; margin-top: 4px !important; }
+    .resumen-total .total-label { font-size: 0.78rem !important; }
+    .resumen-total .total-value { font-size: 1.05rem !important; }
+    .forma-pago-item-stone { padding: 6px 8px !important; margin-bottom: 6px !important; border-radius: 6px !important; }
+    .btn-action-primary, .btn-action-secondary {
+        padding: 4px 12px !important; font-size: 0.75rem !important; border-radius: 6px !important;
+    }
+    .comprobante-box { padding: 6px 10px !important; gap: 10px !important; }
+    .comprobante-box .header-icon-box { width: 28px !important; height: 28px !important; font-size: 0.85rem !important; }
+    .comprobante-box h5 { font-size: 0.85rem !important; margin-bottom: 0 !important; }
+    .comprobante-box p { font-size: 0.68rem !important; }
+    #diferencia { font-size: 0.9rem !important; }
+    .pago-resumen { padding: 6px 8px !important; margin-top: 8px !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" style="padding: 8px 12px;">
     <div class="single-card-container">
         
         <!-- HEADER -->
@@ -141,16 +197,16 @@
                 </div>
             </div>
             <div class="d-flex gap-2">
-                <a href="{{ next_url|default:'/caja/procesar-venta/' }}" class="btn btn-back btn-sm fw-bold px-3 py-2">
-                    <i class="fas fa-arrow-left me-2"></i> Volver
+                <a href="{{ next_url|default:'/caja/procesar-venta/' }}" class="btn btn-back btn-sm fw-bold" style="padding: 4px 10px; font-size: 0.75rem;">
+                    <i class="fas fa-arrow-left me-1"></i> Volver
                 </a>
             </div>
         </div>
 
-        <div class="card-body p-4">
+        <div class="card-body" style="padding: 8px 10px;">
             
             {% if messages %}
-            <div class="mb-4">
+            <div class="mb-2">
                 {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show border-0 rounded-3 shadow-sm" role="alert">
                     <i class="fas fa-info-circle me-2"></i> {{ message }}
@@ -160,7 +216,7 @@
             </div>
             {% endif %}
 
-            <div class="row g-4">
+            <div class="row g-2">
                 
                 <!-- COLUMNA IZQUIERDA: RESUMEN TICKET -->
                 <div class="col-md-4">
@@ -170,22 +226,21 @@
                         </div>
                         <div class="stone-card-body">
                             <!-- Datos Entidad -->
-                            <div class="mb-4">
+                            <div class="mb-1">
                                 <span class="form-label-stone d-block">Cliente</span>
-                                <div class="fw-bold text-dark">{{ ticket.get_cliente_nombre }}</div>
-                                {% if ticket.cliente.rut %}<div class="small text-muted">RUT: {{ ticket.cliente.rut }}</div>{% endif %}
+                                <div class="fw-bold text-dark" style="font-size: 0.8rem; line-height: 1.2;">{{ ticket.get_cliente_nombre }}</div>
+                                {% if ticket.cliente.rut %}<div class="text-muted" style="font-size: 0.68rem;">RUT: {{ ticket.cliente.rut }}</div>{% endif %}
                             </div>
 
                             {% if ticket.vendedor %}
-                            <div class="mb-4">
+                            <div class="mb-1">
                                 <span class="form-label-stone d-block">Vendedor</span>
-                                <div class="fw-bold text-dark">{{ ticket.vendedor.nombre }}</div>
+                                <div class="fw-bold text-dark" style="font-size: 0.8rem; line-height: 1.2;">{{ ticket.vendedor.nombre }}</div>
                             </div>
                             {% endif %}
 
-                            <!-- Items List -->
-                            <span class="form-label-stone d-block mb-2">Artículos</span>
-                            <div class="mb-4" style="max-height: 300px; overflow-y: auto; border: 1px solid #F5F1E8; border-radius: 8px; padding: 0 0.75rem;">
+                            <span class="form-label-stone d-block mb-1">Artículos</span>
+                            <div class="mb-1" style="max-height: 180px; overflow-y: auto; border: 1px solid #F5F1E8; border-radius: 6px; padding: 0 8px;">
                                 {% for detalle in ticket.ventadetalle_set.all %}
                                 <div class="ticket-item-row {% if forloop.last %}border-0{% endif %}">
                                     <div>
@@ -228,7 +283,7 @@
 
                 <!-- COLUMNA DERECHA: PROCESAMIENTO -->
                 <div class="col-md-8">
-                    <form method="post" id="formProcesar" action="{% url 'caja:procesar_venta' ticket.id %}" novalidate>
+                    <form method="post" id="formProcesar" action="{% url 'caja:procesar_venta' ticket.id %}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}" novalidate>
                         {% csrf_token %}
                         <input type="hidden" name="ticket_id" value="{{ ticket.id }}">
                         <input type="hidden" name="origen" value="caja">
@@ -242,47 +297,47 @@
                             <div class="stone-card-body">
                                 <input type="hidden" name="tipo_documento" id="tipo_documento_hidden" value="{{ ticket.tipo_documento_planeado|default:'boleta' }}">
                                 
-                                <div class="p-3 border rounded-3 bg-light d-flex align-items-center gap-4">
+                                <div class="comprobante-box border rounded d-flex align-items-center" style="background: #FAFAF8; border-color: #E8DCC8 !important;">
                                     {% if ticket.tipo_documento_planeado == 'factura' %}
-                                        <div class="header-icon-box" style="width: 60px; height: 60px; background: #E6FFFA; color: #2C7A7B;">
-                                            <i class="fas fa-file-invoice fa-2x"></i>
+                                        <div class="header-icon-box" style="width: 28px; height: 28px; background: #E6FFFA; color: #2C7A7B;">
+                                            <i class="fas fa-file-invoice"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-1 text-dark fw-bold">Factura de Venta</h5>
-                                            <p class="mb-0 small text-muted">Documento tributario seleccionado desde el punto de venta.</p>
+                                            <h5 class="mb-0 text-dark fw-bold">Factura de Venta</h5>
+                                            <p class="mb-0 text-muted">Documento tributario seleccionado desde el punto de venta.</p>
                                         </div>
                                     {% elif ticket.tipo_documento_planeado == 'guia' %}
-                                        <div class="header-icon-box" style="width: 60px; height: 60px; background: #FFFFF0; color: #D69E2E;">
-                                            <i class="fas fa-truck fa-2x"></i>
+                                        <div class="header-icon-box" style="width: 28px; height: 28px; background: #FFFFF0; color: #D69E2E;">
+                                            <i class="fas fa-truck"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-1 text-dark fw-bold">Guía de Despacho</h5>
-                                            <p class="mb-0 small text-muted">Acompaña el traslado de mercadería sin pago inmediato.</p>
+                                            <h5 class="mb-0 text-dark fw-bold">Guía de Despacho</h5>
+                                            <p class="mb-0 text-muted">Acompaña el traslado de mercadería sin pago inmediato.</p>
                                         </div>
                                     {% elif ticket.tipo_documento_planeado == 'vale' %}
-                                        <div class="header-icon-box" style="width: 60px; height: 60px; background: #E2E8F0; color: #4A5568;">
-                                            <i class="fas fa-file-contract fa-2x"></i>
+                                        <div class="header-icon-box" style="width: 28px; height: 28px; background: #E2E8F0; color: #4A5568;">
+                                            <i class="fas fa-file-contract"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-1 text-dark fw-bold">Vale Interno</h5>
-                                            <p class="mb-0 small text-muted">Documento interno de venta. No genera documento tributario.</p>
+                                            <h5 class="mb-0 text-dark fw-bold">Vale Interno</h5>
+                                            <p class="mb-0 text-muted">Documento interno de venta. No genera documento tributario.</p>
                                         </div>
                                     {% else %}
-                                        <div class="header-icon-box" style="width: 60px; height: 60px; background: #EBF8FF; color: #2B6CB0;">
-                                            <i class="fas fa-receipt fa-2x"></i>
+                                        <div class="header-icon-box" style="width: 28px; height: 28px; background: #EBF8FF; color: #2B6CB0;">
+                                            <i class="fas fa-receipt"></i>
                                         </div>
                                         <div>
-                                            <h5 class="mb-1 text-dark fw-bold">Boleta Electrónica</h5>
-                                            <p class="mb-0 small text-muted">Comprobante estándar para consumidores finales.</p>
+                                            <h5 class="mb-0 text-dark fw-bold">Boleta Electrónica</h5>
+                                            <p class="mb-0 text-muted">Comprobante estándar para consumidores finales.</p>
                                         </div>
                                     {% endif %}
                                 </div>
                                 
                                 {% if disponibilidad_folios %}
-                                <div class="mt-3 d-flex flex-wrap gap-2">
-                                    <div class="p-2 px-3 bg-white border rounded-pill d-inline-flex align-items-center small">
-                                        <i class="fas fa-layer-group me-2 text-stone"></i>
-                                        <span class="text-muted me-2">Folios Disponibles:</span>
+                                <div class="mt-1 d-flex flex-wrap gap-1">
+                                    <div class="px-2 py-1 bg-white border rounded-pill d-inline-flex align-items-center" style="font-size: 0.68rem;">
+                                        <i class="fas fa-layer-group me-1" style="color:#8B7355;"></i>
+                                        <span class="text-muted me-1">Folios:</span>
                                         {% if ticket.tipo_documento_planeado == 'factura' %}
                                             <span class="fw-bold text-dark">{{ disponibilidad_folios.factura.folios_disponibles }}</span>
                                         {% elif ticket.tipo_documento_planeado == 'guia' %}
@@ -295,9 +350,9 @@
                                     </div>
                                     
                                     {% if ticket.tipo_documento_planeado != 'vale' %}
-                                    <div class="p-2 px-3 bg-light border border-stone-light rounded-pill d-inline-flex align-items-center small">
-                                        <i class="fas fa-hashtag me-2 text-success"></i>
-                                        <span class="text-muted me-2">Se imprimirá Folio:</span>
+                                    <div class="px-2 py-1 bg-light border rounded-pill d-inline-flex align-items-center" style="font-size: 0.68rem;">
+                                        <i class="fas fa-hashtag me-1 text-success"></i>
+                                        <span class="text-muted me-1">Folio:</span>
                                         {% if ticket.tipo_documento_planeado == 'factura' %}
                                             <span class="fw-bold text-success">#{{ disponibilidad_folios.factura.siguiente_folio|default:"Sin folios" }}</span>
                                         {% elif ticket.tipo_documento_planeado == 'guia' %}
@@ -318,8 +373,8 @@
                                 <span><i class="fas fa-user-tie me-2"></i>Información Adicional</span>
                             </div>
                             <div class="stone-card-body">
-                                <div class="row g-3">
-                                    <div class="col-md-{% if empresa.usa_sistema_despacho %}4{% else %}12{% endif %}">
+                                <div class="row g-1">
+                                    <div class="col-md-6">
                                         <span class="form-label-stone d-block">Vendedor</span>
                                         <select name="vendedor_id" id="vendedor_id" class="form-select form-control-stone" {% if not ticket.vendedor %}required{% endif %}>
                                             {% if ticket.vendedor %}
@@ -334,16 +389,24 @@
                                             {% endfor %}
                                         </select>
                                     </div>
+                                    <div class="col-md-6">
+                                        <span class="form-label-stone d-block">Fecha de vencimiento</span>
+                                        <input type="date" name="fecha_vencimiento" id="fecha_vencimiento" class="form-control form-control-stone" value="{% if fecha_vencimiento %}{{ fecha_vencimiento|date:'Y-m-d' }}{% endif %}">
+                                        <small class="d-block mt-1" style="font-size: 0.62rem; color: #8B7355; font-weight: 600;">
+                                            {% if plazo_pago_cliente %}Según {{ plazo_pago_cliente }} días de pago del cliente. Editable antes de imprimir.
+                                            {% else %}Sin plazo: vence el mismo día. Editable antes de imprimir.{% endif %}
+                                        </small>
+                                    </div>
                                     
                                     {% if empresa.usa_sistema_despacho %}
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <span class="form-label-stone d-block">Móvil/Vehículo <span id="vehiculo-required">*</span></span>
                                         <select name="vehiculo_id" id="vehiculo_id" class="form-select form-control-stone">
                                             <option value="">-- Seleccionar --</option>
                                             {% for v in vehiculos %}<option value="{{ v.id }}" {% if ticket.vehiculo.id == v.id %}selected{% endif %}>[{{ v.patente }}] {{ v.descripcion }}</option>{% endfor %}
                                         </select>
                                     </div>
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <span class="form-label-stone d-block">Chofer <span id="chofer-required">*</span></span>
                                         <select name="chofer_id" id="chofer_id" class="form-select form-control-stone">
                                             <option value="">-- Seleccionar --</option>
@@ -364,18 +427,20 @@
                             <div class="stone-card-body">
                                 <div id="formas-pago-container">
                                     <div class="forma-pago-item-stone">
-                                        <div class="row g-3 align-items-end">
+                                        <div class="row g-1 align-items-end">
                                             <div class="col-md-6">
                                                 <span class="form-label-stone d-block">Método de Pago</span>
                                                 <select name="forma_pago_1" class="form-select form-control-stone">
                                                     {% for fp in form.fields.forma_pago.queryset %}
-                                                    <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}</option>
+                                                    {% if ticket.tipo_documento_planeado == 'factura' or not fp.es_cuenta_corriente %}
+                                                    <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}{% if fp.es_cuenta_corriente %} (crédito){% endif %}</option>
+                                                    {% endif %}
                                                     {% endfor %}
                                                 </select>
                                             </div>
                                             <div class="col-md-5">
                                                 <span class="form-label-stone d-block">Monto</span>
-                                                <input type="number" name="monto_pago_1" class="form-control form-control-stone monto-pago" step="1" min="0" value="{{ ticket.total|unlocalize }}">
+                                                <input type="number" name="monto_pago_1" class="form-control form-control-stone monto-pago" step="0.01" min="0" inputmode="decimal" value="{{ ticket.total|unlocalize }}">
                                             </div>
                                             <div class="col-md-1 text-end">
                                                 <button type="button" class="btn btn-sm btn-outline-danger remove-pago border-0" style="visibility: hidden;">
@@ -386,22 +451,22 @@
                                     </div>
                                 </div>
 
-                                <button type="button" class="btn btn-sm btn-action-secondary py-2 mt-2" id="btnAgregarPago">
-                                    <i class="fas fa-plus me-2"></i>Agregar Método
+                                <button type="button" class="btn btn-sm btn-action-secondary mt-1" id="btnAgregarPago" style="padding: 2px 10px !important;">
+                                    <i class="fas fa-plus me-1"></i>Agregar Método
                                 </button>
 
-                                <div class="mt-4 p-3 rounded-3" style="background: #F4F2EE; border: 1px solid var(--stone-light);">
-                                    <div class="d-flex justify-content-between mb-2 small text-muted text-uppercase fw-bold">
+                                <div class="pago-resumen rounded" style="background: #F4F2EE; border: 1px solid var(--stone-light);">
+                                    <div class="d-flex justify-content-between mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.68rem;">
                                         <span>Total Cobro:</span>
                                         <strong id="totalAPagar" class="text-dark">${{ ticket.total|format_precio }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-2 small text-muted text-uppercase fw-bold">
+                                    <div class="d-flex justify-content-between mb-1 text-muted text-uppercase fw-bold" style="font-size: 0.68rem;">
                                         <span>Total Ingresado:</span>
                                         <strong id="totalPagado" class="text-success">$0</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between pt-2 border-top">
-                                        <span class="fw-bold text-dark">DIFERENCIA:</span>
-                                        <span id="diferencia" class="fw-bold fs-5">$0</span>
+                                    <div class="d-flex justify-content-between pt-1 border-top">
+                                        <span class="fw-bold text-dark" style="font-size: 0.75rem;">DIFERENCIA:</span>
+                                        <span id="diferencia" class="fw-bold">$0</span>
                                     </div>
                                 </div>
                             </div>
@@ -412,17 +477,17 @@
                         <div class="stone-card-info">
                             <div class="stone-card-body">
                                 <span class="form-label-stone d-block mb-1">Observaciones</span>
-                                <textarea name="observaciones" id="observaciones" class="form-control form-control-stone" rows="2" placeholder="Notas internas para este cobro..."></textarea>
+                                <textarea name="observaciones" id="observaciones" class="form-control form-control-stone" rows="2" placeholder="Notas internas para este cobro..." style="min-height: 40px !important;"></textarea>
                             </div>
                         </div>
 
                         <!-- ACCIONES FINALES -->
-                        <div class="d-flex gap-3 justify-content-end mt-4">
+                        <div class="d-flex gap-2 justify-content-end mt-2">
                             <a href="{{ next_url|default:'/caja/procesar-venta/' }}" class="btn btn-action-secondary">
-                                <i class="fas fa-times me-2"></i>Cancelar
+                                <i class="fas fa-times me-1"></i>Cancelar
                             </a>
-                            <button type="submit" class="btn btn-action-primary px-5" id="btnProcesar">
-                                <i class="fas fa-check-circle me-2"></i>FINALIZAR COBRO
+                            <button type="submit" class="btn btn-action-primary" id="btnProcesar">
+                                <i class="fas fa-check-circle me-1"></i>FINALIZAR COBRO
                             </button>
                         </div>
                         
@@ -542,9 +607,16 @@ function actualizarResumen() {
     
     if (totalPagadoEl) totalPagadoEl.textContent = '$' + Math.round(totalPagado).toLocaleString('es-CL');
     if (diferenciaEl) {
-        diferenciaEl.textContent = '$' + Math.round(diferencia).toLocaleString('es-CL');
-        diferenciaEl.style.color = diferencia <= 0.1 ? '#28a745' : '#dc3545';
-        if (diferencia <= 0.1) diferenciaEl.textContent = 'PAGADO';
+        if (diferencia > 0.1) {
+            diferenciaEl.textContent = 'Faltan $' + Math.round(diferencia).toLocaleString('es-CL');
+            diferenciaEl.style.color = '#C76F43';
+        } else if (diferencia < -0.1) {
+            diferenciaEl.textContent = 'Vuelto $' + Math.round(Math.abs(diferencia)).toLocaleString('es-CL');
+            diferenciaEl.style.color = '#5F8D62';
+        } else {
+            diferenciaEl.textContent = 'PAGADO';
+            diferenciaEl.style.color = '#5F8D62';
+        }
     }
     {% endif %}
 }
@@ -558,18 +630,20 @@ if (btnAgregarPago) {
         const nuevaFila = document.createElement('div');
         nuevaFila.className = 'forma-pago-item-stone';
         nuevaFila.innerHTML = `
-            <div class="row g-3 align-items-end">
+            <div class="row g-1 align-items-end">
                 <div class="col-md-6">
                     <span class="form-label-stone d-block">Método de Pago</span>
                     <select name="forma_pago_${contadorFormasPago}" class="form-select form-control-stone">
                         {% for fp in form.fields.forma_pago.queryset %}
-                        <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}</option>
+                        {% if ticket.tipo_documento_planeado == 'factura' or not fp.es_cuenta_corriente %}
+                        <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}{% if fp.es_cuenta_corriente %} (crédito){% endif %}</option>
+                        {% endif %}
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-5">
                     <span class="form-label-stone d-block">Monto</span>
-                    <input type="number" name="monto_pago_${contadorFormasPago}" class="form-control form-control-stone monto-pago" step="1" min="0" value="0">
+                    <input type="number" name="monto_pago_${contadorFormasPago}" class="form-control form-control-stone monto-pago" step="0.01" min="0" inputmode="decimal" value="0">
                 </div>
                 <div class="col-md-1 text-end">
                     <button type="button" class="btn btn-sm btn-outline-danger remove-pago border-0">
@@ -589,7 +663,7 @@ actualizarResumen();
 {% endif %}
 
 {% if es_pos_vale %}
-setTimeout(() => { window.location.href = '{% url "ventas:pos_view" %}'; }, 2000);
+setTimeout(() => { window.location.href = "{{ next_url|default:'/ventas/pos/'|escapejs }}"; }, 2000);
 {% endif %}
 </script>
 

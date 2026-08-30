@@ -15,21 +15,21 @@ class VehiculoForm(forms.ModelForm):
         fields = ['patente', 'descripcion', 'capacidad', 'chofer', 'activo']
         widgets = {
             'patente': forms.TextInput(attrs={
-                'class': 'form-control text-uppercase',
+                'class': 'form-control form-control-sm text-uppercase',
                 'placeholder': 'Ej: ABCD12',
                 'maxlength': '10'
             }),
             'descripcion': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Ej: Camión Toyota Hilux 2020'
             }),
             'capacidad': forms.NumberInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Capacidad en kg',
                 'step': '0.01'
             }),
             'chofer': forms.Select(attrs={
-                'class': 'form-control'
+                'class': 'form-select form-select-sm'
             }),
             'activo': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
@@ -92,20 +92,20 @@ class ChoferForm(forms.ModelForm):
         fields = ['codigo', 'nombre', 'rut', 'tipo', 'activo']
         widgets = {
             'codigo': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Ej: CH001'
             }),
             'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Nombre completo del chofer'
             }),
             'rut': forms.TextInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'placeholder': 'Ej: 12345678-9',
                 'maxlength': '12'
             }),
             'tipo': forms.Select(attrs={
-                'class': 'form-control'
+                'class': 'form-select form-select-sm'
             }),
             'activo': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'

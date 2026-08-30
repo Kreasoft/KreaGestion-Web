@@ -48,6 +48,39 @@ class TransferenciaInventario(models.Model):
     def __str__(self):
         return f"{self.numero_folio} - {self.bodega_origen.nombre} → {self.bodega_destino.nombre}"
 
+    ESTADOS_FISCALES_BLOQUEAN_EDICION = {
+        'enviado', 'enviando', 'aceptado', 'aceptado_reparos',
+        'rechazado', 'anulado', 'firmado',
+    }
+
+    def tiene_guia_emitida(self):
+        return bool(self.guia_despacho_id)
+
+    def tiene_estado_fiscal(self):
+        guia = getattr(self, 'guia_despacho', None)
+        if not guia:
+            return False
+        estado = (guia.get_estado_sii_real() or '').strip().lower()
+        if estado in self.ESTADOS_FISCALES_BLOQUEAN_EDICION:
+            return True
+        return bool(getattr(guia, 'track_id', None))
+
+    def puede_editar(self):
+        if self.estado == 'cancelado':
+            return False
+        if self.tiene_guia_emitida() or self.tiene_estado_fiscal():
+            return False
+        return True
+
+    def motivo_no_editable(self):
+        if self.estado == 'cancelado':
+            return 'La transferencia está cancelada.'
+        if self.tiene_guia_emitida():
+            return 'No se puede editar: ya tiene guía de despacho emitida.'
+        if self.tiene_estado_fiscal():
+            return 'No se puede editar: el documento tiene estado fiscal en el SII.'
+        return ''
+
 
 class Inventario(models.Model):
     """Modelo para gestionar el inventario de productos"""

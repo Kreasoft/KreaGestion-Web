@@ -19,6 +19,7 @@ urlpatterns = [
     path('vendedores/<int:pk>/', views.vendedor_detail, name='vendedor_detail'),
     path('vendedores/<int:pk>/editar/', views.vendedor_update, name='vendedor_update'),
     path('vendedores/<int:pk>/eliminar/', views.vendedor_delete, name='vendedor_delete'),
+    path('vendedores/<int:pk>/app-acceso/', views.mobile_api_set_device_auth, name='vendedor_app_acceso'),
     
     # Formas de Pago
     path('formas-pago/', views.formapago_list, name='formapago_list'),
@@ -85,13 +86,14 @@ urlpatterns = [
     path('cotizaciones/<int:pk>/html/', views.cotizacion_html, name='cotizacion_html'),
     path('cotizaciones/<int:pk>/debug/', views.cotizacion_html_debug, name='cotizacion_html_debug'),
     path('cotizaciones/<int:pk>/cambiar-estado/', views.cotizacion_cambiar_estado, name='cotizacion_cambiar_estado'),
-    path('cotizaciones/<int:pk>/convertir-venta/', views.cotizacion_convertir_venta, name='cotizacion_convertir_venta'),
+    path('cotizaciones/<int:pk>/enviar-email/', views.cotizacion_enviar_email, name='cotizacion_enviar_email'),
     
     # Dashboard Premium
     path('dashboard-premium/', lambda request: render(request, 'ventas/dashboard_premium.html'), name='dashboard_premium'),
     
     # Libro de Ventas
     path('libro-ventas/', views.libro_ventas, name='libro_ventas'),
+    path('libro-ventas/envio-background/', views.libro_ventas_envio_background, name='libro_ventas_envio_background'),
     path('libro-ventas/excel/', views.libro_ventas_excel, name='libro_ventas_excel'),
     path('libro-guias/', views.libro_guias, name='libro_guias'),
     path('libro-guias/excel/', views.libro_guias_excel, name='libro_guias_excel'),
@@ -133,6 +135,7 @@ urlpatterns = [
     path('movil/sw.js', views.mobile_sales_service_worker, name='mobile_sales_service_worker'),
     path('movil/gestion/', views.mobile_sales_gestion, name='mobile_sales_gestion'),
     path('movil/gestion/dispositivo/<int:pk>/toggle/', views.mobile_api_toggle_device, name='mobile_api_toggle_device'),
+    path('movil/gestion/dispositivo/<int:pk>/acceso/', views.mobile_api_set_device_auth, name='mobile_api_set_device_auth'),
     path('movil/gestion/dispositivo/<int:pk>/asignar-vendedor/', views.mobile_api_assign_vendedor, name='mobile_api_assign_vendedor'),
     path('movil/api/sincronizar/', views.mobile_api_sync, name='mobile_api_sync'),
     path('movil/api/verificar-dispositivo/', views.mobile_api_verify_device, name='mobile_api_verify_device'),
@@ -145,6 +148,7 @@ urlpatterns = [
     path('venta/detalle/<int:pk>/', views.venta_detail, name='venta_detail'),
     
     # Facturación Consolidada de Guías
+    path('facturador-directo/', views.facturar_directo, name='facturar_directo'),
     path('facturar-guias/', views.facturar_guias_list, name='facturar_guias_list'),
     path('api/guias-pendientes-cliente/<int:cliente_id>/', views.api_guias_pendientes_cliente, name='api_guias_pendientes_cliente'),
     path('api/procesar-factura-consolidada/', views.api_procesar_factura_consolidada, name='api_procesar_factura_consolidada'),

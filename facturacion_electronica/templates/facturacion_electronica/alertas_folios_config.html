@@ -4,6 +4,30 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select, input[type="text"], input[type="email"], input[type="number"], input[type="password"], input[type="tel"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+        height: 26px !important; min-height: 26px !important; padding: 2px 8px !important;
+        font-size: 0.72rem !important; border-color: #D4C4A8 !important;
+    }
+    textarea, textarea.form-control { height: auto !important; min-height: 52px !important; }
+    .form-control:focus, .form-select:focus, input:focus, select:focus, textarea:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; outline: none;
+    }
+    .form-label { font-size: 0.72rem; color: #5D4037; font-weight: 600; margin-bottom: 2px; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .alert-premium { padding: 6px 8px !important; gap: 8px !important; }
+    .config-header { padding: 6px 8px !important; }
+    .config-body { padding: 8px 10px !important; }
+    .config-card { border-radius: 8px !important; }
+    .folio-input { font-size: 1.05rem !important; }
+    .folio-input-group { padding: 2px 6px !important; margin-top: 2px !important; }
+    .btn-action-primary, .btn-action-secondary { padding: 4px 10px !important; font-size: 0.75rem !important; border-radius: 6px !important; }
+    .form-switch .form-check-input { width: 2.2em !important; height: 1.15em !important; }
+</style>
+{% endblock %}
+
 {% block extra_css %}
 <style>
     /* VARIABLES ESTILO STONE PREMIUM */
@@ -41,7 +65,7 @@
     /* HEADER PREMIUM */
     .stone-header-premium {
         background: var(--stone-gradient);
-        padding: 1.25rem 2rem;
+        padding: 8px 16px;
         border-bottom: 1px solid var(--stone-light);
         display: flex;
         align-items: center;
@@ -51,7 +75,7 @@
     }
     
     .header-icon-box {
-        width: 52px; height: 52px; 
+        width: 32px; height: 32px; 
         background: rgba(255, 255, 255, 0.8); 
         backdrop-filter: blur(4px);
         border-radius: 14px; 
@@ -61,9 +85,9 @@
         font-size: 1.5rem;
     }
 
-    .header-text h1 { color: var(--stone-text); font-size: 1.5rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 { color: var(--color-piedra-texto, #5D4037); font-size: 1.45rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
     .header-text h1 span { font-weight: 700; }
-    .header-text p { color: #795548; font-size: 0.9rem; margin: 0; font-weight: 500; opacity: 0.9; }
+    .header-text p { color: var(--color-piedra-texto, #5D4037); font-size: 0.75rem; margin: 0; font-weight: 500; opacity: 0.9; }
 
     /* ACTION BUTTONS */
     .btn-action-secondary {
@@ -159,7 +183,7 @@
         background: #FFFFFF;
         border: 1px solid var(--stone-light);
         border-radius: 12px;
-        padding: 1.5rem;
+        padding: 8px 10px;
     }
     .example-item {
         border-left: 4px solid var(--stone-light);
@@ -191,19 +215,19 @@
                 </div>
             </div>
             <div class="d-flex gap-2">
-                <a href="{% url 'facturacion_electronica:caf_list' %}" class="btn-action-secondary">
+                <a href="{% url 'facturacion_electronica:listar_cafs' %}" class="btn-action-secondary">
                     <i class="fas fa-arrow-left"></i> Volver a CAF
                 </a>
             </div>
         </div>
 
-        <div class="card-body p-4">
+        <div class="card-body" style="padding: 8px 10px;">
             
             <!-- Información -->
-            <div class="alert-premium mb-4">
-                <i class="fas fa-info-circle fa-lg"></i>
+            <div class="alert-premium mb-2">
+                <i class="fas fa-info-circle"></i>
                 <div>
-                    <h5 class="fw-bold mb-2">¿Cómo funciona?</h5>
+                    <h5 class="fw-bold mb-1" style="font-size: 0.85rem;">¿Cómo funciona?</h5>
                     <p class="mb-2">Cuando un CAF tenga <strong>menos o igual</strong> a la cantidad de folios configurada, el sistema mostrará una <strong>alerta destacada</strong> en la lista de CAF para que solicites nuevos folios a tiempo.</p>
                     <p class="mb-0 small text-muted">Nota: Configura según tu volumen diario. Si emites 10 boletas/día, configura al menos 30 folios para tener 3 días de margen.</p>
                 </div>
@@ -213,7 +237,7 @@
             <form method="post">
                 {% csrf_token %}
                 
-                <div class="row g-4">
+                <div class="row g-2">
                     {% for config in configuraciones %}
                     <div class="col-md-6 col-lg-4">
                         <div class="config-card {% if config.activo %}active{% else %}inactive{% endif %}">
@@ -227,7 +251,7 @@
                             
                             <div class="config-body">
                                 <!-- Switch Activo/Inactivo -->
-                                <div class="form-check form-switch mb-4">
+                                <div class="form-check form-switch mb-1">
                                     <input class="form-check-input" type="checkbox" name="activo_{{ config.tipo_documento }}" id="activo_{{ config.tipo_documento }}" {% if config.activo %}checked{% endif %}>
                                     <label class="form-check-label fw-bold small text-uppercase" for="activo_{{ config.tipo_documento }}">
                                         {% if config.activo %}Alerta Activa{% else %}Alerta Desactivada{% endif %}
@@ -261,17 +285,17 @@
                 </div>
 
                 <!-- Footer Acciones -->
-                <div class="d-flex justify-content-end mt-4 pt-3 border-top border-light">
-                    <button type="submit" class="btn-action-primary px-4 py-2">
+                <div class="d-flex justify-content-end mt-2 pt-2 border-top border-light">
+                    <button type="submit" class="btn-action-primary">
                         <i class="fas fa-save"></i> Guardar Configuración
                     </button>
                 </div>
             </form>
 
             <!-- Ejemplos -->
-            <div class="mt-5">
-                <h5 class="fw-bold mb-3 text-muted border-bottom pb-2">Ejemplos Prácticos</h5>
-                <div class="row g-3">
+            <div class="mt-2">
+                <h5 class="fw-bold mb-1 text-muted border-bottom pb-1" style="font-size: 0.8rem;">Ejemplos Prácticos</h5>
+                <div class="row g-2">
                     <div class="col-md-4">
                         <div class="example-item retail">
                             <div class="example-title text-primary">Negocio de Retail</div>

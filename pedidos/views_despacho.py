@@ -35,13 +35,9 @@ def orden_despacho_list(request):
         'creado_por'
     ).prefetch_related('items')
     
-    # Aplicar filtros
-    if 'estado' in request.GET:
-        if estado:
-            ordenes = ordenes.filter(estado=estado)
-    else:
-        # Por defecto al entrar a la página: solo lo pendiente de preparación
-        ordenes = ordenes.filter(estado__in=['pendiente', 'en_preparacion'])
+    # Aplicar filtros. Sin estado: mostrar todos (los recién creados quedan en 'despachado').
+    if estado:
+        ordenes = ordenes.filter(estado=estado)
     
     if pedido_id:
         ordenes = ordenes.filter(orden_pedido_id=pedido_id)
@@ -87,6 +83,12 @@ def orden_despacho_create(request):
         if pedido.estado in ['completada', 'cancelada']:
             messages.warning(request, f"El pedido {pedido.numero_pedido} ya está {pedido.get_estado_display()} y no se pueden crear nuevos despachos.")
             return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
+        if not pedido.tiene_saldo_pendiente():
+            messages.warning(
+                request,
+                f'El pedido {pedido.numero_pedido} no tiene saldo pendiente por despachar.'
+            )
+            return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
 
     if request.method == 'POST':
         # Si el pedido no se obtuvo del POST, se busca de nuevo.
@@ -99,57 +101,82 @@ def orden_despacho_create(request):
         formset = DetalleOrdenDespachoFormSet(request.POST)
         
         if form.is_valid() and formset.is_valid():
-            try:
-                with transaction.atomic():
-                    orden = form.save(commit=False)
-                    orden.empresa = request.empresa
-                    orden.creado_por = request.user
-                    orden.orden_pedido = pedido # Asignar el pedido
-                    orden.estado = 'pendiente'
-                    
-                    if not orden.numero_despacho:
-                        orden.generar_numero_despacho()
-                    
-                    orden.estado = 'despachado'
-                    orden.save()
+            pedido = form.cleaned_data.get('orden_pedido') or pedido
+            items_validos = [
+                f for f in formset.forms
+                if f.cleaned_data
+                and not f.cleaned_data.get('DELETE')
+                and f.cleaned_data.get('item_pedido')
+                and (f.cleaned_data.get('cantidad') or 0) > 0
+            ]
+            if not pedido:
+                messages.error(request, 'Debe seleccionar una orden de pedido origen.')
+            elif not items_validos:
+                messages.error(request, 'Debe incluir al menos un artículo para despachar.')
+            else:
+                try:
+                    with transaction.atomic():
+                        orden = form.save(commit=False)
+                        orden.empresa = request.empresa
+                        orden.creado_por = request.user
+                        orden.orden_pedido = pedido
+                        orden.estado = 'pendiente'
+                        if not orden.numero_despacho:
+                            orden.generar_numero_despacho()
+                        orden.save()
+                        formset.instance = orden
+                        formset.save()
+                        orden.items.filter(cantidad__lte=0).delete()
 
-                    formset.instance = orden
-                    formset.save()
-
+                    # El DTE va DESPUÉS del commit: si falla CAF/XML/firma, el despacho no se pierde.
                     tipo_documento = form.cleaned_data.get('tipo_documento')
                     dte = None
-                    if tipo_documento == 'guia':
-                        from .utils_despacho import generar_guia_desde_orden_despacho
-                        dte = generar_guia_desde_orden_despacho(orden, request.user)
-                        messages.success(request, f'✓ Guía de Despacho N° {dte.folio} generada.')
-                    elif tipo_documento == 'factura':
-                        from .utils_despacho import generar_factura_desde_orden_despacho
-                        dte = generar_factura_desde_orden_despacho(orden, request.user)
-                        messages.success(request, f'✓ Factura N° {dte.folio} generada.')
+                    try:
+                        if tipo_documento == 'guia':
+                            from .utils_despacho import generar_guia_desde_orden_despacho
+                            dte = generar_guia_desde_orden_despacho(orden, request.user)
+                            orden.estado = 'despachado'
+                            orden.save(update_fields=['estado', 'fecha_modificacion'])
+                            messages.success(request, f'✓ Guía de Despacho N° {dte.folio} generada.')
+                        elif tipo_documento == 'factura':
+                            from .utils_despacho import generar_factura_desde_orden_despacho
+                            dte = generar_factura_desde_orden_despacho(orden, request.user)
+                            orden.estado = 'despachado'
+                            orden.save(update_fields=['estado', 'fecha_modificacion'])
+                            messages.success(request, f'✓ Factura N° {dte.folio} generada.')
+                    except Exception as e_dte:
+                        import traceback
+                        with open(r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\debug_errors.log', 'a', encoding='utf-8') as f:
+                            f.write('\n=== Error al generar DTE de despacho ===\n')
+                            f.write(traceback.format_exc())
+                        messages.warning(
+                            request,
+                            f'El despacho {orden.numero_despacho} se guardó, pero no se pudo generar el documento: {e_dte}'
+                        )
+                        if 'folio' in str(e_dte).lower() or 'CAF' in str(e_dte):
+                            messages.warning(request, 'Revise los CAF en Facturación Electrónica → Folios CAF')
+                        return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
 
                     messages.success(request, f'✓ Orden de Despacho {orden.numero_despacho} creada exitosamente.')
-                    
-                    # Redirigir a la vista del DTE generado si existe, sino al detalle de la orden
                     if dte:
-                        from django.urls import reverse
                         return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
-                    else:
-                        return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
-            
-            except Exception as e:
-                import traceback
-                error_msg = str(e)
-                with open(r'C:\PROJECTOS-WEB\GestionCloud\debug_errors.log', 'a', encoding='utf-8') as f:
-                    f.write('\n=== Error al crear orden de despacho ===\n')
-                    f.write(traceback.format_exc())
-                messages.error(request, f'Error al crear orden: {error_msg}')
-                if 'No hay folios CAF disponibles' in error_msg:
-                    messages.warning(request, 'Debe cargar archivos CAF en Facturación Electrónica → Folios CAF')
+                    return redirect('pedidos:orden_despacho_detail', pk=orden.pk)
+
+                except Exception as e:
+                    import traceback
+                    error_msg = str(e)
+                    with open(r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\debug_errors.log', 'a', encoding='utf-8') as f:
+                        f.write('\n=== Error al crear orden de despacho ===\n')
+                        f.write(traceback.format_exc())
+                    messages.error(request, f'Error al crear orden: {error_msg}')
         else:
             if form.errors:
                 for field, error_list in form.errors.items():
                     for error in error_list:
                         messages.error(request, f'Error en {form.fields[field].label or field}: {error}')
+            if formset.non_form_errors():
+                for error in formset.non_form_errors():
+                    messages.error(request, f'Error en el detalle: {error}')
             if formset.errors:
                 for i, form_errors in enumerate(formset.errors):
                     if form_errors:
@@ -182,8 +209,14 @@ def orden_despacho_detail(request, pk):
         OrdenDespacho.objects.select_related(
             'orden_pedido',
             'orden_pedido__cliente',
+            'chofer',
+            'vehiculo',
             'creado_por'
-        ).prefetch_related('items__item_pedido__articulo'),
+        ).prefetch_related(
+            'items__item_pedido__articulo',
+            'items__guia_despacho',
+            'items__factura',
+        ),
         pk=pk,
         empresa=request.empresa
     )
@@ -227,6 +260,7 @@ def orden_despacho_edit(request, pk):
                 with transaction.atomic():
                     form.save()
                     formset.save()
+                    orden.items.filter(cantidad__lte=0).delete()
                     
                     messages.success(
                         request,
@@ -342,7 +376,10 @@ def ajax_items_pedido(request):
             
         pedido = OrdenPedido.objects.get(id=pedido_id, empresa_id=empresa_id)
         items = pedido.items.select_related('articulo').annotate(
-            total_despachado=Sum('despachos__cantidad', filter=Q(despachos__orden_despacho__estado__in=['en_preparacion', 'despachado', 'en_transito', 'entregado']))
+            total_despachado=Sum(
+                'despachos__cantidad',
+                filter=~Q(despachos__orden_despacho__estado='cancelado'),
+            )
         ).all()
 
         items_data = []

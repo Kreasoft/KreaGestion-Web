@@ -1,0 +1,110 @@
+{% load format_filters %}
+<tr id="row-{{ documento.row_dom_id }}" class="libro-grupo-fila" data-libro-grupo="{{ grupo_codigo }}">
+    <td class="text-center" style="color: #8B7355; font-weight: 600; font-size: 0.7rem;">{{ numero }}</td>
+
+    {% if documento.es_dte %}
+    <td style="font-size: 0.7rem;">{{ documento.fecha_documento|default:documento.fecha_emision|date:"d-m-Y" }}</td>
+    <td class="col-tipo-folio">
+        <span class="libro-tipo-folio">
+            {% if documento.tipo_dte == '33' %}
+            <span class="badge badge-premium" style="background: rgba(72, 187, 120, 0.15); color: #2F855A;" title="Factura Electrónica">FE</span>
+            {% elif documento.tipo_dte == '34' %}
+            <span class="badge badge-premium" style="background: rgba(72, 187, 120, 0.15); color: #2F855A;" title="Factura Exenta">FEX</span>
+            {% elif documento.tipo_dte == '39' %}
+            <span class="badge badge-premium"
+                style="background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%); color: white;"
+                title="Boleta Electrónica">BE</span>
+            {% elif documento.tipo_dte == '52' %}
+            <span class="badge badge-premium"
+                style="background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); color: white;"
+                title="Guía de Despacho">GD</span>
+            {% elif documento.tipo_dte == '56' %}
+            <span class="badge badge-premium" style="background: rgba(229, 62, 62, 0.15); color: #C53030;" title="Nota de Débito">ND</span>
+            {% elif documento.tipo_dte == '61' %}
+            <span class="badge badge-premium" style="background: rgba(236, 201, 75, 0.2); color: #744210;" title="Nota de Crédito">NC</span>
+            {% endif %}
+            <strong style="color: #6F5B44; font-size: 0.7rem;">{{ documento.folio }}</strong>
+        </span>
+    </td>
+    <td class="col-cliente" style="font-size: 0.7rem;" title="{{ documento.razon_social_receptor }}">{{ documento.razon_social_receptor }}</td>
+    <td style="font-size: 0.65rem; color: #A67C52;">{{ documento.rut_receptor }}</td>
+    <td style="font-size: 0.7rem;">
+        {% if documento.venta and documento.venta.vendedor %}
+        {{ documento.venta.vendedor.nombre|truncatechars:20 }}
+        {% elif documento.usuario_creacion %}
+        {% if documento.usuario_creacion.get_full_name %}
+        {{ documento.usuario_creacion.get_full_name|truncatechars:20 }}
+        {% else %}
+        {{ documento.usuario_creacion.username|truncatechars:20 }}
+        {% endif %}
+        {% else %}
+        -
+        {% endif %}
+    </td>
+    <td style="font-size: 0.7rem;">
+        {% if documento.venta and documento.venta.forma_pago %}
+        {{ documento.venta.forma_pago.nombre|truncatechars:18 }}
+        {% else %}
+        -
+        {% endif %}
+    </td>
+    <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ documento.monto_neto|format_miles }}</td>
+    <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ documento.monto_iva|format_miles }}</td>
+    <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ documento.monto_total|format_miles }}</strong></td>
+    <td class="text-center">
+        <span class="badge badge-premium" style="{{ documento.get_estado_sii_real_badge_style }}" title="{{ documento.glosa_sii|default:documento.error_envio|default:documento.get_estado_sii_real_display }}">
+            {{ documento.get_estado_sii_real_display }}
+        </span>
+    </td>
+    <td class="text-center action-column">
+        {% include 'facturacion_electronica/_dte_acciones_lista.html' with dte=documento %}
+    </td>
+    {% else %}
+    <td style="font-size: 0.7rem;">{{ documento.fecha|date:"d-m-Y" }}</td>
+    <td class="col-tipo-folio">
+        <span class="libro-tipo-folio">
+            {% if documento.tipo_documento == 'factura' %}
+            <span class="badge badge-premium" style="background: rgba(72, 187, 120, 0.15); color: #2F855A;">F</span>
+            {% elif documento.tipo_documento == 'boleta' %}
+            <span class="badge badge-premium"
+                style="background: linear-gradient(135deg, #B8956A 0%, #A67C52 100%); color: white;" title="Boleta Pendiente">BP</span>
+            {% elif documento.tipo_documento == 'guia' %}
+            <span class="badge badge-premium"
+                style="background: linear-gradient(135deg, #A0826D 0%, #8B6F5C 100%); color: white;">G</span>
+            {% elif documento.tipo_documento == 'cotizacion' %}
+            <span class="badge badge-premium" style="background: rgba(236, 201, 75, 0.2); color: #744210;">C</span>
+            {% elif documento.tipo_documento == 'vale' %}
+            <span class="badge badge-premium" style="background: #E8DCC8; color: #5D4037;">V</span>
+            {% endif %}
+            <strong style="color: #6F5B44; font-size: 0.7rem;">{{ documento.numero_venta }}</strong>
+        </span>
+    </td>
+    <td class="col-cliente" style="font-size: 0.7rem;" title="{{ documento.get_cliente_nombre }}">{{ documento.get_cliente_nombre }}</td>
+    <td style="font-size: 0.65rem; color: #A67C52;">{{ documento.cliente.rut|default:"-" }}</td>
+    <td style="font-size: 0.7rem;">{{ documento.vendedor.nombre|default:"-"|truncatechars:20 }}</td>
+    <td style="font-size: 0.7rem;">{{ documento.forma_pago.nombre|default:"-"|truncatechars:18 }}</td>
+    <td class="text-end" style="font-size: 0.7rem; color: #6F5B44;">${{ documento.neto|format_miles }}</td>
+    <td class="text-end" style="font-size: 0.7rem; color: #A67C52;">${{ documento.iva|format_miles }}</td>
+    <td class="text-end"><strong style="color: #8B7355; font-size: 0.75rem;">${{ documento.total|format_miles }}</strong></td>
+    <td class="text-center">
+        <span class="badge" style="font-size: 0.6rem; background: #E8DCC8; color: #5D4037;">N/A</span>
+    </td>
+    <td class="text-center action-column">
+        {% if documento.dte %}
+        <a href="{% url 'facturacion_electronica:ver_factura_electronica' documento.dte_asociado.id %}?{{ return_url_q }}"
+            class="btn btn-sm" target="_blank" rel="opener" title="Ver DTE"
+            style="border: 1.5px solid #5F8D62; color: #5F8D62; background: transparent; padding: 4px 10px; font-size: 0.75rem;">
+            <i class="fas fa-file-code"></i> Ver DTE
+        </a>
+        {% else %}
+        <a href="{% url 'ventas:venta_html' documento.pk %}?{{ return_url_q }}" class="btn btn-sm"
+            target="_blank" rel="opener" title="Ver documento"
+            style="border: 1.5px solid #A67C52; color: #A67C52; background: transparent; transition: all 0.3s ease; padding: 4px 10px; font-size: 0.75rem;"
+            onmouseover="this.style.background='linear-gradient(135deg, #A67C52 0%, #8B6F5C 100%)'; this.style.color='white';"
+            onmouseout="this.style.background='transparent'; this.style.color='#A67C52';">
+            <i class="fas fa-eye"></i> Ver
+        </a>
+        {% endif %}
+    </td>
+    {% endif %}
+</tr>

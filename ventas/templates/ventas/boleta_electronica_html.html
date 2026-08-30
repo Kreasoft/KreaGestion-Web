@@ -139,7 +139,7 @@
 
         .detalle-table td {
             border-right: 1px solid #eee;
-            padding: 2px 2px;
+            padding: 3px 2px;
             vertical-align: top;
         }
 
@@ -278,6 +278,7 @@
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     <div class="boleta-container">
 
         <!-- CABECERA -->
@@ -324,7 +325,7 @@
         <div class="fecha-emision">
             <strong>Fecha:</strong>
             {% load l10n %}
-            {{ venta.fecha|date:"l, d \d\e F \d\e Y"|capfirst }}
+            {{ venta.fecha|date:"d-m-Y" }}
         </div>
 
         <!-- DETALLE DE PRODUCTOS -->
@@ -343,7 +344,12 @@
                 {% for detalle in detalles %}
                 <tr>
                     <td class="col-afecto">{{ detalle.articulo.codigo }}</td>
-                    <td class="col-detalle">{{ detalle.articulo.nombre }}</td>
+                    <td class="col-detalle">
+                        {{ detalle.articulo.nombre }}
+                        {% if detalle.comentario and detalle.comentario != detalle.articulo.nombre %}
+                        <div style="margin-top: 3px; font-size: 6.5pt; line-height: 1.3; letter-spacing: 0.01em; color: #6F5B44;">{{ detalle.comentario }}</div>
+                        {% endif %}
+                    </td>
                     <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
                     <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
                     <td class="col-descuento">
@@ -372,6 +378,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        {% include "includes/visor_observacion.html" with observacion=venta.observaciones %}
 
         <!-- SECCIÓN INFERIOR: TIMBRE Y TOTALES -->
         <div class="footer-section">
@@ -481,7 +488,7 @@
                     <div
                         style="font-size: 7pt; margin-bottom: 3px; padding: 3px; background: white; border: 1px solid #e0e0e0; border-radius: 2px;">
                         <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
-                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                        <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d-m-Y" }}</div>
                         {% if ref.razon_referencia %}
                         <div style="font-size: 6pt; color: #666; margin-top: 1px;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:15 }}</div>
                         {% endif %}
@@ -494,83 +501,10 @@
 
     </div>
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()"
-            style="padding: 8px 20px; font-size: 12pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            🖨️ Imprimir Boleta
-        </button>
-        <button onclick="safeCloseWindow()"
-            style="padding: 8px 20px; font-size: 12pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 4px;">
-            ← Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
-        // Función universal para cerrar/volver desde templates de impresión
         function safeCloseWindow() {
-            console.log('safeCloseWindow llamado');
-
-            const posUrl = "{% url 'ventas:pos_view' %}";
-
-            // Intentar notificar al padre si existe
-            try {
-                if (window.opener && window.opener !== window && !window.opener.closed) {
-                    window.opener.postMessage({ kind: 'print_done' }, window.location.origin);
-                }
-            } catch (e) {
-                console.log('No se pudo notificar al padre:', e);
-            }
-
-            // Intentar cerrar la ventana si fue abierta por otra ventana
-            if (window.opener && window.opener !== window && !window.opener.closed) {
-                try {
-                    window.close();
-                    console.log('Ventana cerrada');
-                    return;
-                } catch (e) {
-                    console.log('No se pudo cerrar la ventana:', e);
-                }
-            }
-
-            // Intentar obtener la URL de referencia guardada o desde parámetros URL
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const refererUrl = returnUrl || sessionStorage.getItem('print_referer') || localStorage.getItem('print_referer');
-
-            if (refererUrl && refererUrl !== window.location.href) {
-                console.log('Redirigiendo a:', refererUrl);
-                window.location.href = refererUrl;
-                return;
-            }
-
-            // Si no hay referrer guardado, intentar volver atrás
-            if (window.history.length > 1) {
-                try {
-                    console.log('Intentando volver atrás');
-                    window.history.back();
-                    return;
-                } catch (e) {
-                    console.log('No se pudo volver atrás:', e);
-                }
-            }
-
-            // Fallback: redirigir al POS si viene con auto=1 (desde POS), sino al dashboard
-            if (params.get('auto') === '1') {
-                // Si viene con auto=1, siempre es desde el POS
-                console.log('Redirigiendo al POS (auto=1 detectado)');
-                window.location.href = posUrl;
-            } else {
-                // Si no viene con auto=1, intentar detectar si viene del POS por el referrer
-                const fromPos = document.referrer && document.referrer.includes('/ventas/pos');
-                if (fromPos) {
-                    console.log('Redirigiendo al POS (detectado por referrer)');
-                    window.location.href = posUrl;
-                } else {
-                    console.log('Redirigiendo al libro de ventas');
-                    window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-                }
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
         }
 
         // Guardar la URL de referencia cuando se carga la página
@@ -585,12 +519,6 @@
             } else if (document.referrer && document.referrer !== window.location.href) {
                 sessionStorage.setItem('print_referer', document.referrer);
                 console.log('Referrer guardado:', document.referrer);
-            } else {
-                // Si no hay referrer, guardar el POS como fallback si viene de auto=1
-                if (params.get('auto') === '1') {
-                    sessionStorage.setItem('print_referer', "{% url 'ventas:pos_view' %}");
-                    console.log('Referrer fallback guardado: POS');
-                }
             }
         });
 

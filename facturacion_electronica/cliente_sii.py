@@ -1,501 +1,707 @@
-"""
-Cliente SOAP para webservices del SII
-Envío y consulta de estado de DTE
-"""
-from zeep import Client
-from zeep.transports import Transport
-from requests import Session
 import requests
-from lxml import etree
-import base64
+import re
+import json
+import time
+import random
+import string
+from contextlib import contextmanager
 from datetime import datetime
+from lxml import etree
+from requests.adapters import HTTPAdapter
+from urllib.parse import urlparse
+from urllib3.util.retry import Retry
+from urllib3.util import connection as urllib3_connection
+from .sii_crypto import load_pfx, sign_xml_sii
 
+
+def _normalizar_rut(rut):
+    rut_limpio = str(rut or '').strip().replace('.', '').replace(' ', '').upper()
+    if '-' not in rut_limpio and len(rut_limpio) > 1:
+        rut_limpio = f"{rut_limpio[:-1]}-{rut_limpio[-1]}"
+    return rut_limpio
+
+
+def _split_rut(rut):
+    rut_limpio = _normalizar_rut(rut)
+    if '-' not in rut_limpio:
+        raise ValueError(f"RUT invalido para SII: {rut}")
+    numero, dv = rut_limpio.split('-', 1)
+    return numero, dv.upper()
 
 class ClienteSII:
-    """Cliente para interactuar con los webservices del SII"""
+    """Cliente para interactuar directamente con el SII"""
+    _cached_token = None
+    _token_timestamp = None
+    _dns_cache = {}
     
-    # URLs de los webservices del SII
-    URLS = {
-        'certificacion': {
-            'seed': 'https://maullin.sii.cl/DTEWS/CrSeed.jws?WSDL',
-            'token': 'https://maullin.sii.cl/DTEWS/GetTokenFromSeed.jws?WSDL',
-            'envio': 'https://maullin.sii.cl/cgi_dte/UPL/DTEUpload',
-            'consulta': 'https://maullin.sii.cl/DTEWS/services/QueryEstDte?wsdl',
-        },
-        'produccion': {
-            'seed': 'https://palena.sii.cl/DTEWS/CrSeed.jws?WSDL',
-            'token': 'https://palena.sii.cl/DTEWS/GetTokenFromSeed.jws?WSDL',
-            'envio': 'https://palena.sii.cl/cgi_dte/UPL/DTEUpload',
-            'consulta': 'https://palena.sii.cl/DTEWS/services/QueryEstDte?wsdl',
+    def __init__(self, ambiente='CERTIFICACION', pfx_path=None, pfx_password=None):
+        self.ambiente = ambiente.upper()
+        
+        self.ENDPOINTS = {
+            'CERTIFICACION': {
+                'seed': 'https://maullin.sii.cl/DTEWS/CrSeed.jws',
+                'token': 'https://maullin.sii.cl/DTEWS/GetTokenFromSeed.jws',
+                'upload': 'https://maullin.sii.cl/cgi_dte/UPL/DTEUpload',
+                'query': 'https://maullin.sii.cl/DTEWS/QueryEstUp.jws'
+            },
+            'PRODUCCION': {
+                'seed': 'https://palena.sii.cl/DTEWS/CrSeed.jws',
+                'token': 'https://palena.sii.cl/DTEWS/GetTokenFromSeed.jws',
+                'upload': 'https://palena.sii.cl/cgi_dte/UPL/DTEUpload',
+                'query': 'https://palena.sii.cl/DTEWS/QueryEstUp.jws'
+            }
         }
-    }
+        self.BOLETA_ENDPOINTS = {
+            'CERTIFICACION': {
+                'seed': 'https://apicert.sii.cl/recursos/v1/boleta.electronica.semilla',
+                'token': 'https://apicert.sii.cl/recursos/v1/boleta.electronica.token',
+                'upload': 'https://pangal.sii.cl/recursos/v1/boleta.electronica.envio',
+                'query': 'https://apicert.sii.cl/recursos/v1/boleta.electronica.envio'
+            },
+            'PRODUCCION': {
+                'seed': 'https://api.sii.cl/recursos/v1/boleta.electronica.semilla',
+                'token': 'https://api.sii.cl/recursos/v1/boleta.electronica.token',
+                'upload': 'https://rahue.sii.cl/recursos/v1/boleta.electronica.envio',
+                'query': 'https://api.sii.cl/recursos/v1/boleta.electronica.envio'
+            }
+        }
+        self.urls = self.ENDPOINTS.get(self.ambiente, self.ENDPOINTS['CERTIFICACION'])
+        self.boleta_urls = self.BOLETA_ENDPOINTS.get(self.ambiente, self.BOLETA_ENDPOINTS['CERTIFICACION'])
+        self.pfx_path = pfx_path
+        self.pfx_password = pfx_password
+        self.token = None
+        self.boleta_token = None
+        
+        self.session = requests.Session()
+        retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+
+    @staticmethod
+    def _es_error_dns(exc):
+        texto = str(exc or '').lower()
+        return any(token in texto for token in [
+            'nameresolutionerror',
+            'failed to resolve',
+            'getaddrinfo failed',
+            'temporary failure in name resolution',
+        ])
+
+    @classmethod
+    def _resolver_ip_publica(cls, hostname):
+        hostname = str(hostname or '').strip().lower()
+        if not hostname:
+            return None
+
+        if hostname in cls._dns_cache:
+            return cls._dns_cache[hostname]
+
+        proveedores = [
+            ('https://dns.google/resolve', {'name': hostname, 'type': 'A'}, {}),
+            (
+                'https://cloudflare-dns.com/dns-query',
+                {'name': hostname, 'type': 'A'},
+                {'Accept': 'application/dns-json'}
+            ),
+        ]
+
+        for url, params, headers in proveedores:
+            try:
+                resp = requests.get(url, params=params, headers=headers, timeout=10)
+                resp.raise_for_status()
+                payload = resp.json()
+                for answer in payload.get('Answer', []):
+                    if answer.get('type') == 1 and answer.get('data'):
+                        cls._dns_cache[hostname] = answer['data']
+                        return answer['data']
+            except Exception:
+                continue
+
+        return None
+
+    @contextmanager
+    def _forzar_resolucion_dns(self, hostname, ip):
+        original_create_connection = urllib3_connection.create_connection
+
+        def custom_create_connection(address, *args, **kwargs):
+            host, port = address
+            if str(host).lower() == str(hostname).lower():
+                return original_create_connection((ip, port), *args, **kwargs)
+            return original_create_connection(address, *args, **kwargs)
+
+        urllib3_connection.create_connection = custom_create_connection
+        try:
+            yield
+        finally:
+            urllib3_connection.create_connection = original_create_connection
+
+    def _request_with_dns_fallback(self, method, url, **kwargs):
+        try:
+            return self.session.request(method, url, **kwargs)
+        except requests.exceptions.RequestException as exc:
+            if not self._es_error_dns(exc):
+                raise
+
+            hostname = urlparse(url).hostname
+            ip = self._resolver_ip_publica(hostname)
+            if not ip:
+                raise
+
+            with self._forzar_resolucion_dns(hostname, ip):
+                return self.session.request(method, url, **kwargs)
     
-    def __init__(self, ambiente='certificacion'):
-        """
-        Inicializa el cliente SII
-        
-        Args:
-            ambiente: 'certificacion' o 'produccion'
-        """
-        self.ambiente = ambiente
-        self.urls = self.URLS[ambiente]
-        
-        # Configurar sesión HTTP
-        self.session = Session()
-        self.session.verify = True  # Verificar certificados SSL
-        
-        # Configurar transporte
-        self.transport = Transport(session=self.session, timeout=30)
-        
-        print(f"Cliente SII inicializado - Ambiente: {ambiente}")
-    
-    def obtener_semilla(self):
-        """
-        Obtiene la semilla del SII para iniciar el proceso de autenticación.
-        """
-        import html
-        import time
-        from lxml import etree
-        
-        url = self.urls['seed'].replace('?WSDL', '')
-        soap_request = """<?xml version="1.0" encoding="UTF-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" 
-                  xmlns:def="http://DefaultNamespace">
-   <soapenv:Header/>
-   <soapenv:Body>
-      <def:getSeed/>
-   </soapenv:Body>
-</soapenv:Envelope>"""
+    def _soap_call(self, url, body):
+        envelope = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" '
+            'xmlns:xsd="http://www.w3.org/2001/XMLSchema" '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xmlns:def="http://DefaultNamespace">'
+            f'<soapenv:Body>{body}</soapenv:Body>'
+            '</soapenv:Envelope>'
+        )
         
         headers = {
             'Content-Type': 'text/xml; charset=utf-8',
-            'SOAPAction': '',
+            'SOAPAction': ''
         }
         
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                if attempt > 0:
-                    print(f"Reintentando obtener semilla (Intento {attempt + 1}/{max_retries})...")
-                
-                response = requests.post(
-                    url,
-                    data=soap_request.encode('utf-8'),
-                    headers=headers,
-                    timeout=30,
-                    verify=True
+        resp = self._request_with_dns_fallback('POST', url, data=envelope, headers=headers, timeout=10)
+        resp.raise_for_status()
+        return resp.text
+    
+    def _extract_cdata(self, xml_str):
+        m = re.search(r'<!\[CDATA\[(.*?)\]\]>', xml_str, re.DOTALL)
+        return m.group(1) if m else xml_str
+        
+    def _extract_tag(self, xml_str, tag):
+        m = re.search(rf'<{tag}>(.*?)</{tag}>', xml_str, re.DOTALL)
+        return m.group(1).strip() if m else None
+
+    def get_seed(self):
+        body = '<def:getSeed soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"/>'
+        resp_xml = self._soap_call(self.urls['seed'], body)
+        inner = self._extract_tag(resp_xml, 'getSeedReturn') or self._extract_cdata(resp_xml)
+        
+        decoded = inner.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+        semilla = self._extract_tag(decoded, 'SEMILLA')
+        
+        if not semilla:
+            raise Exception("No se pudo obtener la semilla del SII")
+        return semilla
+        
+    def get_token(self, semilla=None):
+        if ClienteSII._cached_token and ClienteSII._token_timestamp:
+            if time.time() - ClienteSII._token_timestamp > 7200:
+                ClienteSII._cached_token = None
+                ClienteSII._token_timestamp = None
+
+        if ClienteSII._cached_token:
+            self.token = ClienteSII._cached_token
+            return self.token
+            
+        if not semilla:
+            semilla = self.get_seed()
+            
+        if not self.pfx_path or not self.pfx_password:
+            raise Exception("Se requiere certificado (.pfx) y contraseña para obtener el token")
+            
+        key_pem, cert_pem, priv_key = load_pfx(self.pfx_path, self.pfx_password)
+        
+        xml_semilla = f'<getToken><item><Semilla>{semilla}</Semilla></item></getToken>'
+        xml_with_id = xml_semilla.replace('<getToken>', '<getToken ID="seed">')
+        
+        signed_xml = sign_xml_sii(xml_with_id, 'seed', key_pem, cert_pem, priv_key)
+        
+        clean_signed = re.sub(r'<\?xml[^>]*\?>', '', signed_xml).replace(' ID="seed"', '')
+        
+        body = (
+            '<def:getToken soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+            f'<pszXml xsi:type="xsd:string"><![CDATA[<?xml version="1.0" ?>\n{clean_signed}]]></pszXml>'
+            '</def:getToken>'
+        )
+        
+        resp_xml = self._soap_call(self.urls['token'], body)
+        inner = self._extract_tag(resp_xml, 'getTokenReturn') or self._extract_cdata(resp_xml)
+        decoded = inner.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+        
+        token = self._extract_tag(decoded, 'TOKEN')
+        if not token:
+            raise Exception("No se pudo obtener el token del SII")
+            
+        self.token = token
+        ClienteSII._cached_token = token
+        ClienteSII._token_timestamp = time.time()
+        return token
+
+    def get_seed_boleta(self):
+        headers = {
+            'Accept': 'application/xml',
+            'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT)'
+        }
+        resp = self.session.get(self.boleta_urls['seed'], headers=headers, timeout=15)
+        resp.raise_for_status()
+        semilla = self._extract_tag(resp.text, 'SEMILLA')
+        if not semilla:
+            raise Exception(f"No se pudo obtener semilla boleta SII: {resp.text[:300]}")
+        return semilla
+
+    def get_token_boleta(self, semilla=None):
+        if not semilla:
+            semilla = self.get_seed_boleta()
+
+        if not self.pfx_path or not self.pfx_password:
+            raise Exception("Se requiere certificado (.pfx) y contraseña para obtener token de boleta")
+
+        key_pem, cert_pem, priv_key = load_pfx(self.pfx_path, self.pfx_password)
+        xml_semilla = f'<getToken><item><Semilla>{semilla}</Semilla></item></getToken>'
+        signed_xml = sign_xml_sii(xml_semilla, '', key_pem, cert_pem, priv_key)
+        signed_xml = re.sub(r"^<\?xml\s+version='1\.0'\s+encoding='ISO-8859-1'\?>", '<?xml version="1.0" encoding="UTF-8"?>', signed_xml)
+
+        headers = {
+            'Accept': 'application/xml',
+            'Content-Type': 'application/xml',
+            'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT)'
+        }
+        resp = self._request_with_dns_fallback(
+            'POST',
+            self.boleta_urls['token'],
+            data=signed_xml.encode('utf-8'),
+            headers=headers,
+            timeout=20
+        )
+        resp.raise_for_status()
+        token = self._extract_tag(resp.text, 'TOKEN')
+        if not token:
+            raise Exception(f"No se pudo obtener token boleta SII: {resp.text[:500]}")
+        self.boleta_token = token
+        return token
+
+    def enviar_boleta_rest(self, xml_firmado, rut_emisor, rut_envia):
+        if not self.boleta_token:
+            self.get_token_boleta()
+
+        # Igual que en DTE tradicional, evitar CRLF ambiguos dentro del XML enviado.
+        xml_firmado = xml_firmado.replace('\r\n', '\n').replace('\r', '\n')
+
+        rut_envia_num, rut_envia_dv = _split_rut(rut_envia)
+        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
+
+        data = {
+            'rutSender': rut_envia_num,
+            'dvSender': rut_envia_dv,
+            'rutCompany': rut_emisor_num,
+            'dvCompany': rut_emisor_dv,
+        }
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT)',
+            'Connection': 'close',
+            'Accept-Encoding': 'identity',
+        }
+
+        def _post_boleta_requests(token):
+            request_headers = headers.copy()
+            request_headers['Cookie'] = f'TOKEN={token}'
+            return self._request_with_dns_fallback(
+                'POST',
+                self.boleta_urls['upload'],
+                data=data,
+                files={
+                    'archivo': ('envioBoleta.xml', xml_firmado.encode('ISO-8859-1'), 'text/xml')
+                },
+                headers=request_headers,
+                timeout=30
+            )
+
+        def _post_boleta_manual(token):
+            boundary = '----SIIBoletaBoundary' + ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+            crlf = '\r\n'
+
+            def part(name, value):
+                return (
+                    f'--{boundary}{crlf}'
+                    f'Content-Disposition: form-data; name="{name}"{crlf}{crlf}'
+                    f'{value}{crlf}'
                 )
-                
-                if response.status_code == 503:
-                    if attempt < max_retries - 1:
-                        print(f"SII saturado (Error 503). Esperando 2 segundos para reintentar...")
-                        time.sleep(2)
-                        continue
-                    else:
-                        raise ValueError("El servidor del SII no está disponible en este momento (Error 503).")
-                
-                if response.status_code != 200:
-                    raise ValueError(f"Error HTTP {response.status_code}: {response.text[:200]}")
-                
-                # Parsear respuesta SOAP
-                root = etree.fromstring(response.content)
-                seed_return = root.find('.//{http://DefaultNamespace}getSeedReturn')
-                if seed_return is None:
-                    seed_return = root.find('.//getSeedReturn')
-                
-                if seed_return is None or seed_return.text is None:
-                    raise ValueError("No se encontró getSeedReturn en la respuesta")
-                
-                xml_decodificado = html.unescape(seed_return.text)
-                root_interno = etree.fromstring(xml_decodificado.encode('utf-8'))
-                
-                semilla_elem = root_interno.find('.//{http://www.sii.cl/XMLSchema}SEMILLA')
-                if semilla_elem is None:
-                    semilla_elem = root_interno.find('.//SEMILLA')
-                
-                if semilla_elem is None or semilla_elem.text is None:
-                    raise ValueError("No se encontró SEMILLA en la respuesta interna")
-                
-                semilla = semilla_elem.text
-                print(f"Semilla obtenida: {semilla}")
-                return semilla
-                
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    print(f"Error al obtener semilla: {str(e)}. Reintentando...")
-                    time.sleep(2)
-                    continue
-                print(f"ERROR al obtener semilla tras {max_retries} intentos: {str(e)}")
-                raise
-        return None
-    
-    def obtener_token(self, semilla, firmador):
-        """
-        Obtiene el token de autenticación del SII
-        
-        Args:
-            semilla: Semilla obtenida del SII
-            firmador: Instancia de FirmadorDTE
-            
-        Returns:
-            str: Token de autenticación
-        """
+
+            file_part = (
+                f'--{boundary}{crlf}'
+                f'Content-Disposition: form-data; name="archivo"; filename="envioBoleta.xml"{crlf}'
+                f'Content-Type: text/xml{crlf}{crlf}'
+                f'{xml_firmado}{crlf}'
+            )
+
+            body_text = (
+                part('rutSender', rut_envia_num) +
+                part('dvSender', rut_envia_dv) +
+                part('rutCompany', rut_emisor_num) +
+                part('dvCompany', rut_emisor_dv) +
+                file_part +
+                f'--{boundary}--{crlf}'
+            )
+            body_bytes = body_text.encode('ISO-8859-1')
+
+            request_headers = {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT)',
+                'Cookie': f'TOKEN={token}',
+                'Content-Type': f'multipart/form-data; boundary={boundary}',
+                'Connection': 'close',
+                'Accept-Encoding': 'identity',
+            }
+            return self._request_with_dns_fallback(
+                'POST',
+                self.boleta_urls['upload'],
+                data=body_bytes,
+                headers=request_headers,
+                timeout=30
+            )
+
+        resp = _post_boleta_requests(self.boleta_token)
+
+        if resp.status_code in {401, 403, 500}:
+            # El endpoint REST de boletas devuelve 500 con bastante frecuencia
+            # cuando el token expira o queda inconsistente en el gateway.
+            # Forzamos un token nuevo y reintentamos una sola vez.
+            self.boleta_token = None
+            self.get_token_boleta()
+            resp = _post_boleta_requests(self.boleta_token)
+
+        if resp.status_code == 500:
+            # Fallback: algunos nodos del SII son sensibles al multipart generado
+            # por requests. Reintentamos con un body manual equivalente al de DTE.
+            resp = _post_boleta_manual(self.boleta_token)
+
+        if not resp.ok:
+            detalle = (resp.text or '').strip()
+            if len(detalle) > 1000:
+                detalle = detalle[:1000]
+            if resp.status_code == 500 and detalle.lower() == 'error 500':
+                detalle = (
+                    'Error 500 generico del endpoint REST de boletas del SII. '
+                    'El servidor no entrego detalle tecnico; puede indicar indisponibilidad '
+                    'del servicio o un rechazo interno del gateway para el envio/rango CAF.'
+                )
+            raise Exception(
+                f"Error HTTP {resp.status_code} al enviar boleta al SII: "
+                f"{detalle or resp.reason or 'sin detalle'}"
+            )
+
+        text = resp.text
         try:
-            print(f"Obteniendo token de autenticación...")
-            
-            # Usar semilla recibida o pedir una si no viene
-            if not semilla:
-                semilla = self.obtener_semilla()
-            
-            # 2. Generar Solicitud de Token (XML compacto)
-            gettoken = etree.Element("getToken")
-            item = etree.SubElement(gettoken, "item")
-            semilla_elem = etree.SubElement(item, "Semilla")
-            semilla_elem.text = semilla
-            
-            gettoken_string = etree.tostring(
-                gettoken,
-                pretty_print=False,
-                xml_declaration=False,
-                encoding='ISO-8859-1'
-            ).decode('ISO-8859-1')
-            
-            # Firmar la solicitud (usando método específico para tokens)
-            gettoken_firmado = firmador.firmar_token_request(gettoken_string)
-            
-            # DEBUG: Guardar el XML firmado para análisis
-            with open('gettoken_firmado_simple.xml', 'w', encoding='utf-8') as f:
-                f.write(gettoken_firmado)
-            print(f"   XML firmado guardado en: gettoken_firmado_simple.xml")
-            
-            import html
-            import time
-            max_retries = 3
-            current_semilla = semilla
-            
-            for attempt in range(max_retries):
-                try:
-                    if attempt > 0:
-                        print(f"Reintentando obtener token (Intento {attempt + 1}/{max_retries})...")
-                        current_semilla = self.obtener_semilla()
-                    
-                    # Tag 'semilla' en minúsculas es más común en algunas documentaciones del SII
-                    gettoken_string = f'<getToken><item><semilla>{current_semilla}</semilla></item></getToken>'
-                    gettoken_firmado = firmador.firmar_token_request(gettoken_string)
+            payload = resp.json()
+        except ValueError:
+            payload = {}
 
-                    gettoken_escapado = html.escape(gettoken_firmado)
-                    url = self.urls['token'].replace('?WSDL', '')
-                    
-                    # Sobre SOAP ultra-estándar para SII Chile
-                    soap_request = '<?xml version="1.0" encoding="ISO-8859-1"?>'
-                    soap_request += '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">'
-                    soap_request += '<soapenv:Header/>'
-                    soap_request += '<soapenv:Body>'
-                    soap_request += f'<getToken xmlns="http://DefaultNamespace" soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
-                    soap_request += f'<pszXml xsi:type="xsd:string">{gettoken_escapado}</pszXml>'
-                    soap_request += '</getToken>'
-                    soap_request += '</soapenv:Body></soapenv:Envelope>'
-                    
-                    response = requests.post(
-                        url,
-                        data=soap_request.encode('ISO-8859-1'),
-                        headers={'Content-Type': 'text/xml; charset=ISO-8859-1', 'SOAPAction': ''},
-                        timeout=30,
-                        verify=True
-                    )
-                    
-                    if response.status_code == 503:
-                        if attempt < max_retries - 1:
-                            time.sleep(5)
-                            continue
-                        raise ValueError("Servidor SII no disponible (503)")
+        track_id = str(payload.get('trackid') or payload.get('track_id') or '')
+        estado = payload.get('estado') or payload.get('status')
+        return {
+            'success': bool(track_id),
+            'track_id': track_id,
+            'estado': estado,
+            'xml_respuesta': text
+        }
 
-                    if response.status_code != 200:
-                        raise ValueError(f"Error HTTP {response.status_code}")
-                    
-                    root = etree.fromstring(response.content)
-                    token_return = root.find('.//{http://DefaultNamespace}getTokenReturn')
-                    if token_return is None: token_return = root.find('.//getTokenReturn')
-                    
-                    if token_return is None or token_return.text is None:
-                        raise ValueError("No se encontró getTokenReturn")
-                    
-                    xml_decodificado = html.unescape(token_return.text)
-                    root_interno = etree.fromstring(xml_decodificado.encode('ISO-8859-1'))
-                    
-                    ns = {'sii': 'http://www.sii.cl/XMLSchema'}
-                    token_elem = root_interno.find('.//sii:TOKEN', namespaces=ns)
-                    if token_elem is None: token_elem = root_interno.find('.//TOKEN')
-                    
-                    if token_elem is not None and token_elem.text:
-                        print(f"Token obtenido exitosamente")
-                        return token_elem.text
-                    
-                    glosa_elem = root_interno.find('.//sii:GLOSA', namespaces=ns)
-                    if glosa_elem is None: glosa_elem = root_interno.find('.//GLOSA')
-                    
-                    if glosa_elem is not None:
-                        err_msg = glosa_elem.text
-                        if attempt < max_retries - 1:
-                            print(f"Error SII: {err_msg}. Reintentando...")
-                            time.sleep(5)
-                            continue
-                        raise ValueError(f"Error SII: {err_msg}")
-                    
-                    raise ValueError("Respuesta del SII no contiene TOKEN ni error")
-                    
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        print(f"Error en intento {attempt+1}: {str(e)}. Reintentando...")
-                        time.sleep(5)
-                        continue
-                    raise e
+    @staticmethod
+    def _detalle_folio_boleta(detalles, folio):
+        if not detalles:
             return None
-                
-        except Exception as e:
-            print(f"ERROR al obtener token: {str(e)}")
-            raise
-    
-    def enviar_dte(self, xml_envio, token, rut_emisor, rut_envia):
-        """
-        Envía un DTE al SII
-        
-        Args:
-            xml_envio: XML del SetDTE (puede contener múltiples DTE)
-            token: Token de autenticación
-            rut_emisor: RUT del emisor
-            rut_envia: RUT de quien envía
-            
-        Returns:
-            dict: Respuesta del SII con track_id
-        """
+        if folio is not None:
+            folio_str = str(folio)
+            for item in detalles:
+                if str(item.get('folio') or '') == folio_str:
+                    return item
+        if len(detalles) == 1:
+            return detalles[0]
+        return None
+
+    @staticmethod
+    def _glosa_envio_boleta(payload, detalle, aceptados, rechazados, reparos):
+        partes = []
+        if detalle:
+            desc = (detalle.get('descripcion') or detalle.get('estado') or '').strip()
+            if desc:
+                partes.append(desc)
+            for err in detalle.get('error') or []:
+                texto = (err.get('descripcion') or '').strip()
+                extra = err.get('detalle')
+                if texto and extra:
+                    partes.append(f'{texto}: {extra}')
+                elif texto:
+                    partes.append(texto)
+        elif aceptados and not rechazados and not reparos:
+            partes.append(f'Envío procesado: {aceptados} aceptado(s)')
+        elif rechazados:
+            partes.append(f'Envío procesado: {rechazados} rechazado(s)')
+        elif reparos:
+            partes.append(f'Envío procesado: {reparos} con reparos')
+        return ' | '.join(partes) or payload.get('glosa') or payload.get('descripcion') or payload.get('descResp') or ''
+
+    def consultar_estado_boleta(self, track_id, rut_emisor, folio=None):
+        if not str(track_id or '').strip().isdigit():
+            raise ValueError(f'Track ID de boleta inválido para consulta SII: {track_id}')
+
+        if not self.boleta_token:
+            self.get_token_boleta()
+
+        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
+        url = f"{self.boleta_urls['query']}/{rut_emisor_num}-{rut_emisor_dv}-{track_id}"
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT)',
+            'Cookie': f'TOKEN={self.boleta_token}',
+        }
+        resp = self._request_with_dns_fallback('GET', url, headers=headers, timeout=20)
+        text = resp.text
         try:
-            # Codificar el XML en base64
-            xml_bytes = xml_envio.encode('ISO-8859-1')
-            xml_base64 = base64.b64encode(xml_bytes).decode('ascii')
+            payload = resp.json()
+        except ValueError:
+            resp.raise_for_status()
+            payload = {}
+
+        estado = payload.get('estado') or payload.get('codResp')
+        stats = payload.get('estadistica') or []
+        aceptados = sum(int(item.get('aceptados') or 0) for item in stats)
+        rechazados = sum(int(item.get('rechazados') or 0) for item in stats)
+        reparos = sum(int(item.get('reparos') or 0) for item in stats)
+        informados = sum(int(item.get('informados') or 0) for item in stats)
+        detalle = self._detalle_folio_boleta(payload.get('detalle_rep_rech') or [], folio)
+        glosa = self._glosa_envio_boleta(payload, detalle, aceptados, rechazados, reparos)
+        return {
+            'success': estado in ['EPR', 'EOK', 'DOK', 'REC', 'SOK', 'CRT', 'RPR', 'RPC', 'RLV'],
+            'estado': estado,
+            'glosa': glosa,
+            'aceptados': aceptados,
+            'rechazados': rechazados,
+            'reparos': reparos,
+            'informados': informados,
+            'detalle_estado': str((detalle or {}).get('estado') or '').upper(),
+            'fecha_recepcion': payload.get('fecha_recepcion') or '',
+            'xml_respuesta': text,
+        }
+
+    def enviar_dte(self, xml_firmado, rut_emisor, rut_envia, tipo_envio='DTE'):
+        if tipo_envio == 'BOLETA' or '<EnvioBOLETA' in xml_firmado[:500]:
+            return self.enviar_boleta_rest(xml_firmado, rut_emisor, rut_envia)
+
+        if not self.token:
+            self.get_token()
+
+        # IMPORTANTE (TED/FRMT):
+        # El SII valida la firma del timbre (FRMT) contra el bloque <DD> como cadena exacta.
+        # En Windows, es común que algunas rutas/serializaciones introduzcan \r\n, lo que rompe esa firma.
+        # Para evitar TED-2-510, normalizamos el XML a saltos de línea LF antes de enviarlo.
+        xml_firmado = xml_firmado.replace('\r\n', '\n').replace('\r', '\n')
             
-            # Crear cliente SOAP para envío
-            client = Client(self.urls['envio'], transport=self.transport)
+        rut_envia_num, rut_envia_dv = _split_rut(rut_envia)
+        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
+        
+        import random
+        import string
+        boundary = '----SIIBoundary' + ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+        crlf = '\r\n'
+        
+        def part(name, value):
+            return f'--{boundary}{crlf}Content-Disposition: form-data; name="{name}"{crlf}{crlf}{value}{crlf}'
             
-            # Enviar el DTE
-            response = client.service.enviarDTE(
-                rutSender=rut_envia,
-                dvSender=self._obtener_dv(rut_envia),
-                rutCompany=rut_emisor,
-                dvCompany=self._obtener_dv(rut_emisor),
-                archivo=xml_base64,
-                token=token
-            )
+        file_part = (
+            f'--{boundary}{crlf}'
+            f'Content-Disposition: form-data; name="archivo"; filename="envio.xml"{crlf}'
+            f'Content-Type: text/xml{crlf}{crlf}'
+            f'{xml_firmado}{crlf}'
+        )
+        
+        body_text = (
+            part('rutSender', rut_envia_num) +
+            part('dvSender', rut_envia_dv) +
+            part('rutCompany', rut_emisor_num) +
+            part('dvCompany', rut_emisor_dv) +
+            file_part +
+            f'--{boundary}--{crlf}'
+        )
+        
+        body_bytes = body_text.encode('ISO-8859-1')
+        
+        headers = {
+            'User-Agent': 'Mozilla/4.0 (compatible; PROG 1.0; Windows NT)',
+            'Accept': 'image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, application/vnd.ms-powerpoint, application/ms-excel, application/msword, */*',
+            'Cookie': f'TOKEN={self.token}',
+            'Content-Type': f'multipart/form-data; boundary={boundary}',
+            'Connection': 'close',
+            'Accept-Encoding': 'identity'
+        }
+        
+        # Timeout explícito para evitar cuelgues cuando el SII no responde.
+        resp = self._request_with_dns_fallback('POST', self.urls['upload'], data=body_bytes, headers=headers, timeout=30)
+        resp.raise_for_status()
+        
+        text = resp.text
+        
+        # Procesar la respuesta para compatibilidad con la app Django
+        track_id = self._extract_tag(text, 'TRACKID')
+        estado = self._extract_tag(text, 'STATUS') or self._extract_tag(text, 'ESTADO')
+        
+        # Si el estado es 5 (No está autenticado / Token inválido o vencido), limpiamos caché y reintentamos.
+        if estado == '5':
+            ClienteSII._cached_token = None
+            ClienteSII._token_timestamp = None
+            self.token = None
             
-            # Parsear respuesta
-            root = etree.fromstring(response.encode('utf-8'))
+            # Obtener un nuevo token e intentar de nuevo
+            self.get_token()
+            headers['Cookie'] = f'TOKEN={self.token}'
             
-            # Extraer track_id
-            track_id_elem = root.find('.//TRACKID')
-            estado_elem = root.find('.//ESTADO')
+            resp = self._request_with_dns_fallback('POST', self.urls['upload'], data=body_bytes, headers=headers, timeout=30)
+            resp.raise_for_status()
+            text = resp.text
+            track_id = self._extract_tag(text, 'TRACKID')
+            estado = self._extract_tag(text, 'STATUS') or self._extract_tag(text, 'ESTADO')
+
+        return {
+            'success': bool(track_id and track_id != '0'),
+            'track_id': track_id,
+            'estado': estado,
+            'xml_respuesta': text
+        }
+        
+    def consultar_estado(self, track_id, rut_emisor):
+        if not self.token:
+            self.get_token()
             
-            resultado = {
-                'track_id': track_id_elem.text if track_id_elem is not None else None,
-                'estado': estado_elem.text if estado_elem is not None else None,
-                'respuesta_completa': response
-            }
+        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
+        
+        body = (
+            '<def:getEstUp soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+            f'<RutCompania xsi:type="xsd:string">{rut_emisor_num}</RutCompania>'
+            f'<DvCompania xsi:type="xsd:string">{rut_emisor_dv}</DvCompania>'
+            f'<TrackIdEnv xsi:type="xsd:string">{track_id}</TrackIdEnv>'
+            f'<Token xsi:type="xsd:string">{self.token}</Token>'
+            '</def:getEstUp>'
+        )
+        
+        resp_xml = self._soap_call(self.urls['query'], body)
+        inner = self._extract_tag(resp_xml, 'getEstUpReturn') or self._extract_cdata(resp_xml)
+        decoded = inner.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+        
+        estado = self._extract_tag(decoded, 'ESTADO')
+        glosa = self._extract_tag(decoded, 'GLOSA_ESTADO') or self._extract_tag(decoded, 'GLOSA')
+        informados = self._extract_tag(decoded, 'INFORMADOS')
+        aceptados = self._extract_tag(decoded, 'ACEPTADOS')
+        rechazados = self._extract_tag(decoded, 'RECHAZADOS')
+        reparos = self._extract_tag(decoded, 'REPAROS')
+        
+        return {
+            'success': estado in ['EPR', 'OK'],
+            'estado': estado,
+            'glosa': glosa,
+            'xml_respuesta': resp_xml,
+            'informados': int(informados or 0),
+            'aceptados': int(aceptados or 0),
+            'rechazados': int(rechazados or 0),
+            'reparos': int(reparos or 0),
+        }
+
+    def obtener_datos_resolucion_empresa(self, rut_empresa):
+        """Consulta la resolución registrada para el contribuyente en el SII.
+
+        En certificación, el SII valida la fecha/número de resolución contra el
+        padrón oficial de contribuyentes autorizados. Si estos datos no
+        coinciden, rechaza el envío con CRT-3-19.
+        """
+        rut_buscado = _normalizar_rut(rut_empresa)
+
+        fuentes = []
+        if self.ambiente == 'CERTIFICACION':
+            fuentes = [
+                'https://maullin.sii.cl/cvc_cgi/dte/ee_consulta_empresas_dwnld?NOMBRE_ARCHIVO=ee_empresas_nomipyme.csv',
+                'https://maullin.sii.cl/cvc_cgi/dte/ee_consulta_empresas_dwnld?NOMBRE_ARCHIVO=ee_empresas_mipyme.csv',
+            ]
+
+        for url in fuentes:
+            try:
+                resp = self.session.get(url, timeout=20)
+                resp.raise_for_status()
+                contenido = resp.content.decode('latin-1', errors='ignore')
+            except Exception:
+                continue
+
+            for linea in contenido.splitlines():
+                partes = [parte.strip() for parte in linea.split(';')]
+                if len(partes) < 4:
+                    continue
+
+                rut_linea = _normalizar_rut(partes[0])
+                if rut_linea != rut_buscado:
+                    continue
+
+                numero = int(re.sub(r'[^0-9]', '', partes[2] or '') or '0')
+                fecha = datetime.strptime(partes[3], '%d-%m-%Y').date()
+                return {
+                    'numero': numero,
+                    'fecha': fecha,
+                    'fuente': url,
+                }
+
+        return None
+
+    def consultar_estado_por_folio(self, rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total):
+        if not self.token:
+            self.get_token()
             
-            if resultado['track_id']:
-                print(f"DTE enviado exitosamente - Track ID: {resultado['track_id']}")
+        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
+        rut_receptor_num, rut_receptor_dv = _split_rut(rut_receptor)
+        
+        # Formatear fecha a DDMMYYYY
+        from datetime import datetime
+        try:
+            if isinstance(fecha_emision, str):
+                dt = datetime.strptime(fecha_emision, "%Y-%m-%d")
             else:
-                print(f"ADVERTENCIA: Respuesta del SII sin Track ID")
+                dt = fecha_emision
+            fecha_str = dt.strftime("%d%m%Y")
+        except:
+            fecha_str = str(fecha_emision)
             
-            return resultado
-            
-        except Exception as e:
-            print(f"ERROR al enviar DTE: {str(e)}")
-            raise
-    
-    def consultar_estado_dte(self, track_id, token, rut_emisor):
-        """
-        Consulta el estado de un DTE enviado
+        body = (
+            '<def:getEstDte soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+            f'<RutConsultante xsi:type="xsd:string">{rut_emisor_num}</RutConsultante>'
+            f'<DvConsultante xsi:type="xsd:string">{rut_emisor_dv}</DvConsultante>'
+            f'<RutCompania xsi:type="xsd:string">{rut_emisor_num}</RutCompania>'
+            f'<DvCompania xsi:type="xsd:string">{rut_emisor_dv}</DvCompania>'
+            f'<RutReceptor xsi:type="xsd:string">{rut_receptor_num}</RutReceptor>'
+            f'<DvReceptor xsi:type="xsd:string">{rut_receptor_dv}</DvReceptor>'
+            f'<TipoDte xsi:type="xsd:string">{tipo_dte}</TipoDte>'
+            f'<FolioDte xsi:type="xsd:string">{folio}</FolioDte>'
+            f'<FechaEmisionDte xsi:type="xsd:string">{fecha_str}</FechaEmisionDte>'
+            f'<MontoDte xsi:type="xsd:string">{int(monto_total)}</MontoDte>'
+            f'<Token xsi:type="xsd:string">{self.token}</Token>'
+            '</def:getEstDte>'
+        )
         
-        Args:
-            track_id: ID de seguimiento del envío
-            token: Token de autenticación
-            rut_emisor: RUT del emisor
-            
-        Returns:
-            dict: Estado del DTE
-        """
-        try:
-            # Crear cliente SOAP
-            client = Client(self.urls['consulta'], transport=self.transport)
-            
-            # Consultar estado
-            response = client.service.getEstDte(
-                token=token,
-                trackId=track_id
-            )
-            
-            # Parsear respuesta
-            root = etree.fromstring(response.encode('utf-8'))
-            
-            # Extraer información
-            estado_elem = root.find('.//ESTADO')
-            glosa_elem = root.find('.//GLOSA_ESTADO')
-            num_atencion_elem = root.find('.//NUM_ATENCION')
-            
-            resultado = {
-                'estado': estado_elem.text if estado_elem is not None else None,
-                'glosa': glosa_elem.text if glosa_elem is not None else None,
-                'num_atencion': num_atencion_elem.text if num_atencion_elem is not None else None,
-                'respuesta_completa': response
-            }
-            
-            print(f"Estado consultado - Estado: {resultado['estado']}")
-            
-            return resultado
-            
-        except Exception as e:
-            print(f"ERROR al consultar estado: {str(e)}")
-            raise
-    
-    def consultar_estado_documento(self, rut_emisor, tipo_dte, folio, fecha_emision, 
-                                   monto_total, rut_receptor, token):
-        """
-        Consulta el estado de un documento específico en el SII
+        url_query_dte = "https://palena.sii.cl/DTEWS/QueryEstDte.jws" if self.ambiente == 'PRODUCCION' else "https://maullin.sii.cl/DTEWS/QueryEstDte.jws"
         
-        Args:
-            rut_emisor: RUT del emisor
-            tipo_dte: Tipo de DTE
-            folio: Folio del documento
-            fecha_emision: Fecha de emisión (YYYY-MM-DD)
-            monto_total: Monto total del documento
-            rut_receptor: RUT del receptor
-            token: Token de autenticación
-            
-        Returns:
-            dict: Estado del documento
-        """
-        try:
-            # Crear cliente SOAP
-            client = Client(self.urls['consulta'], transport=self.transport)
-            
-            # Consultar estado del documento
-            response = client.service.getEstDte(
-                token=token,
-                rutEmisor=rut_emisor,
-                dvEmisor=self._obtener_dv(rut_emisor),
-                tipoDte=tipo_dte,
-                folioDte=folio,
-                fechaEmisionDte=fecha_emision,
-                montoTotal=int(monto_total),
-                rutReceptor=rut_receptor,
-                dvReceptor=self._obtener_dv(rut_receptor)
-            )
-            
-            # Parsear respuesta
-            root = etree.fromstring(response.encode('utf-8'))
-            
-            estado_elem = root.find('.//ESTADO')
-            glosa_elem = root.find('.//GLOSA')
-            
-            resultado = {
-                'estado': estado_elem.text if estado_elem is not None else None,
-                'glosa': glosa_elem.text if glosa_elem is not None else None,
-                'respuesta_completa': response
-            }
-            
-            print(f"Estado documento consultado - Estado: {resultado['estado']}")
-            
-            return resultado
-            
-        except Exception as e:
-            print(f"ERROR al consultar estado documento: {str(e)}")
-            raise
-    
-    def _obtener_dv(self, rut):
-        """
-        Obtiene el dígito verificador de un RUT
+        resp_xml = self._soap_call(url_query_dte, body)
+        inner = self._extract_tag(resp_xml, 'getEstDteReturn') or self._extract_cdata(resp_xml)
+        decoded = inner.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
         
-        Args:
-            rut: RUT con o sin formato (ej: "12345678-9" o "12345678")
-            
-        Returns:
-            str: Dígito verificador
-        """
-        # Limpiar el RUT
-        rut_limpio = rut.replace('.', '').replace('-', '')
+        estado = self._extract_tag(decoded, 'ESTADO')
+        glosa = self._extract_tag(decoded, 'GLOSA_ESTADO') or self._extract_tag(decoded, 'GLOSA')
         
-        # Si ya tiene el DV, extraerlo
-        if len(rut_limpio) > 8:
-            return rut_limpio[-1]
-        
-        # Calcular el DV
-        rut_numerico = rut_limpio[:-1] if not rut_limpio.isdigit() else rut_limpio
-        
-        suma = 0
-        multiplo = 2
-        
-        for digito in reversed(rut_numerico):
-            suma += int(digito) * multiplo
-            multiplo = multiplo + 1 if multiplo < 7 else 2
-        
-        resto = suma % 11
-        dv = 11 - resto
-        
-        if dv == 11:
-            return '0'
-        elif dv == 10:
-            return 'K'
-        else:
-            return str(dv)
-    
-    def crear_set_dte(self, dtes_firmados, caratula):
-        """
-        Crea un SetDTE (conjunto de DTEs) para envío masivo
-        
-        Args:
-            dtes_firmados: Lista de XML de DTEs firmados
-            caratula: Diccionario con datos de la carátula
-            
-        Returns:
-            str: XML del SetDTE
-        """
-        try:
-            # Crear el EnvioDTE
-            envio_dte = etree.Element(
-                "EnvioDTE",
-                version="1.0",
-                nsmap={None: "http://www.sii.cl/SiiDte"}
-            )
-            
-            # Crear SetDTE
-            set_dte = etree.SubElement(envio_dte, "SetDTE", ID="SetDoc")
-            
-            # Carátula
-            caratula_elem = etree.SubElement(set_dte, "Caratula", version="1.0")
-            
-            etree.SubElement(caratula_elem, "RutEmisor").text = caratula['rut_emisor']
-            etree.SubElement(caratula_elem, "RutEnvia").text = caratula['rut_envia']
-            etree.SubElement(caratula_elem, "RutReceptor").text = caratula.get('rut_receptor', '60803000-K')  # SII
-            etree.SubElement(caratula_elem, "FchResol").text = caratula['fecha_resolucion']
-            etree.SubElement(caratula_elem, "NroResol").text = str(caratula['numero_resolucion'])
-            etree.SubElement(caratula_elem, "TmstFirmaEnv").text = datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-            
-            # Agregar DTEs al Set
-            for dte_xml in dtes_firmados:
-                dte_root = etree.fromstring(dte_xml.encode('ISO-8859-1'))
-                set_dte.append(dte_root)
-            
-            # Convertir a string
-            set_dte_string = etree.tostring(
-                envio_dte,
-                pretty_print=True,
-                xml_declaration=True,
-                encoding='ISO-8859-1'
-            ).decode('ISO-8859-1')
-            
-            print(f"SetDTE creado con {len(dtes_firmados)} documento(s)")
-            
-            return set_dte_string
-            
-        except Exception as e:
-            print(f"ERROR al crear SetDTE: {str(e)}")
-            raise
+        return {
+            'success': estado in ['DTE Aceptado', 'DTE Recibido', 'DTE Aceptado con Reparos'],
+            'estado': estado,
+            'glosa': glosa,
+            'xml_respuesta': resp_xml
+        }
+
+    # Compatibility with the previous GestionCloud client API.
+    def obtener_semilla(self):
+        return self.get_seed()
+
+    def obtener_token(self, semilla=None, firmador=None):
+        return self.get_token(semilla)
+
+    def consultar_estado_dte(self, track_id, token=None, rut_emisor=None):
+        if token:
+            self.token = token
+        return self.consultar_estado(track_id, rut_emisor)

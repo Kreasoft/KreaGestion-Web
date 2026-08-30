@@ -13,7 +13,7 @@
 
     /* Ocultar top-bar si existe y ajustar layout */
     .top-bar { display: none !important; }
-    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+    .main-content { margin-top: 0 !important; padding-top: 0.5rem !important; }
 
     /* Estilo Piedra - Variables Locales */
     :root {
@@ -25,7 +25,7 @@
     }
 
     .card-premium {
-        border-radius: 20px;
+        border-radius: 12px;
         overflow: hidden;
         border: 1px solid var(--color-piedra-borde) !important;
         background: white;
@@ -33,22 +33,21 @@
         margin: 0 auto;
     }
 
-    .header-danger-piedra {
-        background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
-        padding: 2.5rem;
-        text-align: center;
-        color: white;
+    .card-header-piedra {
+        background: var(--gradient-piedra);
+        border-bottom: 2px solid var(--color-piedra-borde);
+        padding: 8px 16px;
     }
 
     .btn-piedra-danger {
-        background: linear-gradient(135deg, #e57373 0%, #d32f2f 100%);
-        border: none;
+        background: #C2185B;
+        border: 1px solid #9C1449;
         color: white !important;
-        font-weight: 600;
-        padding: 0.8rem 2rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.2);
-        transition: all 0.3s ease;
+        font-weight: 700;
+        padding: 4px 14px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        transition: all 0.2s ease;
     }
 
     .btn-piedra-danger:hover {
@@ -60,49 +59,44 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container" style="padding: 8px 12px;">
     <div class="row justify-content-center">
-        <div class="col-lg-12">
-            <div class="card card-premium shadow-lg border-0">
-                <div class="header-danger-piedra">
-                    <div class="p-3 bg-white bg-opacity-20 rounded-circle d-inline-block mb-3">
-                        <i class="fas fa-exclamation-triangle fa-3x text-white"></i>
-                    </div>
-                    <h2 class="fw-bold mb-0">Confirmar Eliminación</h2>
-                    <p class="mb-0 opacity-75 mt-2">Esta acción eliminará permanentemente la lista de precios</p>
-                </div>
-
-                <div class="card-body p-5">
-                    <div class="text-center mb-5">
-                        <span class="badge rounded-pill px-4 py-2 mb-3" style="background: rgba(141, 110, 99, 0.1); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); font-size: 0.9rem;">
-                            <i class="fas fa-tag me-2"></i>LISTA SELECCIONADA
-                        </span>
-                        <h3 class="fw-bold" style="color: var(--color-piedra-texto);">{{ lista.nombre }}</h3>
-                        <p class="text-muted">{{ lista.descripcion|default:"Sin descripción adicional" }}</p>
-                    </div>
-
-                    <div class="alert p-4" style="background: rgba(141, 110, 99, 0.05); border: 1px dashed var(--color-piedra-borde); border-radius: 15px;">
-                        <div class="d-flex align-items-center">
-                            <div class="p-3 rounded-circle me-3" style="background: rgba(211, 47, 47, 0.1); color: #d32f2f;">
-                                <i class="fas fa-info-circle fa-lg"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold mb-1" style="color: var(--color-piedra-texto);">Aviso Importante</h6>
-                                <p class="mb-0 text-muted small">
-                                    Al eliminar esta lista, todos los precios asociados a los artículos en esta categoría se perderán. Las ventas históricas no se verán afectadas.
-                                </p>
-                            </div>
+        <div class="col-lg-8">
+            <div class="card card-premium shadow-sm border-0">
+                <div class="card-header-piedra">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle me-2" style="color: var(--color-piedra-texto); font-size: 1.25rem;"></i>
+                        <div>
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                                Gestión de <span class="fw-bold">Listas de Precios</span>
+                            </h2>
+                            <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">Confirmar eliminación permanente</div>
                         </div>
                     </div>
+                </div>
 
-                    <form method="post" class="mt-5">
+                <div class="card-body" style="padding: 8px 10px;">
+                    <div class="mb-2">
+                        <span class="badge" style="background: rgba(141, 110, 99, 0.1); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); font-size: 0.7rem;">
+                            <i class="fas fa-tag me-1"></i>LISTA SELECCIONADA
+                        </span>
+                        <h5 class="fw-bold mt-2 mb-1" style="color: var(--color-piedra-texto);">{{ lista.nombre }}</h5>
+                        <p class="text-muted mb-0" style="font-size: 0.75rem;">{{ lista.descripcion|default:"Sin descripción adicional" }}</p>
+                    </div>
+
+                    <div class="alert py-2 px-2 mb-2" style="background: rgba(141, 110, 99, 0.05); border: 1px dashed var(--color-piedra-borde); border-radius: 6px; font-size: 0.75rem;">
+                        <i class="fas fa-info-circle me-1" style="color: #d32f2f;"></i>
+                        Al eliminar esta lista, todos los precios asociados se perderán. Las ventas históricas no se verán afectadas.
+                    </div>
+
+                    <form method="post">
                         {% csrf_token %}
                         <div class="d-flex justify-content-between align-items-center">
-                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn px-4" style="background: rgba(93, 64, 55, 0.05); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 10px; font-weight: 500;">
-                                <i class="fas fa-arrow-left me-2"></i>Mantener Lista
+                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-arrow-left me-1"></i>Mantener Lista
                             </a>
-                            <button type="submit" class="btn btn-piedra-danger px-5">
-                                <i class="fas fa-trash-alt me-2"></i>Eliminar Definitivamente
+                            <button type="submit" class="btn btn-piedra-danger">
+                                <i class="fas fa-trash-alt me-1"></i>Eliminar Definitivamente
                             </button>
                         </div>
                     </form>

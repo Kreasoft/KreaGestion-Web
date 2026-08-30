@@ -55,6 +55,11 @@ class Proveedor(models.Model):
     
     # Información comercial
     plazo_entrega = models.CharField(max_length=100, blank=True, verbose_name="Plazo de Entrega")
+    plazo_pago = models.IntegerField(
+        default=0,
+        verbose_name="Plazo de Pago (días)",
+        help_text="Días de crédito. 0 = vence el mismo día de emisión de la factura.",
+    )
     condiciones_pago = models.CharField(max_length=200, blank=True, verbose_name="Condiciones de Pago")
     descuento_porcentaje = models.DecimalField(
         max_digits=5, 

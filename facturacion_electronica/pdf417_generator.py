@@ -25,7 +25,7 @@ class PDF417Generator:
         """
         try:
             # Detectar si el TED viene en base64 (empieza con <TED -> PFRFRC)
-            # DTEBox y otros servicios suelen entregarlo ya codificado
+            # Algunos emisores entregan el TED ya codificado
             if isinstance(ted_xml, str) and (ted_xml.startswith('PFRFRC') or ted_xml.startswith('PD')):
                 try:
                     ted_xml = base64.b64decode(ted_xml).decode('ISO-8859-1')

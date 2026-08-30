@@ -1,0 +1,106 @@
+<form method="post" action="{{ action_url }}" id="proveedorFormModal">
+    {% csrf_token %}
+    <input type="hidden" name="modal" value="1">
+    <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 6px 12px;">
+        <div>
+            <h5 class="modal-title mb-0" style="color: #5D4037; font-size: 1rem; font-family: 'Poppins', sans-serif; line-height: 1.15;">
+                {% if proveedor %}<span class="fw-light">Editar</span> <span class="fw-bold">Proveedor</span>
+                {% else %}<span class="fw-light">Nuevo</span> <span class="fw-bold">Proveedor</span>{% endif %}
+            </h5>
+            <div style="font-size: 0.68rem; color: #5D4037; opacity: .75;">{% if proveedor %}Actualice los datos del proveedor.{% else %}Registre un nuevo socio comercial.{% endif %}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+    </div>
+    <div class="modal-body" style="background: #FAFAF8; padding: 6px 10px;">
+        {% if form.non_field_errors %}<div class="text-danger small mb-1">{{ form.non_field_errors }}</div>{% endif %}
+        {% if formset.non_form_errors %}<div class="text-danger small mb-1">{{ formset.non_form_errors }}</div>{% endif %}
+        <ul class="nav nav-tabs border-0" id="provFormTabs" role="tablist">
+            <li class="nav-item"><button class="nav-link active" id="prov-form-bas-tab" data-bs-toggle="tab" data-bs-target="#prov-form-bas" type="button"><i class="fas fa-list me-1"></i>Datos Básicos</button></li>
+            <li class="nav-item"><button class="nav-link" id="prov-form-com-tab" data-bs-toggle="tab" data-bs-target="#prov-form-com" type="button"><i class="fas fa-handshake me-1"></i>Comerciales</button></li>
+            <li class="nav-item"><button class="nav-link" id="prov-form-cto-tab" data-bs-toggle="tab" data-bs-target="#prov-form-cto" type="button"><i class="fas fa-users me-1"></i>Contactos</button></li>
+        </ul>
+        <div class="tab-content pt-1">
+            <div class="tab-pane fade show active" id="prov-form-bas">
+                <div class="row g-1">
+                    <div class="col-md-3"><label class="form-label">RUT <span class="text-danger">*</span></label>{{ form.rut }}{% if form.rut.errors %}<div class="text-danger small">{{ form.rut.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-5"><label class="form-label">Nombre fantasía <span class="text-danger">*</span></label>{{ form.nombre }}{% if form.nombre.errors %}<div class="text-danger small">{{ form.nombre.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-4"><label class="form-label">Razón social</label>{{ form.razon_social }}</div>
+                    <div class="col-md-6"><label class="form-label">Giro comercial <span class="text-danger">*</span></label>{{ form.giro }}{% if form.giro.errors %}<div class="text-danger small">{{ form.giro.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-3"><label class="form-label">Tipo</label>{{ form.tipo_proveedor }}</div>
+                    <div class="col-md-3"><label class="form-label">Estado</label>{{ form.estado }}</div>
+                    <div class="col-md-6"><label class="form-label">Dirección <span class="text-danger">*</span></label>{{ form.direccion }}{% if form.direccion.errors %}<div class="text-danger small">{{ form.direccion.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-3"><label class="form-label">Comuna <span class="text-danger">*</span></label>{{ form.comuna }}</div>
+                    <div class="col-md-3"><label class="form-label">Ciudad</label>{{ form.ciudad }}</div>
+                    <div class="col-md-4"><label class="form-label">Región</label>{{ form.region }}</div>
+                    <div class="col-md-4"><label class="form-label">Teléfono <span class="text-danger">*</span></label>{{ form.telefono }}</div>
+                    <div class="col-md-4"><label class="form-label">Email</label>{{ form.email }}{% if form.email.errors %}<div class="text-danger small">{{ form.email.errors.0 }}</div>{% endif %}</div>
+                    <div class="col-md-6"><label class="form-label">Sitio web</label>{{ form.sitio_web }}</div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="prov-form-com">
+                <div class="row g-1">
+                    <div class="col-md-4"><label class="form-label">Plazo de entrega</label>{{ form.plazo_entrega }}</div>
+                    <div class="col-md-4"><label class="form-label">Condiciones de pago</label>{{ form.condiciones_pago }}</div>
+                    <div class="col-md-4"><label class="form-label">Descuento base (%)</label>{{ form.descuento_porcentaje }}</div>
+                    <div class="col-md-4"><label class="form-label">Calificación</label>{{ form.calificacion }}</div>
+                    <div class="col-md-8"><label class="form-label">Categoría principal</label>{{ form.categoria_principal }}</div>
+                    <div class="col-12"><label class="form-label">Observaciones calidad</label>{{ form.observaciones_calidad }}</div>
+                    <div class="col-12"><label class="form-label">Observaciones generales</label>{{ form.observaciones }}</div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="prov-form-cto">
+                {{ formset.management_form }}
+                <div id="contactos-container">
+                    {% for form_contacto in formset %}
+                    <div class="contacto-card">
+                        {% for hidden in form_contacto.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="row g-1">
+                            <div class="col-md-4"><label class="form-label">Nombre</label>{{ form_contacto.nombre }}</div>
+                            <div class="col-md-4"><label class="form-label">Cargo</label>{{ form_contacto.cargo }}</div>
+                            <div class="col-md-4"><label class="form-label">Tipo</label>{{ form_contacto.tipo_contacto }}</div>
+                            <div class="col-md-3"><label class="form-label">Teléfono</label>{{ form_contacto.telefono }}</div>
+                            <div class="col-md-3"><label class="form-label">Celular</label>{{ form_contacto.celular }}</div>
+                            <div class="col-md-4"><label class="form-label">Email</label>{{ form_contacto.email }}</div>
+                            <div class="col-md-2 d-flex align-items-end pb-1">
+                                <div class="form-check mb-0">{{ form_contacto.es_contacto_principal }} <label class="form-check-label small" for="{{ form_contacto.es_contacto_principal.id_for_label }}">Princ.</label></div>
+                            </div>
+                            <div class="col-md-10"><label class="form-label">Notas</label>{{ form_contacto.observaciones }}</div>
+                            <div class="col-md-2 d-flex align-items-end pb-1">
+                                {% if form_contacto.instance.pk %}
+                                <div class="form-check mb-0">{{ form_contacto.DELETE }} <label class="form-check-label small text-danger" for="{{ form_contacto.DELETE.id_for_label }}">Eliminar</label></div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-sm mt-1" id="add-contacto" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;font-weight:700;font-size:.65rem;height:22px;">
+                    <i class="fas fa-plus me-1"></i>Agregar contacto
+                </button>
+                <template id="contacto-template">
+                    <div class="contacto-card">
+                        {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                        <div class="row g-1">
+                            <div class="col-md-4"><label class="form-label">Nombre</label>{{ formset.empty_form.nombre }}</div>
+                            <div class="col-md-4"><label class="form-label">Cargo</label>{{ formset.empty_form.cargo }}</div>
+                            <div class="col-md-4"><label class="form-label">Tipo</label>{{ formset.empty_form.tipo_contacto }}</div>
+                            <div class="col-md-3"><label class="form-label">Teléfono</label>{{ formset.empty_form.telefono }}</div>
+                            <div class="col-md-3"><label class="form-label">Celular</label>{{ formset.empty_form.celular }}</div>
+                            <div class="col-md-4"><label class="form-label">Email</label>{{ formset.empty_form.email }}</div>
+                            <div class="col-md-2 d-flex align-items-end pb-1">
+                                <div class="form-check mb-0">{{ formset.empty_form.es_contacto_principal }} <label class="form-check-label small">Princ.</label></div>
+                            </div>
+                            <div class="col-12"><label class="form-label">Notas</label>{{ formset.empty_form.observaciones }}</div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer py-1 px-2" style="background:#FAFAF8; border-top:1px solid #E8DCC8;">
+        <button type="button" class="btn btn-sm" data-bs-dismiss="modal" style="color:#5D4037;height:24px;">Cancelar</button>
+        <button type="submit" class="btn btn-sm" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;font-weight:700;height:24px;padding:0 10px;">
+            <i class="fas fa-save me-1"></i>Guardar Proveedor
+        </button>
+    </div>
+</form>

@@ -6,9 +6,32 @@
 
 {% block title %}Ajustes de Stock - GestionCloud{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS (Opcional, pero recomendado si hay filtros complejos) -->
+{% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    body { background: #FAFAF8 !important; }
+    .form-control, .form-select, .form-control-stone, .form-select-stone {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
+        accent-color: #6F5B44 !important;
+    }
+    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .modal-footer { padding: 6px 12px !important; }
+    .stat-card { min-height: 52px !important; padding: 8px 12px !important; border-radius: 8px !important; }
+    .stat-icon { font-size: 42px !important; opacity: 0.12 !important; }
+    .stat-value { font-size: 1.2rem !important; }
+    .stats-card-piedra { padding: 8px 16px !important; }
+    .stats-card-piedra::before, .stats-card-piedra::after { font-size: 0 !important; display: none !important; }
+</style>
+{% endblock %}
+{% block extra_css %}
 <style>
     /* VARIABLES ESTILO PIEDRA */
     :root {
@@ -152,48 +175,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            
-            <!-- STATS -->
-
-
-            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; margin-top: 20px;">
-                <!-- HEADER PREMIUM -->
-                <div class="card-header stats-card-piedra" style="border: none; padding: 20px 30px; border-radius: 15px 15px 0 0; position: relative; border-bottom: 3px solid var(--color-piedra-borde) !important;">
-                    <div class="d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <!-- Icono Grande Frontal -->
-                            <div class="me-4 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 15px; border: 1px solid rgba(255,255,255,0.2);">
-                                <i class="fas fa-sliders-h" style="font-size: 3.5rem; color: var(--color-piedra-texto); opacity: 0.95;"></i>
-                            </div>
-                            
+                            <i class="fas fa-sliders-h me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                             <div>
-                                <h2 class="mb-0" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; line-height: 1.1;">
-                                    <span style="font-weight: 300;">Gestión de</span> 
-                                    <span style="font-weight: 700;">Ajustes de Inventario</span>
-                                    <span style="font-weight: 300; font-size: 1.5rem; margin-left: 10px; opacity: 0.7;">#{{ total_ajustes|default:"0" }}</span>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Ajustes</span>
                                 </h2>
-                                <p class="mb-0 mt-1" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; font-size: 0.95rem; opacity: 0.85; font-weight: 500;">
-                                    Control de entradas, salidas y correcciones manuales de stock
-                                </p>
+                                <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">Entradas, salidas y correcciones de stock · {{ total_ajustes|default:"0" }} folios</div>
                             </div>
                         </div>
-                        
-                        <div>
-                            <button type="button" class="btn btn-sm px-4 fw-bold shadow-sm" onclick="crearAjuste()" style="background: linear-gradient(135deg, #A68B6D 0%, #8B7355 100%); color: white; border-radius: 20px; border: none; height: 42px; display: flex; align-items: center; transition: all 0.3s ease;">
-                                <i class="fas fa-plus me-2"></i> NUEVO AJUSTE MASIVO
-                            </button>
-                        </div>
+                        <button type="button" class="btn btn-sm" onclick="crearAjuste()" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                            <i class="fas fa-plus me-1"></i> Nuevo Ajuste
+                        </button>
                     </div>
                 </div>
 
-                <!-- BODY -->
-                <div class="card-body p-4">
-
-                    <!-- STATS CARDS -->
-                    <div class="row g-3 mb-4">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-3">
                             <div class="stat-card stat-card-1 p-3">
                                 <div class="stat-value">{{ total_ajustes|default:0 }}</div>
@@ -229,7 +231,7 @@
 
                     <!-- TABLA -->
                     <div class="table-responsive">
-                        <table class="table-piedra">
+                        <table class="table-piedra tabla-nombre-completo mb-0">
                             <thead>
                                 <tr>
                                     <th style="width: 120px;">Fecha</th>
@@ -244,7 +246,7 @@
                             <tbody>
                                 {% for ajuste in ajustes %}
                                 <tr>
-                                    <td class="fw-bold">{{ ajuste.fecha_ajuste|date:"d/m/Y" }}</td>
+                                    <td class="fw-bold">{{ ajuste.fecha_ajuste|date:"d-m-Y" }}</td>
                                     <td>
                                         <span class="badge bg-light text-dark border px-2 py-1" style="font-family: monospace; font-size: 0.9rem;">
                                             {{ ajuste.numero_folio }}
@@ -257,7 +259,7 @@
                                             <span class="badge-stone bg-salida"><i class="fas fa-minus-circle me-1"></i>SALIDA</span>
                                         {% endif %}
                                     </td>
-                                    <td><i class="fas fa-warehouse me-1 text-muted"></i> {{ ajuste.bodega.nombre }}</td>
+                                    <td class="td-nombre"><i class="fas fa-warehouse me-1 text-muted"></i> {{ ajuste.bodega.nombre }}</td>
                                     <td class="text-center">
                                         <span class="badge rounded-pill bg-secondary px-3">{{ ajuste.detalles.count }}</span>
                                     </td>
@@ -266,18 +268,16 @@
                                             {{ ajuste.descripcion|default:"Sin descripción" }}
                                         </div>
                                     </td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <button type="button" class="btn-icon-stone btn-ver" data-id="{{ ajuste.id }}" data-bs-toggle="tooltip" title="Ver Detalle Completo">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button type="button" class="btn-icon-stone btn-editar" data-id="{{ ajuste.id }}" data-bs-toggle="tooltip" title="Editar Ajuste">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <a href="{% url 'inventario:ajuste_delete_simple' ajuste.id %}" class="btn-icon-stone text-danger" onclick="return confirm('¿Está seguro de eliminar este ajuste? Esta acción revertirá el stock de todos los artículos incluidos.')" title="Eliminar y Revertir">
-                                                <i class="fas fa-trash"></i>
-                                            </a>
-                                        </div>
+                                    <td class="td-acciones text-center">
+                                        <button type="button" class="ico-32 btn-ver" data-id="{{ ajuste.id }}" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="ico-32 btn-editar" data-id="{{ ajuste.id }}" title="Editar Ajuste">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="{% url 'inventario:ajuste_delete_simple' ajuste.id %}" class="ico-32" onclick="return confirm('¿Está seguro de eliminar este ajuste? Esta acción revertirá el stock de todos los artículos incluidos.')" title="Eliminar y Revertir">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -303,9 +303,8 @@
 <div class="modal fade" id="detalleModal">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <!-- Contenido transparente -->
-        <div class="modal-content shadow-lg border-0" id="detalleContent" style="background: transparent; border-radius: 16px;">
-            <!-- El contenido se cargará aquí -->
-            <div class="text-center py-5" style="background: white; border-radius: 16px;">
+        <div class="modal-content border-0" id="detalleContent" style="background: transparent; border-radius: 8px;">
+            <div class="text-center py-3" style="background: white; border-radius: 8px;">
                 <div class="spinner-border text-secondary" role="status"></div>
                 <p class="mt-2 text-muted small">Cargando...</p>
             </div>

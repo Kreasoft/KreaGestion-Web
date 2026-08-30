@@ -13,72 +13,8 @@ from datetime import datetime
 @login_required
 @requiere_empresa
 def caf_list(request):
-    """Lista de archivos CAF de la empresa"""
-    archivos_caf = ArchivoCAF.objects.filter(
-        empresa=request.empresa
-    ).select_related('sucursal').order_by('-fecha_carga')
-    
-    # Estadísticas
-    total_caf = archivos_caf.count()
-    activos = archivos_caf.filter(estado='activo').count()
-    agotados = archivos_caf.filter(estado='agotado').count()
-    vencidos = archivos_caf.filter(estado='vencido').count()
-    ocultos = archivos_caf.filter(oculto=True).count()
-    
-    # Folios por tipo de documento
-    folios_por_tipo = {}
-    for tipo_doc, nombre in ArchivoCAF.TIPO_DOCUMENTO_CHOICES:
-        cafs_tipo = archivos_caf.filter(tipo_documento=tipo_doc, estado='activo')
-        folios_disponibles = sum([caf.folios_disponibles() for caf in cafs_tipo])
-        folios_por_tipo[nombre] = {
-            'codigo': tipo_doc,
-            'disponibles': folios_disponibles,
-            'archivos': cafs_tipo.count()
-        }
-    
-    # Obtener configuraciones de alertas por tipo de documento
-    alertas_config = {}
-    for config in ConfiguracionAlertaFolios.objects.filter(empresa=request.empresa, activo=True):
-        alertas_config[config.tipo_documento] = config.folios_minimos
-    
-    # Sucursales para filtro
-    from empresas.models import Sucursal
-    sucursales = Sucursal.objects.filter(empresa=request.empresa)
-    
-    # Separar para pestañas del template
-    cafs_vigentes = archivos_caf.filter(estado='activo', oculto=False)
-    cafs_historico = archivos_caf.filter(Q(estado__in=['agotado', 'vencido', 'anulado']) | Q(oculto=True))
-    
-    context = {
-        'archivos_caf': archivos_caf,
-        'cafs': archivos_caf,
-        'cafs_vigentes': cafs_vigentes,
-        'cafs_historico': cafs_historico,
-        'total_caf': total_caf,
-        'activos': activos,
-        'agotados': agotados,
-        'folios_por_tipo': folios_por_tipo,
-        'alertas_config': alertas_config,
-        # Variables para nuevo template
-        'sucursales': sucursales,
-        'tipo_documento_choices': ArchivoCAF.TIPO_DOCUMENTO_CHOICES,
-        'estado_choices': ArchivoCAF.ESTADO_CHOICES,
-        'stats': {
-            'total': total_caf,
-            'activos': activos,
-            'agotados': agotados,
-            'vencidos': vencidos,
-            'ocultos': ocultos,
-        },
-        'filtros': {
-            'sucursal': None,
-            'tipo_documento': None,
-            'estado': None,
-            'mostrar_ocultos': False,
-        }
-    }
-    
-    return render(request, 'facturacion_electronica/caf_list.html', context)
+    """Compatibilidad: redirige a la nueva gestión unificada de CAFs."""
+    return redirect('facturacion_electronica:listar_cafs')
 
 
 @login_required
@@ -107,7 +43,7 @@ def caf_create(request):
                     f'✅ CAF cargado exitosamente. '
                     f'Folios: {caf.folio_desde} - {caf.folio_hasta} ({caf.cantidad_folios} folios disponibles).'
                 )
-                return redirect('facturacion_electronica:caf_list')
+                return redirect('facturacion_electronica:listar_cafs')
                 
             except ValidationError as e:
                 # Error de validación de duplicado o rango solapado
@@ -205,7 +141,7 @@ def caf_anular(request, pk):
             caf.save()
             messages.success(request, 'CAF anulado exitosamente')
         
-        return redirect('facturacion_electronica:caf_list')
+        return redirect('facturacion_electronica:listar_cafs')
     
     context = {
         'caf': caf,
@@ -224,8 +160,8 @@ def dte_list(request):
     from django.db.models import Sum, Count, Q
     from django.utils import timezone
     
-    # Establecer fechas por defecto: primer día del año actual hasta hoy
-    hoy = timezone.now().date()
+    # Establecer fechas por defecto: primer día del año actual hasta hoy (Chile)
+    hoy = timezone.localdate()
     primer_dia_ano = hoy.replace(month=1, day=1)
     
     # Filtrar solo documentos emitidos por la empresa (Enviados)
@@ -276,6 +212,9 @@ def dte_list(request):
         cantidad=Count('id'),
         total=Sum('monto_total')
     ).order_by('tipo_dte')
+
+    dtes = list(dtes)
+    DocumentoTributarioElectronico.refrescar_estados_visibles(dtes, limit=50)
 
     # Contexto para el template
     context = {

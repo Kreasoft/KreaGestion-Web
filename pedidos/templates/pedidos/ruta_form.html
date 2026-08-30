@@ -7,210 +7,117 @@
 
 {% block extra_head %}
 <style>
-    body {
-        background: linear-gradient(135deg, #FAFAF8 0%, #F5F1E8 100%) !important;
+    body { background: #FAFAF8 !important; }
+    .gc-form-compact .form-label { font-size: 0.72rem !important; font-weight: 700 !important; color: #6F5B44 !important; margin-bottom: 1px !important; }
+    .gc-form-compact .form-control,
+    .gc-form-compact .form-select,
+    .gc-form-compact .form-control-sm,
+    .gc-form-compact .form-select-sm {
+        height: 28px !important;
+        min-height: 28px !important;
+        max-height: 28px !important;
+        padding: 2px 8px !important;
+        font-size: 0.75rem !important;
+        border-radius: 4px !important;
+        border: 1px solid #D4C4A8 !important;
+        line-height: 1.2 !important;
     }
-    .btn-guardar {
-        background: linear-gradient(135deg, #A8957A 0%, #8B7355 100%);
-        border: none;
-        color: white;
-        font-weight: 500;
+    .gc-form-compact textarea.form-control,
+    .gc-form-compact textarea.form-control-sm {
+        height: 40px !important;
+        min-height: 40px !important;
+        max-height: 40px !important;
+        resize: vertical;
     }
-    .btn-guardar:hover {
-        background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.3);
+    .gc-form-compact .form-text,
+    .gc-form-compact .helptext { display: none !important; }
+    .gc-form-compact .seccion-form {
+        font-size: 0.72rem; font-weight: 700; color: #6F5B44;
+        border-bottom: 1px solid #E8DCC8; padding-bottom: 1px; margin: 6px 0 4px;
     }
-    .btn-cancelar {
-        background: linear-gradient(135deg, #D4C4A8 0%, #C4B299 100%);
-        border: none;
-        color: #6F5B44;
-        font-weight: 500;
-    }
-    .btn-cancelar:hover {
-        background: linear-gradient(135deg, #C4B299 0%, #B8A082 100%);
-        color: #6F5B44;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(184, 160, 130, 0.4);
-    }
-    .form-control, .form-select {
-        border: 1px solid #D4C4A8;
-        border-radius: 8px;
-    }
-    .form-control:focus, .form-select:focus {
-        border-color: #8B7355;
-        box-shadow: 0 0 0 0.2rem rgba(139, 115, 85, 0.25);
-    }
+    .gc-form-compact .form-check { min-height: auto; margin-bottom: 0; padding-top: 2px; }
+    .gc-form-compact .form-check-input { margin-top: 0.15em; }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<div class="container-fluid" style="margin-top: 0; padding-top: 10px;">
+<div class="container-fluid gc-form-compact" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card shadow-sm" style="border: none; border-radius: 15px; overflow: hidden;">
-                <div class="card-header stats-card-piedra" style="border: none; padding: 25px 30px; border-radius: 15px 15px 0 0; position: relative; border-bottom: 3px solid var(--color-piedra-borde) !important;">
-                    <!-- Icono de Fondo (Watermark Oficial) -->
-                    <div class="stats-bg-icon" style="font-size: 8rem; right: 20px; top: 0; opacity: 0.12;">
-                        <i class="fas fa-route text-dark"></i>
-                    </div>
-                    
-                    <div class="stats-content" style="position: relative; z-index: 2;">
-                        <h3 class="mb-0" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif;">
-                            <span style="font-weight: 300;">{% if 'Crear' in titulo or 'Nueva' in titulo %}Nueva{% else %}Editar{% endif %}</span> 
-                            <span style="font-weight: 700;">Ruta de Despacho</span>
-                        </h3>
-                        <p class="mb-0" style="color: var(--color-piedra-texto); font-family: 'Poppins', sans-serif; font-size: 0.9rem; opacity: 0.8;">
-                            Configuración de itinerario, personal y móvil asignado
-                        </p>
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden;">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-map-marked-alt me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                        <div>
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                                {% if 'Crear' in titulo or 'Nueva' in titulo %}Nueva{% else %}Editar{% endif %} <span class="fw-bold">Ruta de Despacho</span>
+                            </h2>
+                            <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">Itinerario, personal y móvil asignado</div>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="card-body p-4">
+                <div class="card-body" style="padding: 8px 12px; background: #FAFAF8;">
                     <form method="post" novalidate>
                         {% csrf_token %}
-                        
-                        {% if form.non_field_errors %}
-                            <div class="alert alert-danger">
-                                {{ form.non_field_errors }}
-                            </div>
-                        {% endif %}
+                        {% if form.non_field_errors %}<div class="alert alert-danger py-1 mb-2" style="font-size:0.8rem;">{{ form.non_field_errors }}</div>{% endif %}
 
-                        <!-- Información Básica -->
-                        <div class="mb-4">
-                            <h6 class="mb-3" style="color: #6F5B44; font-weight: 600; border-bottom: 2px solid #E8DCC8; padding-bottom: 8px;">
-                                <i class="fas fa-info-circle me-2"></i>Información Básica
-                            </h6>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.codigo.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Código <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.codigo }}
-                                    {% if form.codigo.errors %}
-                                        <div class="text-danger small mt-1">{{ form.codigo.errors }}</div>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.nombre.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Nombre <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.nombre }}
-                                    {% if form.nombre.errors %}
-                                        <div class="text-danger small mt-1">{{ form.nombre.errors }}</div>
-                                    {% endif %}
-                                </div>
+                        <div class="seccion-form"><i class="fas fa-info-circle me-1"></i>Información básica</div>
+                        <div class="row g-1 mb-1">
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.codigo.id_for_label }}">Código *</label>
+                                {{ form.codigo }}
+                                {% if form.codigo.errors %}<div class="text-danger" style="font-size:0.7rem;">{{ form.codigo.errors }}</div>{% endif %}
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="{{ form.descripcion.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                    Descripción
-                                </label>
+                            <div class="col-md-8">
+                                <label class="form-label" for="{{ form.nombre.id_for_label }}">Nombre *</label>
+                                {{ form.nombre }}
+                                {% if form.nombre.errors %}<div class="text-danger" style="font-size:0.7rem;">{{ form.nombre.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="{{ form.descripcion.id_for_label }}">Descripción</label>
                                 {{ form.descripcion }}
-                                {% if form.descripcion.errors %}
-                                    <div class="text-danger small mt-1">{{ form.descripcion.errors }}</div>
-                                {% endif %}
                             </div>
                         </div>
 
-                        <!-- Información de Transporte -->
-                        <div class="mb-4">
-                            <h6 class="mb-3" style="color: #6F5B44; font-weight: 600; border-bottom: 2px solid #E8DCC8; padding-bottom: 8px;">
-                                <i class="fas fa-truck me-2"></i>Transporte (Ruta Diaria por Móvil)
-                            </h6>
-                            
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label for="{{ form.vehiculo.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Vehículo <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.vehiculo }}
-                                    {% if form.vehiculo.errors %}
-                                        <div class="text-danger small mt-1">{{ form.vehiculo.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">Vehículo asignado a esta ruta</small>
-                                </div>
-                                
-                                <div class="col-md-4 mb-3">
-                                    <label for="{{ form.chofer.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Chofer <span class="text-danger">*</span>
-                                    </label>
-                                    {{ form.chofer }}
-                                    {% if form.chofer.errors %}
-                                        <div class="text-danger small mt-1">{{ form.chofer.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">Chofer asignado a esta ruta</small>
-                                </div>
-                                
-                                <div class="col-md-4 mb-3">
-                                    <label for="{{ form.acompanante.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Acompañante
-                                    </label>
-                                    {{ form.acompanante }}
-                                    {% if form.acompanante.errors %}
-                                        <div class="text-danger small mt-1">{{ form.acompanante.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">Acompañante (opcional)</small>
-                                </div>
+                        <div class="seccion-form"><i class="fas fa-truck me-1"></i>Transporte</div>
+                        <div class="row g-1 mb-1">
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.vehiculo.id_for_label }}">Vehículo *</label>
+                                {{ form.vehiculo }}
+                                {% if form.vehiculo.errors %}<div class="text-danger" style="font-size:0.7rem;">{{ form.vehiculo.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.chofer.id_for_label }}">Chofer *</label>
+                                {{ form.chofer }}
+                                {% if form.chofer.errors %}<div class="text-danger" style="font-size:0.7rem;">{{ form.chofer.errors }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="{{ form.acompanante.id_for_label }}">Acompañante</label>
+                                {{ form.acompanante }}
                             </div>
                         </div>
 
-                        <!-- Configuración de la Ruta -->
-                        <div class="mb-4">
-                            <h6 class="mb-3" style="color: #6F5B44; font-weight: 600; border-bottom: 2px solid #E8DCC8; padding-bottom: 8px;">
-                                <i class="fas fa-cog me-2"></i>Configuración
-                            </h6>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.dias_visita.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Días de Visita
-                                    </label>
-                                    {{ form.dias_visita }}
-                                    {% if form.dias_visita.errors %}
-                                        <div class="text-danger small mt-1">{{ form.dias_visita.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">Ej: Lunes, Miércoles, Viernes</small>
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="{{ form.orden_visita.id_for_label }}" class="form-label fw-bold" style="color: #6F5B44;">
-                                        Orden de Visita
-                                    </label>
-                                    {{ form.orden_visita }}
-                                    {% if form.orden_visita.errors %}
-                                        <div class="text-danger small mt-1">{{ form.orden_visita.errors }}</div>
-                                    {% endif %}
-                                    <small class="form-text text-muted">Orden en que se visita esta ruta (1, 2, 3...)</small>
-                                </div>
+                        <div class="seccion-form"><i class="fas fa-cog me-1"></i>Configuración</div>
+                        <div class="row g-1 align-items-end">
+                            <div class="col-md-5">
+                                <label class="form-label" for="{{ form.dias_visita.id_for_label }}">Días de visita</label>
+                                {{ form.dias_visita }}
                             </div>
-                            
-                            <div class="mb-3">
+                            <div class="col-md-3">
+                                <label class="form-label" for="{{ form.orden_visita.id_for_label }}">Orden de visita</label>
+                                {{ form.orden_visita }}
+                            </div>
+                            <div class="col-md-4">
                                 <div class="form-check">
                                     {{ form.activo }}
-                                    <label class="form-check-label fw-bold" for="{{ form.activo.id_for_label }}" style="color: #6F5B44;">
-                                        Ruta Activa
-                                    </label>
+                                    <label class="form-check-label" for="{{ form.activo.id_for_label }}" style="font-size:0.75rem; color:#6F5B44;">Ruta activa</label>
                                 </div>
-                                {% if form.activo.errors %}
-                                    <div class="text-danger small mt-1">{{ form.activo.errors }}</div>
-                                {% endif %}
                             </div>
                         </div>
 
-                        <hr style="border-color: #E8DCC8;">
-
-                        <div class="d-flex justify-content-between pt-3">
-                            <a href="{% url 'pedidos:ruta_list' %}" class="btn btn-sm btn-stone-secondary px-4 fw-bold" style="border-radius: 20px;">
-                                <i class="fas fa-arrow-left me-2"></i> CANCELAR
-                            </a>
-                            <button type="submit" class="btn btn-sm btn-stone-primary px-4 fw-bold shadow-sm" style="border-radius: 20px;">
-                                <i class="fas fa-save me-2"></i> GUARDAR RUTA
-                            </button>
+                        <div class="d-flex justify-content-between mt-2">
+                            <a href="{% url 'pedidos:ruta_list' %}" class="btn btn-sm" style="color:#5D4037; font-weight:600; font-size:0.75rem;"><i class="fas fa-arrow-left me-1"></i> Cancelar</a>
+                            <button type="submit" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color:#fff; font-weight:700; font-size:0.75rem;"><i class="fas fa-save me-1"></i> Guardar ruta</button>
                         </div>
                     </form>
                 </div>
@@ -219,4 +126,3 @@
     </div>
 </div>
 {% endblock %}
-

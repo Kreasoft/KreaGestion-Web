@@ -5,204 +5,128 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS -->
+{% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* VARIABLES ESTILO PIEDRA */
-    :root {
-        --stone-primary: #8B7355;
-        --stone-secondary: #6F5B44;
-        --stone-light: #E8DCC8;
-        --stone-bg: #FAFAF8;
-        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
-        --stone-text: #5D4037;
-        
-        /* SOFT UI PALETTE */
-        --soft-blue: #9ab8cd;
-        --soft-red: #f4d1d1;
-        --soft-orange: #e39d7e;
-        --soft-green: #c6d8e5;
-        --soft-crema: #fdf5e6;
+    body { background: #FAFAF8 !important; }
+    .form-control, .form-select, .form-control-sm, .form-select-sm,
+    .form-control-stone, .form-select-stone, .search-input-stone {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border: 1px solid #D4C4A8 !important; border-radius: 6px !important;
+        background: #fff !important;
+        color: #5D4037 !important;
+        font-family: inherit !important;
+        appearance: none; -webkit-appearance: none;
+        accent-color: #6F5B44 !important;
     }
-
-    body {
-        background-color: var(--stone-bg) !important;
-        color: var(--stone-text);
-        font-family: 'Poppins', sans-serif;
+    .form-select-stone {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%238B7355' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") !important;
+        background-repeat: no-repeat !important;
+        background-position: right 8px center !important;
+        padding-right: 22px !important;
     }
-
-    /* CARD PRINCIPAL */
-    .single-card-container {
-        background: white;
-        border: 1px solid var(--stone-light);
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
-        overflow: hidden;
-        margin-top: 1.5rem;
-        margin-bottom: 2rem;
+    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
     }
-
-    /* HEADER PREMIUM */
-    .stone-header-premium {
-        background: var(--stone-gradient);
-        padding: 1rem 1.5rem;
-        border-bottom: 1px solid var(--stone-light);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+    .select2-container--default .select2-selection--single {
+        height: 28px !important; min-height: 28px !important; border-color: #D4C4A8 !important;
     }
-    
-    .header-icon-box {
-        width: 48px; height: 48px; 
-        background: rgba(255, 255, 255, 0.8); 
-        backdrop-filter: blur(4px);
-        border-radius: 12px; 
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
-        color: var(--stone-secondary);
-        font-size: 1.25rem;
-    }
-
-    .header-text h1 {
-        color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1;
-    }
-    .header-text p {
-        color: #795548; font-size: 0.85rem; margin: 0; font-weight: 500; opacity: 0.9;
-    }
-
-    /* BOTONES HEADER */
-    .header-btn {
-        padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; display: inline-flex; align-items: center; transition: all 0.2s; border: 1px solid transparent; cursor: pointer;
-    }
-    .header-btn:hover { transform: translateY(-2px); }
-    .btn-action-primary { background: var(--stone-primary); color: white; border: none; }
-    .btn-action-primary:hover { background: var(--stone-secondary); color: white; }
-    .btn-action-secondary { background: white; color: var(--stone-secondary); border: 1px solid #D4C4A8; }
-    .btn-action-secondary:hover { background: #f8f9fa; border-color: var(--stone-primary); }
-
-    /* STATS CARDS */
-    .stat-card {
-        border: none; border-radius: 20px; transition: all 0.3s ease; 
-        box-shadow: 0 10px 30px rgba(0,0,0,0.03); 
-        height: 100%; position: relative; overflow: hidden;
-        padding: 1.5rem !important;
-        border: 1px solid rgba(0,0,0,0.02);
-    }
-    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.06); }
-    
-    .stat-card-1 { background-color: var(--soft-blue); }
-    .stat-card-2 { background-color: var(--soft-red); }
-    .stat-card-3 { background-color: var(--soft-orange); }
-    .stat-card-4 { background-color: var(--soft-green); }
-    
-    .stat-value { font-size: 1.8rem; font-weight: 800; color: #3E2723; margin-bottom: 2px; }
-    .stat-label { color: #5D4037; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; opacity: 0.8; }
-    .stat-icon { 
-        font-size: 5rem; 
-        color: rgba(0,0,0,0.05); 
-        position: absolute; 
-        right: -10px; 
-        top: 50%; 
-        transform: translateY(-50%);
-        height: 100%;
-        display: flex;
-        align-items: center;
-    }
-
-    /* FILTROS */
-    .stone-filter-box {
-        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
-    }
-    .form-control-stone, .form-select-stone {
-        border-radius: 8px; border: 1px solid #D4C4A8; padding: 0.5rem 0.75rem; font-size: 0.85rem; background-color: white; width: 100%; color: var(--stone-text);
-    }
-    .form-control-stone:focus, .form-select-stone:focus {
-        border-color: var(--stone-primary); box-shadow: 0 0 0 3px rgba(139, 115, 85, 0.1); outline: none;
-    }
-    .search-input-stone {
-        height: 38px;
-        min-height: 38px;
-        padding: 0 0.85rem;
-        line-height: 38px;
-        display: block;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* TABLA PIEDRA */
-    .table-piedra { width: 100%; border-collapse: separate; border-spacing: 0; }
-    .table-piedra thead th {
-        background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 12px 15px;
-    }
-    .table-piedra tbody tr { transition: all 0.2s; height: 32px; }
-    .table-piedra tbody tr:hover { background-color: #f8f9fa; }
-    .table-piedra tbody td { 
-        padding: 0 15px; 
-        vertical-align: middle; 
-        border-bottom: 1px solid #f0f0f0; 
-        font-size: 0.85rem; 
-        color: #4A5568; 
-        height: 32px; 
-        white-space: nowrap;
-    }
-    .table-piedra tbody tr:last-child td { border-bottom: none; }
-
-    /* BADGES */
-    .badge-stone { padding: 5px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 26px !important; font-size: 0.75rem !important; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 26px !important; }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single { border-color: #6F5B44 !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .modal-footer { padding: 6px 12px !important; }
+    .stat-card { min-height: 52px !important; padding: 8px 12px !important; border-radius: 8px !important; position: relative; overflow: hidden; }
+    .stat-icon { font-size: 42px !important; opacity: 0.12 !important; position: absolute; right: -6px; top: 0; }
+    .stat-value { font-size: 1.2rem !important; font-weight: 800; color: #3E2723; margin-bottom: 0; }
+    .stat-label { color: #5D4037; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+    .stat-card-1 { background-color: #9ab8cd; }
+    .stat-card-2 { background-color: #f4d1d1; }
+    .stat-card-3 { background-color: #e39d7e; }
+    .stat-card-4 { background-color: #c6d8e5; }
+    .badge-stone { padding: 2px 7px; border-radius: 4px; font-size: 0.65rem; font-weight: 600; }
     .bg-stone-success { background: #E8F5E9; color: #2E7D32; border: 1px solid #C8E6C9; }
     .bg-stone-warning { background: #FFF8E1; color: #F57F17; border: 1px solid #FFECB3; }
     .bg-stone-danger { background: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2; }
-    .bg-stone-secondary { background: #ECEFF1; color: #546E7A; border: 1px solid #CFD8DC; }
-
-    /* ACCIONES */
-    .btn-icon-stone {
-        width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E8DCC8; background: white; color: var(--stone-secondary); transition: all 0.2s;
+    .page-link { color: #6F5B44; border-color: #E8DCC8; }
+    .page-item.active .page-link { background-color: #8B7355; border-color: #8B7355; color: white; }
+    .stock-filtros {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 8px 10px;
+        align-items: end;
     }
-    .btn-icon-stone:hover { background: var(--stone-primary); color: white; border-color: var(--stone-primary); }
-
-    /* PAGINACIÓN */
-    .page-link { color: var(--stone-secondary); border-color: #E8DCC8; }
-    .page-link:hover { color: var(--stone-primary); background-color: #FAFAF8; }
-    .page-item.active .page-link { background-color: var(--stone-primary); border-color: var(--stone-primary); color: white; }
+    .stock-filtros .filtro-campo { min-width: 0; }
+    .stock-filtros .form-label {
+        display: block !important;
+        width: 100%;
+        margin-bottom: 3px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: #5D4037;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .stock-filtros .form-select-stone,
+    .stock-filtros .form-control-stone,
+    .stock-filtros .search-input-stone {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+    .stock-filtros .filtro-acciones { display: flex; gap: 4px; align-items: end; }
+    .stock-filtros .filtro-buscar { position: relative; }
+    .stock-filtros .filtro-buscar .filtro-lupa {
+        position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+        color: #8B7355; font-size: 0.72rem; pointer-events: none;
+    }
+    .stock-filtros .filtro-buscar input {
+        padding-left: 26px !important;
+    }
+    .stock-filtros .filtro-buscar input::placeholder { color: #A89880; }
+    @media (max-width: 991px) {
+        .stock-filtros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .stock-filtros .filtro-acciones { grid-column: 1 / -1; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-12">
-            
-
-
-            <div class="single-card-container">
-                <!-- HEADER -->
-                <div class="stone-header-premium">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-cubes"></i>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-cubes me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Stock</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75;">Niveles de inventario por bodega</div>
+                            </div>
                         </div>
-                        <div class="header-text">
-                            <h1>Control de <span class="fw-bold">Stock</span></h1>
-                            <p>Gestión de niveles de inventario por bodega</p>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm" onclick="window.print()" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-print me-1"></i> Imprimir
+                            </button>
+                            <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-history me-1"></i> Movimientos
+                            </a>
+                            <a href="{% url 'inventario:carga_inicial' %}" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                                <i class="fas fa-upload me-1"></i> Carga Inicial
+                            </a>
                         </div>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="header-btn btn-action-secondary" onclick="window.print()">
-                            <i class="fas fa-print me-2"></i> Imprimir
-                        </button>
-                        <a href="{% url 'inventario:inventario_list' %}" class="header-btn btn-action-secondary">
-                            <i class="fas fa-history me-2"></i> Movimientos
-                        </a>
-                        <a href="{% url 'inventario:carga_inicial' %}" class="header-btn btn-action-primary">
-                            <i class="fas fa-upload me-2"></i> Carga Inicial
-                        </a>
                     </div>
                 </div>
 
-                <div class="card-body p-4">
-                    <!-- STATS CARDS INSIDE MAIN CARD -->
-                    <div class="row g-3 mb-4">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-3">
                             <div class="stat-card stat-card-1">
                                 <div class="stat-value">{{ total_articulos|default:0 }}</div>
@@ -233,11 +157,10 @@
                         </div>
                     </div>
                     
-                    <!-- FILTROS -->
-                    <div class="stone-filter-box">
-                         <form method="get" class="row g-3 align-items-end">
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
+                    <div class="py-2 px-2 mb-2" style="background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 6px;">
+                         <form method="get" class="stock-filtros">
+                            <div class="filtro-campo">
+                                <label class="form-label">Bodega</label>
                                 <select name="bodega" class="form-select-stone">
                                     <option value="">Todas</option>
                                     {% for bodega in bodegas %}
@@ -247,8 +170,8 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Categoría</label>
+                            <div class="filtro-campo">
+                                <label class="form-label">Categoría</label>
                                 <select name="categoria" class="form-select-stone">
                                     <option value="">Todas</option>
                                     {% for cat in categorias %}
@@ -258,8 +181,8 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                             <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Estado</label>
+                             <div class="filtro-campo">
+                                <label class="form-label">Estado</label>
                                 <select name="estado" class="form-select-stone">
                                     <option value="">Todos</option>
                                     <option value="con_stock" {% if request.GET.estado == "con_stock" %}selected{% endif %}>Con Stock</option>
@@ -268,8 +191,8 @@
                                     <option value="normal" {% if request.GET.estado == "normal" %}selected{% endif %}>Stock Normal</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Tipo</label>
+                            <div class="filtro-campo">
+                                <label class="form-label">Tipo</label>
                                 <select name="tipo_articulo" class="form-select-stone">
                                     <option value="" {% if not request.GET.tipo_articulo %}selected{% endif %}>Todos</option>
                                     <option value="producto_venta" {% if request.GET.tipo_articulo == "producto_venta" %}selected{% endif %}>Venta</option>
@@ -277,16 +200,19 @@
                                      <option value="produccion" {% if request.GET.tipo_articulo == "produccion" %}selected{% endif %}>Producción</option>
                                 </select>
                             </div>
-                            <div class="col-md-2">
-                                <label class="form-label small fw-bold text-muted mb-1">Buscar</label>
-                                <input type="text" name="search" class="form-control-stone search-input-stone"
-                                       placeholder="Buscar..." value="{{ request.GET.search|default:'' }}">
+                            <div class="filtro-campo">
+                                <label class="form-label">Buscar</label>
+                                <div class="filtro-buscar">
+                                    <i class="fas fa-search filtro-lupa"></i>
+                                    <input type="search" name="search" class="form-control-stone search-input-stone"
+                                           placeholder="Nombre o código..." value="{{ request.GET.search|default:'' }}" autocomplete="off">
+                                </div>
                             </div>
-                            <div class="col-md-2 d-flex gap-2">
-                                <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
-                                    <i class="fas fa-filter me-2"></i>
+                            <div class="filtro-acciones">
+                                <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white; font-size: 0.75rem; border: none; height: 28px;">
+                                    <i class="fas fa-filter me-1"></i> Filtrar
                                 </button>
-                                <a href="{% url 'inventario:stock_list' %}" class="header-btn btn-action-secondary px-3" title="Limpiar">
+                                <a href="{% url 'inventario:stock_list' %}" class="btn btn-sm" title="Limpiar" style="border: 1px solid #D4C4A8; color: #5D4037; font-size: 0.75rem; height: 28px; min-width: 32px;">
                                     <i class="fas fa-times"></i>
                                 </a>
                             </div>
@@ -295,7 +221,7 @@
 
                     <!-- TABLA -->
                     <div class="table-responsive">
-                        <table class="table-piedra">
+                        <table class="table-piedra tabla-nombre-completo mb-0">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -314,10 +240,10 @@
                                 {% for stock in page_obj %}
                                 <tr>
                                     <td class="text-muted small">{{ forloop.counter0|add:page_obj.start_index }}</td>
-                                    <td>
-                                        <span class="fw-bold" style="color: var(--stone-secondary);">{{ stock.articulo.nombre }}</span>
+                                    <td class="td-nombre">
+                                        <span class="fw-bold" style="color: #6F5B44;">{{ stock.articulo.nombre }}</span>
                                         {% if stock.articulo.categoria %}
-                                        <span class="text-muted small ms-2" style="font-size: 0.7rem; opacity: 0.7;">({{ stock.articulo.categoria.nombre }})</span>
+                                        <span class="text-muted small ms-1" style="font-size: 0.7rem;">({{ stock.articulo.categoria.nombre }})</span>
                                         {% endif %}
                                     </td>
                                     <td><span class="badge bg-light text-dark border">{{ stock.articulo.codigo }}</span></td>
@@ -339,17 +265,15 @@
                                     </td>
                                     <td class="text-center text-muted">{{ stock.stock_minimo|floatformat:0 }}</td>
                                     <td class="text-center text-muted">{{ stock.stock_maximo|floatformat:0 }}</td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <a href="{% url 'inventario:kardex_articulo' %}?articulo={{ stock.articulo.id }}" class="btn-icon-stone" title="Ver Kardex">
-                                                <i class="fas fa-book-open"></i>
-                                            </a>
-                                            {% if stock.pk %}
-                                                <button type="button" class="btn-icon-stone" onclick="editarStock('{{ stock.pk }}')" title="Editar Stock">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                            {% endif %}
-                                        </div>
+                                    <td class="td-acciones text-center">
+                                        <a href="{% url 'inventario:kardex_articulo' %}?articulo={{ stock.articulo.id }}" class="ico-32" title="Ver Kardex">
+                                            <i class="fas fa-book-open"></i>
+                                        </a>
+                                        {% if stock.pk %}
+                                            <button type="button" class="ico-32" onclick="editarStock('{{ stock.pk }}')" title="Editar Stock">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -366,7 +290,7 @@
                 
                     <!-- PAGINACIÓN -->
                     {% if page_obj.has_other_pages %}
-                    <div class="d-flex justify-content-center mt-4 border-top pt-3">
+                    <div class="d-flex justify-content-center mt-2 border-top pt-2">
                             <ul class="pagination pagination-sm mb-0">
                                 {% if page_obj.has_previous %}
                                 <li class="page-item"><a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">«</a></li>
@@ -383,28 +307,17 @@
                     {% endif %}
 
                 </div>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Modal de Edición Stone Premium -->
 <div class="modal fade" id="modalEditarStock" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
-            <div class="modal-header border-bottom-0 p-0">
-                <div class="stone-header-premium w-100" style="border-radius: 16px 16px 0 0; padding: 1.5rem 2rem;">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-edit"></i>
-                        </div>
-                        <div class="header-text">
-                            <h1><span class="fw-light">Editar</span> <span class="fw-bold">Stock</span></h1>
-                            <p>Modifique cantidades y parámetros</p>
-                        </div>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.8;"></button>
-                </div>
+        <div class="modal-content" style="border-radius: 8px; overflow: hidden; border: none;">
+            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1.1rem;">
+                    <i class="fas fa-edit me-2"></i>Editar Stock
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0" id="modalEditarStockBody">
                  <div class="text-center py-5">

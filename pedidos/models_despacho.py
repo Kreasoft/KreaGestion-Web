@@ -8,6 +8,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 from empresas.models import Empresa
+from facturacion_electronica.ind_traslado import IND_TRASLADO_CHOICES
 from .models import OrdenPedido, ItemOrdenPedido
 
 
@@ -113,16 +114,7 @@ class OrdenDespacho(models.Model):
     # Tipo de Traslado (OBLIGATORIO para Guías de Despacho)
     tipo_traslado = models.CharField(
         max_length=1,
-        choices=[
-            ('1', 'Venta'),
-            ('2', 'Venta por efectuar'),
-            ('3', 'Consignación'),
-            ('4', 'Devolución'),
-            ('5', 'Traslado interno'),
-            ('6', 'Transformación'),
-            ('7', 'Entrega gratuita'),
-            ('8', 'Otros'),
-        ],
+        choices=IND_TRASLADO_CHOICES,
         default='1',
         verbose_name="Tipo de Traslado (IndTraslado)"
     )
@@ -182,20 +174,17 @@ class OrdenDespacho(models.Model):
     def get_documentos_asociados(self):
         """Retorna lista de documentos (guías y facturas) asociados"""
         documentos = []
+        vistos = set()
         for item in self.items.all():
-            if item.guia_despacho and item.guia_despacho not in documentos:
+            for dte in (item.guia_despacho, item.factura):
+                if not dte or dte.pk in vistos:
+                    continue
+                vistos.add(dte.pk)
                 documentos.append({
-                    'tipo': 'Guía',
-                    'numero': item.guia_despacho.folio,
-                    'fecha': item.guia_despacho.fecha_emision,
-                    'documento': item.guia_despacho
-                })
-            if item.factura and item.factura not in documentos:
-                documentos.append({
-                    'tipo': 'Factura',
-                    'numero': item.factura.folio,
-                    'fecha': item.factura.fecha_emision,
-                    'documento': item.factura
+                    'tipo': 'Guía' if str(dte.tipo_dte) == '52' else 'Factura',
+                    'numero': dte.folio,
+                    'fecha': dte.fecha_emision,
+                    'documento': dte,
                 })
         return documentos
 
@@ -278,6 +267,15 @@ class DetalleOrdenDespacho(models.Model):
         verbose_name_plural = "Detalles de Órdenes de Despacho"
         ordering = ['id']
     
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.orden_despacho.orden_pedido.actualizar_estado_segun_despachos()
+
+    def delete(self, *args, **kwargs):
+        pedido = self.orden_despacho.orden_pedido
+        super().delete(*args, **kwargs)
+        pedido.actualizar_estado_segun_despachos()
+
     def __str__(self):
         return f"{self.item_pedido.articulo.nombre} - {self.cantidad}"
     

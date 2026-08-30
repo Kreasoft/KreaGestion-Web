@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load format_filters %}
+
+{% block title %}{{ documento.get_tipo_dte_display }} {{ documento.folio }} - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background: #FAFAF8 !important; }
+    .rcv-toolbar { padding: 6px 12px; background: linear-gradient(135deg,#efebe9,#d7ccc8); border-bottom: 2px solid #D4C4A8; }
+    .rcv-paper { max-width: 820px; margin: 10px auto 16px; background: #fff; border: 1px solid #D8CDC1; border-radius: 8px; padding: 14px 16px; box-shadow: 0 4px 12px rgba(93,64,55,.08); }
+    .rcv-box { border: 3px solid #C62828; border-radius: 8px; text-align: center; color: #C62828; padding: 8px 6px; }
+    .rcv-box .tipo { font-weight: 700; font-size: 0.95rem; }
+    .rcv-box .folio { font-weight: 700; font-size: 1.25rem; line-height: 1.2; }
+    .rcv-box .sii { font-weight: 700; font-size: 0.72rem; }
+    .rcv-emisor h2 { margin: 0 0 2px; font-size: 1.05rem; color: #5D4037; }
+    .rcv-emisor, .rcv-meta { font-size: 0.75rem; color: #6B625A; line-height: 1.25; }
+    .rcv-fechas { text-align: right; font-size: 0.75rem; color: #5D4037; margin: 6px 0; }
+    .rcv-receptor, .rcv-detalle, .rcv-totales, .rcv-obs { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+    .rcv-receptor th, .rcv-detalle th { background: #E8DCC8; color: #5D4037; font-size: 0.65rem; text-transform: uppercase; padding: 4px 6px; border: 1px solid #D8CDC1; }
+    .rcv-receptor td, .rcv-detalle td, .rcv-totales td, .rcv-obs td { border: 1px solid #D8CDC1; padding: 4px 6px; vertical-align: middle; }
+    .rcv-receptor th { width: 88px; text-align: left; }
+    .rcv-detalle td { height: 26px; }
+    .rcv-obs { background: #FAFAF8; }
+    .rcv-totales .total { background: #5D4037; color: #fff; font-weight: 700; }
+    .rcv-nota { font-size: 0.68rem; color: #6B625A; font-style: italic; text-align: center; margin-top: 10px; }
+    .rcv-hint { border-left: 4px solid #C49A52; background: #fff8e7; padding: 6px 10px; border-radius: 6px; font-size: 0.72rem; color: #624b20; margin: 0 12px 8px; }
+    .rcv-btn { height: 28px; padding: 0 10px; font-size: 0.72rem; font-weight: 600; border-radius: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rcv-toolbar d-flex justify-content-between align-items-center gap-2 flex-wrap">
+    <div>
+        <div style="font-size:1.05rem;color:#5D4037;font-weight:600;">{{ documento.get_tipo_dte_display }} N° {{ documento.folio }}</div>
+        <div style="font-size:0.7rem;color:#5D4037;opacity:.75;">{{ emisor_nombre }} · {{ rut_emisor_fmt }}</div>
+    </div>
+    <div class="d-flex gap-1 flex-wrap">
+        <a href="{% url 'compras:facturas_recibidas_sii' %}" class="btn rcv-btn" style="background:rgba(93,64,55,.12);border:1px solid rgba(93,64,55,.28);color:#5D4037;">
+            <i class="fas fa-arrow-left me-1"></i>Volver
+        </a>
+        <button type="button" class="btn rcv-btn" style="background:#fff;border:1px solid #D4C4A8;color:#5D4037;" onclick="cerrarVistaRcv()">
+            <i class="fas fa-times me-1"></i>Cerrar
+        </button>
+        <a href="{% url 'compras:ver_registro_rcv_pdf' documento.pk %}?raw=1" target="_blank" class="btn rcv-btn" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;font-weight:700;">
+            <i class="fas fa-file-pdf me-1"></i>PDF
+        </a>
+        <form method="post" action="{% url 'compras:chequear_xml_sii' documento.pk %}" class="d-inline">{% csrf_token %}
+            <button class="btn rcv-btn" style="background:#fff;border:1px solid #C49A52;color:#5D4037;" title="Consultar si el DTE está en el SII y si el XML llegó">
+                <i class="fas fa-search me-1"></i>Chequear XML
+            </button>
+        </form>
+        {% if not documento.tiene_xml_dte %}
+        <button type="button" class="btn rcv-btn" style="background:#5D4037;border:1px solid #3E2723;color:#fff;" data-bs-toggle="modal" data-bs-target="#modalPedirXml">
+            <i class="fas fa-envelope me-1"></i>Pedir XML
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if documento.tiene_xml_dte %}
+<div class="rcv-hint mt-2" style="border-left-color:#5F8D62;background:#F1F6EC;color:#3E5C40;">
+    XML de intercambio <strong>recibido</strong>. El detalle de ítems ya se puede usar en el PDF.
+</div>
+{% elif documento.estado_xml_intercambio == 'pedido' %}
+<div class="rcv-hint mt-2">
+    XML <strong>pedido</strong> el {{ documento.xml_solicitado_en|date:"d-m-Y H:i" }} a {{ documento.xml_solicitado_a }}. Aún no llega el archivo; adjúntelo cuando el proveedor lo envíe.
+</div>
+{% else %}
+<div class="rcv-hint mt-2">
+    <strong>XML de intercambio pendiente.</strong> El RCV del SII no incluye ítems. Chequee si el DTE llegó al SII y pida el XML al proveedor para reconstruir el PDF con detalle.
+</div>
+{% endif %}
+
+{% if not items %}
+<div class="rcv-hint">
+    {% if perms.compras.add_documentorecibidosii %}
+    <form method="post" action="{% url 'compras:importar_factura_xml' %}" enctype="multipart/form-data" class="d-flex gap-1 align-items-center mb-0">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'compras:ver_registro_rcv_pdf' documento.pk %}">
+        <input type="file" name="xml_dte" accept=".xml,text/xml,application/xml" class="form-control form-control-sm" required style="height:28px;max-width:280px;font-size:.72rem;">
+        <button class="btn rcv-btn" style="background:#5D4037;border:1px solid #3E2723;color:#fff;">Adjuntar XML</button>
+    </form>
+    {% endif %}
+</div>
+{% elif origen_items == 'xml' %}
+{% elif origen_items == 'documento_compra' %}
+<div class="rcv-hint">Detalle recuperado del <strong>documento de compra</strong> interno (mismo folio y proveedor).</div>
+{% endif %}
+
+<div class="rcv-paper">
+    <div class="row g-2">
+        <div class="col-7 rcv-emisor">
+            <h2>{{ emisor_nombre }}</h2>
+            <div>R.U.T.: {{ rut_emisor_fmt }}</div>
+            {% if emisor_giro %}<div>Giro: {{ emisor_giro }}</div>{% endif %}
+            {% if emisor_direccion %}<div>{{ emisor_direccion }}</div>{% endif %}
+        </div>
+        <div class="col-5">
+            <div class="rcv-box">
+                <div class="sii">R.U.T.: {{ rut_emisor_fmt }}</div>
+                <div class="tipo">{{ documento.get_tipo_dte_display|upper }}</div>
+                <div class="folio">N° {{ documento.folio }}</div>
+                <div class="sii">S.I.I. — CHILE</div>
+                <div class="sii">Representación RCV</div>
+            </div>
+        </div>
+    </div>
+    <div class="rcv-fechas">
+        <strong>Fecha de emisión:</strong> {{ documento.fecha_emision|date:"d-m-Y"|default:"-" }}
+        &nbsp;&nbsp;
+        <strong>Recepción SII:</strong> {% if documento.fecha_recepcion_sii %}{{ documento.fecha_recepcion_sii|date:"d-m-Y H:i" }}{% else %}-{% endif %}
+    </div>
+    <table class="rcv-receptor mb-2">
+        <tr>
+            <th>Señor(es)</th><td>{{ receptor_nombre }}</td>
+            <th>R.U.T.</th><td>{{ receptor_rut }}</td>
+        </tr>
+        <tr>
+            <th>Giro</th><td>{{ receptor_giro|default:"—" }}</td>
+            <th>Comuna</th><td>{{ receptor_comuna|default:"—" }}</td>
+        </tr>
+        <tr>
+            <th>Dirección</th><td>{{ receptor_direccion|default:"—" }}</td>
+            <th>Ciudad</th><td>{{ receptor_ciudad|default:"—" }}</td>
+        </tr>
+    </table>
+    <table class="rcv-detalle mb-2">
+        <thead>
+            <tr><th style="width:36px;">N°</th><th>Detalle</th><th style="width:60px;">Cant.</th><th style="width:100px;">P. unitario</th><th style="width:100px;">Total</th></tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td>{{ item.nombre }}{% if item.codigo %} <span class="text-muted" style="font-size:.65rem;">{{ item.codigo }}</span>{% endif %}</td>
+                <td class="text-center">{{ item.cantidad }}</td>
+                <td class="text-end">{{ item.precio|format_moneda }}</td>
+                <td class="text-end">{{ item.total|format_moneda }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td class="text-center">1</td>
+                <td>Montos según RCV del SII. Detalle no disponible.</td>
+                <td class="text-center">1</td>
+                <td class="text-end">{{ documento.monto_neto|format_moneda }}</td>
+                <td class="text-end">{{ documento.monto_neto|format_moneda }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="row g-2">
+        <div class="col-7">
+            <table class="rcv-obs">
+                <tr><td>
+                    <strong>Observaciones RCV</strong><br>
+                    Sección: {{ documento.estado_rcv }}<br>
+                    Tipo de compra: {{ documento.tipo_compra_rcv|default:"—" }}<br>
+                    Fuente: Registro de Compras y Ventas del SII.
+                </td></tr>
+            </table>
+        </div>
+        <div class="col-5">
+            <table class="rcv-totales">
+                <tr><td>Monto neto</td><td class="text-end">{{ documento.monto_neto|format_moneda }}</td></tr>
+                <tr><td>IVA</td><td class="text-end">{{ documento.monto_iva|format_moneda }}</td></tr>
+                <tr class="total"><td>TOTAL</td><td class="text-end">{{ documento.monto_total|format_moneda }}</td></tr>
+            </table>
+        </div>
+    </div>
+    <p class="rcv-nota mb-0">Esta es una representación de consulta generada desde el RCV. No reemplaza la representación impresa ni el XML firmado del DTE original emitido por el proveedor.</p>
+</div>
+
+<div class="modal fade" id="modalPedirXml" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:1px solid #D4C4A8;border-radius:8px;overflow:hidden;">
+      <div class="modal-header" style="background:linear-gradient(135deg,#efebe9,#d7ccc8);border-bottom:2px solid #D4C4A8;padding:8px 12px;">
+        <h5 class="modal-title mb-0" style="font-size:1rem;font-weight:600;color:#5D4037;"><i class="fas fa-envelope me-2"></i>Pedir XML al proveedor</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form method="post" action="{% url 'compras:solicitar_xml_sii' documento.pk %}">
+        {% csrf_token %}
+        <div class="modal-body" style="background:#FAFAF8;padding:10px 12px;">
+          <p style="font-size:.72rem;color:#6F5B44;margin:0 0 8px;">Se solicita el XML original firmado para reconstruir el PDF con ítems. El RCV no lo entrega.</p>
+          <label class="form-label" style="font-size:.72rem;font-weight:600;color:#5D4037;">Correo del proveedor</label>
+          <input type="email" name="email" class="form-control form-control-sm" required value="{{ email_proveedor }}" placeholder="correo@proveedor.cl" style="height:28px;font-size:.72rem;">
+          {% if email_intercambio %}
+          <div style="font-size:.65rem;color:#8B7355;margin-top:4px;">Copia a intercambio: {{ email_intercambio }}</div>
+          {% endif %}
+        </div>
+        <div class="modal-footer" style="background:#FAFAF8;border-top:1px solid #E8DCC8;padding:6px 12px;">
+          <a href="{{ mailto_xml }}" class="btn rcv-btn" style="background:#fff;border:1px solid #D4C4A8;color:#5D4037;">Abrir en correo</a>
+          <button type="submit" class="btn rcv-btn" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;font-weight:700;">Enviar solicitud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cerrarVistaRcv() {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    if (history.length > 1) { history.back(); return; }
+    window.location.href = "{% url 'compras:facturas_recibidas_sii' %}";
+}
+</script>
+{% endblock %}

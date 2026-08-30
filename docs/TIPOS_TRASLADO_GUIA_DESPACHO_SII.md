@@ -30,7 +30,7 @@ Estos son los tipos de traslado válidos para Guías de Despacho Electrónicas (
 - **Ejemplo**: Transferencia de bodega central a sucursal
 - **⭐ USADO EN TRANSFERENCIAS DE INVENTARIO**
 
-### Código 6: Otros traslados no venta
+### Código 6: Transformación de productos
 - **Descripción**: Transformación de productos
 - **Uso**: Traslado para procesos de transformación
 - **Ejemplo**: Envío a planta de producción
@@ -59,7 +59,7 @@ TIPO_TRASLADO_CHOICES = [
     ('3', 'Consignaciones'),
     ('4', 'Entrega gratuita'),
     ('5', 'Traslados internos'),
-    ('6', 'Otros traslados no venta'),
+    ('6', 'Transformación de productos'),
     ('7', 'Guía de devolución'),
     ('8', 'Traslados para exportación'),
     ('9', 'Venta para exportación'),

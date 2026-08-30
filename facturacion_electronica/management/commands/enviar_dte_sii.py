@@ -61,11 +61,15 @@ class Command(BaseCommand):
             self.stdout.write(f"Empresa: {dte.empresa.nombre}")
             self.stdout.write(f"Estado actual: {dte.estado_sii}")
             
-            # Verificar que no haya sido enviado
-            if dte.estado_sii in ['enviado', 'aceptado']:
-                self.stdout.write(self.style.WARNING(
-                    f"Este DTE ya fue enviado al SII (Estado: {dte.estado_sii})"
-                ))
+            # Verificar que el estado admita envio o reenvio
+            if not dte.puede_enviarse_al_sii:
+                mensaje = (
+                    f"Este DTE no esta disponible para envio al SII "
+                    f"(Estado: {dte.estado_sii})"
+                )
+                if dte.estado_sii in ['enviado', 'enviando']:
+                    mensaje = f"Este DTE ya fue enviado al SII (Estado: {dte.estado_sii})"
+                self.stdout.write(self.style.WARNING(mensaje))
                 return
             
             # Inicializar servicio y enviar
@@ -95,17 +99,17 @@ class Command(BaseCommand):
         try:
             empresa = Empresa.objects.get(id=empresa_id)
             
-            # Obtener DTEs pendientes
+            # Obtener DTEs reenviables
             dtes = DocumentoTributarioElectronico.objects.filter(
                 empresa=empresa,
-                estado_sii='generado'
+                estado_sii__in=['generado', 'firmado', 'pendiente', 'error_envio']
             ).order_by('fecha_emision', 'folio')
             
             total = dtes.count()
             
             if total == 0:
                 self.stdout.write(self.style.WARNING(
-                    f"No hay DTEs pendientes de envío para {empresa.nombre}"
+                    f"No hay DTEs reenviables para {empresa.nombre}"
                 ))
                 return
             

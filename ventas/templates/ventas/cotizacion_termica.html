@@ -164,6 +164,16 @@
             padding: 1mm 0;
         }
 
+        .total-row-separated {
+            margin-top: 2.2mm;
+            padding-top: 2.1mm;
+            border-top: 1px dotted #999;
+        }
+
+        .total-row-emphasis {
+            font-size: 9.7pt;
+        }
+
         .total-label {
             font-weight: bold;
         }
@@ -209,6 +219,7 @@
     </style>
 </head>
 <body>
+    {% include "includes/visor_acciones.html" %}
     <div class="ticket-container">
 
         <!-- CABECERA -->
@@ -221,7 +232,7 @@
             <div class="company-rut">RUT: {{ cotizacion.empresa.rut }}</div>
             <div class="company-info">
                 {{ cotizacion.empresa.get_direccion_dte }}<br>
-                {{ cotizacion.empresa.get_ciudad_dte }}<br>
+                {{ cotizacion.empresa.get_comuna_dte }}{% if cotizacion.empresa.get_comuna_dte and cotizacion.empresa.get_ciudad_dte %}, {% endif %}{{ cotizacion.empresa.get_ciudad_dte }}<br>
                 Fono: {{ cotizacion.empresa.telefono|default:"Sin teléfono" }}
             </div>
         </div>
@@ -232,11 +243,11 @@
             <div class="document-folio">N° {{ cotizacion.numero_cotizacion }}</div>
             <div class="document-fecha">
                 {% load l10n %}
-                {{ cotizacion.fecha_emision|date:"d/m/Y" }}
+                {{ cotizacion.fecha_emision|date:"d-m-Y" }}
             </div>
             {% if cotizacion.fecha_vencimiento %}
             <div style="font-size: 7pt; margin-top: 1mm; color: #dc3545; font-weight: bold;">
-                Válida hasta: {{ cotizacion.fecha_vencimiento|date:"d/m/Y" }}
+                Válida hasta: {{ cotizacion.fecha_vencimiento|date:"d-m-Y" }}
             </div>
             {% endif %}
         </div>
@@ -297,11 +308,11 @@
                 <span class="total-value">-${{ cotizacion.descuento|format_miles }}</span>
             </div>
             {% endif %}
-            <div class="total-row">
+            <div class="total-row total-row-emphasis">
                 <span class="total-label">Neto:</span>
                 <span class="total-value">${{ cotizacion.neto|format_miles }}</span>
             </div>
-            <div class="total-row">
+            <div class="total-row total-row-separated total-row-emphasis">
                 <span class="total-label">IVA (19%):</span>
                 <span class="total-value">${{ cotizacion.iva|format_miles }}</span>
             </div>
@@ -354,59 +365,16 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ cotizacion.empresa.nombre }}<br>
-            Impreso: {{ cotizacion.fecha_emision|date:"d/m/Y" }}<br>
+            Impreso: {{ cotizacion.fecha_emision|date:"d-m-Y" }}<br>
             Gracias por su preferencia
         </div>
 
     </div>
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            🖨️ Imprimir
-        </button>
-        <button onclick="safeCloseWindow()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            ← Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         function safeCloseWindow() {
-            console.log('safeCloseWindow llamado');
-            
-            // Intentar cerrar la ventana si fue abierta por otra ventana
-            if (window.opener && window.opener !== window && !window.opener.closed) {
-                try {
-                    window.close();
-                    console.log('Ventana cerrada');
-                    return;
-                } catch (e) {
-                    console.log('No se pudo cerrar la ventana:', e);
-                }
-            }
-            
-            // Intentar obtener la URL de referencia guardada
-            const refererUrl = sessionStorage.getItem('cotizacion_referer') || localStorage.getItem('cotizacion_referer');
-            if (refererUrl && refererUrl !== window.location.href) {
-                console.log('Redirigiendo a:', refererUrl);
-                window.location.href = refererUrl;
-                return;
-            }
-            
-            // Si no hay referrer guardado, intentar volver atrás
-            if (window.history.length > 1) {
-                try {
-                    console.log('Intentando volver atrás');
-                    window.history.back();
-                    return;
-                } catch (e) {
-                    console.log('No se pudo volver atrás:', e);
-                }
-            }
-            
-            // Fallback: redirigir a la lista de cotizaciones
-            console.log('Redirigiendo a lista de cotizaciones');
-            window.location.href = '/ventas/cotizaciones/';
+            cerrarVisor({ fallbackUrl: "{% url 'ventas:cotizacion_list' %}" });
         }
         
         // Guardar la URL de referencia cuando se carga la página

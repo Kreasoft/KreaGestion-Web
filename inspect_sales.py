@@ -3,7 +3,7 @@ import django
 import sys
 
 # Setup Django
-sys.path.append('c:/PROJECTOS-WEB/GestionCloud')
+sys.path.append('C:/PROYECTOS-WEB-SII/GestionCloud-SII')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'gestioncloud.settings')
 django.setup()
 

@@ -1,7 +1,7 @@
 
 import os
 
-path = r'c:\PROJECTOS-WEB\GestionCloud\documentos\templates\documentos\documento_compra_form.html'
+path = r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\documentos\templates\documentos\documento_compra_form.html'
 with open(path, 'r', encoding='utf-8') as f:
     content = f.read()
 

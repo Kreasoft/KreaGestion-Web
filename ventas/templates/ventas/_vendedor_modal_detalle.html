@@ -1,0 +1,55 @@
+<div class="modal-gc-section">Identificación</div>
+<div class="row g-2 mb-3">
+    <div class="col-3">
+        <label class="modal-gc-label">Código</label>
+        <div class="modal-gc-value">{{ vendedor.codigo }}</div>
+    </div>
+    <div class="col-6">
+        <label class="modal-gc-label">Nombre</label>
+        <div class="modal-gc-value">{{ vendedor.nombre }}</div>
+    </div>
+    <div class="col-3">
+        <label class="modal-gc-label">Comisión</label>
+        <div class="modal-gc-value">{{ vendedor.porcentaje_comision }}%</div>
+    </div>
+    <div class="col-12">
+        <label class="modal-gc-label">Estado</label>
+        <div class="modal-gc-value">
+            {% if vendedor.activo %}
+            <span class="badge-tel-ok">Activo</span>
+            {% else %}
+            <span class="badge-tel-pend">Inactivo</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<div class="modal-gc-panel">
+    <div class="modal-gc-section">Acceso app móvil</div>
+    <div class="row g-2">
+        <div class="col-7">
+            <label class="modal-gc-label">Celular</label>
+            <div class="modal-gc-value">{% if vendedor.telefono_app %}{{ vendedor.telefono_app_display }}{% else %}No registrado{% endif %}</div>
+        </div>
+        <div class="col-5">
+            <label class="modal-gc-label">Permiso</label>
+            <div class="modal-gc-value">
+                {% if vendedor.app_movil_activa %}
+                <span class="badge-tel-ok">Puede vender</span>
+                {% elif vendedor.telefono_app %}
+                <span class="badge-tel-pend">Sin acceso</span>
+                {% else %}
+                <span style="color:#8B7355;">Sin registrar</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if vendedor.app_movil_activa and vendedor.app_movil_activado_en %}
+        <div class="col-12 mt-2">
+            <p class="modal-gc-hint mb-0">Activo desde {{ vendedor.app_movil_activado_en|date:"d/m/Y H:i" }}</p>
+        </div>
+        {% elif vendedor.app_movil_revocado_en %}
+        <div class="col-12 mt-2">
+            <p class="modal-gc-hint mb-0">Acceso cancelado el {{ vendedor.app_movil_revocado_en|date:"d/m/Y H:i" }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>

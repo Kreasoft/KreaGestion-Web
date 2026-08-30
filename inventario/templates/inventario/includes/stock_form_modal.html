@@ -1,146 +1,69 @@
 <style>
-    :root {
-        --soft-blue: #9ab8cd;
-        --soft-red: #f4d1d1;
-        --soft-orange: #e39d7e;
-        --soft-green: #c6d8e5;
-        --soft-crema: #fdf5e6;
-        --stone-text: #5D4037;
-    }
-
-    .stone-modal-form {
-        color: var(--stone-text);
-        font-family: 'Poppins', sans-serif;
-    }
-
+    .stone-modal-form { color: #5D4037; font-family: 'Poppins', sans-serif; }
     .form-control-stone {
-        border-radius: 12px !important;
-        border: 1px solid #E8DCC8 !important;
-        padding: 0.6rem 0.8rem !important;
-        font-size: 0.95rem !important;
-        background-color: white !important;
-        color: var(--stone-text) !important;
-        transition: all 0.2s;
+        height: 28px !important; min-height: 28px !important;
+        border-radius: 4px !important; border: 1px solid #D4C4A8 !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        accent-color: #6F5B44 !important;
     }
-
     .form-control-stone:focus {
-        border-color: #8B7355 !important;
-        box-shadow: 0 0 0 4px rgba(139, 115, 85, 0.1) !important;
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
         outline: none !important;
     }
-
     .stone-label {
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: #6F5B44;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .soft-info-card {
-        background-color: var(--soft-crema);
-        border: 1px solid rgba(0,0,0,0.05);
-        border-radius: 16px;
-        padding: 1.25rem;
-    }
-
-    .soft-alert {
-        background-color: var(--soft-green);
-        border: none;
-        border-radius: 12px;
-        color: #3E2723;
-        font-weight: 500;
-    }
-
-    .btn-stone-primary {
-        background: #8B7355 !important;
-        color: white !important;
-        border: none !important;
-        padding: 0.6rem 1.5rem !important;
-        border-radius: 12px !important;
-        font-weight: 700 !important;
-        transition: all 0.2s !important;
-    }
-
-    .btn-stone-primary:hover {
-        background: #6F5B44 !important;
-        transform: translateY(-2px);
+        font-size: 0.72rem; font-weight: 700; color: #6F5B44;
+        text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px; display: block;
     }
 </style>
 
-<form method="post" id="formEditarStock" class="stone-modal-form p-4">
+<form method="post" id="formEditarStock" class="stone-modal-form" style="padding: 8px 12px;">
     {% csrf_token %}
-    
-    <div class="row g-3 mb-4">
+
+    <div class="row g-2 mb-2">
         <div class="col-md-6">
-            <div class="p-3 h-100 rounded-4" style="background-color: var(--soft-blue); color: white; position: relative; overflow: hidden;">
-                <i class="fas fa-box" style="position: absolute; right: -10px; bottom: -10px; font-size: 4rem; opacity: 0.1;"></i>
-                <span class="d-block small text-uppercase fw-bold opacity-75 mb-1">Artículo</span>
-                <div class="d-flex align-items-center">
-                    <span class="fw-bold fs-6">{{ stock.articulo.nombre }}</span>
-                </div>
-                <div class="mt-2">
-                    <span class="badge bg-white bg-opacity-25 border-0">{{ stock.articulo.codigo }}</span>
-                </div>
+            <div class="px-2 py-1 rounded" style="background: #e3f2fd; border: 1px solid #D4C4A8;">
+                <span class="d-block text-uppercase fw-bold" style="font-size: 0.65rem; color: #5D4037;">Artículo</span>
+                <span class="fw-bold" style="font-size: 0.8rem; color: #6F5B44;">{{ stock.articulo.nombre }}</span>
+                <span class="badge ms-1" style="background: #fff; color: #6F5B44; border: 1px solid #D4C4A8; font-size: 0.65rem;">{{ stock.articulo.codigo }}</span>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="p-3 h-100 rounded-4" style="background-color: var(--soft-orange); color: white; position: relative; overflow: hidden;">
-                <i class="fas fa-warehouse" style="position: absolute; right: -10px; bottom: -10px; font-size: 4rem; opacity: 0.1;"></i>
-                <span class="d-block small text-uppercase fw-bold opacity-75 mb-1">Bodega</span>
-                <div class="d-flex align-items-center">
-                    <span class="fw-bold fs-6">{{ stock.bodega.nombre }}</span>
-                </div>
+            <div class="px-2 py-1 rounded" style="background: #fff3e0; border: 1px solid #D4C4A8;">
+                <span class="d-block text-uppercase fw-bold" style="font-size: 0.65rem; color: #5D4037;">Bodega</span>
+                <span class="fw-bold" style="font-size: 0.8rem; color: #6F5B44;">{{ stock.bodega.nombre }}</span>
             </div>
         </div>
     </div>
-    
-    <div class="soft-info-card mb-4">
-        <div class="row g-4">
-            <div class="col-md-4">
-                <label for="id_cantidad" class="stone-label">
-                    <i class="fas fa-cubes me-1"></i>Stock Actual
-                </label>
-                <input type="number" name="cantidad" id="id_cantidad" class="form-control form-control-stone" 
-                       step="0.01" value="{{ cantidad_mov|stringformat:'f' }}" required>
-                <div class="mt-2 small text-muted">
-                    <i class="fas fa-calculator me-1"></i>Act: {{ cantidad_mov|floatformat:2 }}
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <label for="id_stock_minimo" class="stone-label">
-                    <i class="fas fa-arrow-down me-1"></i>S. Mínimo
-                </label>
-                <input type="number" name="stock_minimo" id="id_stock_minimo" class="form-control form-control-stone" 
-                       step="0.01" min="0" value="{{ stock.stock_minimo|stringformat:'f' }}" required>
-            </div>
-            
-            <div class="col-md-4">
-                <label for="id_stock_maximo" class="stone-label">
-                    <i class="fas fa-arrow-up me-1"></i>S. Máximo
-                </label>
-                <input type="number" name="stock_maximo" id="id_stock_maximo" class="form-control form-control-stone" 
-                       step="0.01" min="0" value="{{ stock.stock_maximo|stringformat:'f' }}" required>
-            </div>
+
+    <div class="row g-2 mb-2 px-2 py-2" style="background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 6px;">
+        <div class="col-md-4">
+            <label for="id_cantidad" class="stone-label"><i class="fas fa-cubes me-1"></i>Stock Actual</label>
+            <input type="number" name="cantidad" id="id_cantidad" class="form-control form-control-stone"
+                   step="0.01" value="{{ cantidad_mov|stringformat:'f' }}" required>
+            <div class="small text-muted" style="font-size: 0.68rem;">Act: {{ cantidad_mov|floatformat:2 }}</div>
+        </div>
+        <div class="col-md-4">
+            <label for="id_stock_minimo" class="stone-label"><i class="fas fa-arrow-down me-1"></i>S. Mínimo</label>
+            <input type="number" name="stock_minimo" id="id_stock_minimo" class="form-control form-control-stone"
+                   step="0.01" min="0" value="{{ stock.stock_minimo|stringformat:'f' }}" required>
+        </div>
+        <div class="col-md-4">
+            <label for="id_stock_maximo" class="stone-label"><i class="fas fa-arrow-up me-1"></i>S. Máximo</label>
+            <input type="number" name="stock_maximo" id="id_stock_maximo" class="form-control form-control-stone"
+                   step="0.01" min="0" value="{{ stock.stock_maximo|stringformat:'f' }}" required>
         </div>
     </div>
-    
-    <div class="alert soft-alert d-flex align-items-center px-3 py-2 mb-0" role="alert">
+
+    <div class="alert d-flex align-items-center px-2 py-1 mb-2" role="alert" style="background: #e8f5e9; border: 1px solid #C8E6C9; color: #3E2723; font-size: 0.72rem;">
         <i class="fas fa-info-circle me-2"></i>
-        <div class="small">
-            El sistema generará un <strong>ajuste de inventario</strong> automático si modificas la cantidad.
-        </div>
+        El sistema generará un <strong>ajuste de inventario</strong> automático si modificas la cantidad.
     </div>
-    
-    <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top" style="border-color: rgba(0,0,0,0.05) !important;">
-        <button type="button" class="btn btn-link text-muted text-decoration-none fw-bold small" data-bs-dismiss="modal">
-            Cancelar
-        </button>
-        <button type="submit" class="btn btn-stone-primary">
-            <i class="fas fa-save me-2"></i>Guardar Cambios
+
+    <div class="d-flex justify-content-end gap-2 pt-2 border-top" style="border-color: #E8DCC8 !important;">
+        <button type="button" class="btn btn-sm" data-bs-dismiss="modal" style="color: #5D4037; font-size: 0.75rem;">Cancelar</button>
+        <button type="submit" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+            <i class="fas fa-save me-1"></i>Guardar Cambios
         </button>
     </div>
 </form>

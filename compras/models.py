@@ -417,3 +417,103 @@ class ItemRecepcion(models.Model):
         orden.save()
 
 
+class DocumentoRecibidoSII(models.Model):
+    """Factura recibida sobre la cual la empresa puede informar eventos al SII."""
+
+    TIPOS_VALIDOS = [
+        ('30', 'Factura'), ('32', 'Factura de venta y servicios no afecta'),
+        ('33', 'Factura Electrónica'), ('34', 'Factura Exenta Electrónica'),
+        ('43', 'Liquidación Factura Electrónica'), ('45', 'Factura de Compra'),
+        ('46', 'Factura de Compra Electrónica'), ('55', 'Nota de Débito'),
+        ('56', 'Nota de Débito Electrónica'), ('60', 'Nota de Crédito'),
+        ('61', 'Nota de Crédito Electrónica'),
+    ]
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name='documentos_recibidos_sii')
+    tipo_dte = models.CharField(max_length=2, choices=TIPOS_VALIDOS)
+    folio = models.PositiveBigIntegerField()
+    rut_emisor = models.CharField(max_length=12)
+    razon_social_emisor = models.CharField(max_length=200, blank=True)
+    fecha_emision = models.DateField(null=True, blank=True)
+    fecha_recepcion_sii = models.DateTimeField(null=True, blank=True)
+    estado_rcv = models.CharField(max_length=20, default='REGISTRO')
+    tipo_compra_rcv = models.CharField(max_length=30, blank=True)
+    monto_neto = models.DecimalField(max_digits=14, decimal_places=0, default=0)
+    monto_iva = models.DecimalField(max_digits=14, decimal_places=0, default=0)
+    monto_total = models.DecimalField(max_digits=14, decimal_places=0, default=0)
+    xml_original = models.TextField(blank=True)
+    xml_solicitado_en = models.DateTimeField(null=True, blank=True, verbose_name='XML solicitado el')
+    xml_solicitado_a = models.EmailField(blank=True, verbose_name='XML solicitado a')
+    fecha_importacion = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-fecha_recepcion_sii', '-fecha_emision', '-folio']
+        constraints = [
+            models.UniqueConstraint(fields=['empresa', 'rut_emisor', 'tipo_dte', 'folio'], name='uq_dte_recibido_sii')
+        ]
+        permissions = [
+            ('registrar_evento_sii', 'Puede aceptar o reclamar facturas recibidas ante el SII'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_tipo_dte_display()} {self.folio} - {self.rut_emisor}'
+
+    @property
+    def fecha_limite_eventos(self):
+        return self.fecha_recepcion_sii + timezone.timedelta(days=8) if self.fecha_recepcion_sii else None
+
+    @property
+    def plazo_vencido(self):
+        limite = self.fecha_limite_eventos
+        return bool(limite and timezone.now() > limite)
+
+    @property
+    def admite_eventos_aceptacion(self):
+        return self.tipo_dte in {'33', '34', '43'}
+
+    @property
+    def ultimo_evento_exitoso(self):
+        return self.eventos.filter(estado='aceptado_sii').order_by('-fecha_respuesta').first()
+
+    @property
+    def tiene_xml_dte(self):
+        return bool((self.xml_original or '').strip())
+
+    @property
+    def estado_xml_intercambio(self):
+        if self.tiene_xml_dte:
+            return 'recibido'
+        if self.xml_solicitado_en:
+            return 'pedido'
+        return 'pendiente'
+
+
+class EventoAceptacionReclamoSII(models.Model):
+    ACCIONES = [
+        ('ACD', 'Acepta contenido del documento'),
+        ('ERM', 'Acuse de recibo de mercaderías o servicios'),
+        ('RCD', 'Reclamo al contenido del documento'),
+        ('RFP', 'Reclamo por falta parcial de mercaderías o servicios'),
+        ('RFT', 'Reclamo por falta total de mercaderías o servicios'),
+    ]
+    ESTADOS = [('pendiente', 'Pendiente'), ('aceptado_sii', 'Registrado en SII'), ('rechazado_sii', 'Rechazado por SII'), ('error', 'Error de comunicación')]
+
+    documento = models.ForeignKey(DocumentoRecibidoSII, on_delete=models.PROTECT, related_name='eventos')
+    accion = models.CharField(max_length=3, choices=ACCIONES)
+    motivo = models.TextField(blank=True, help_text='Respaldo interno; el WS del SII informa el motivo mediante el código de acción.')
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='pendiente')
+    codigo_respuesta = models.IntegerField(null=True, blank=True)
+    descripcion_respuesta = models.TextField(blank=True)
+    respuesta_sii = models.TextField(blank=True)
+    usuario = models.ForeignKey(User, on_delete=models.PROTECT)
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    fecha_respuesta = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-fecha_solicitud']
+
+    def __str__(self):
+        return f'{self.accion} - {self.documento}'
+
+

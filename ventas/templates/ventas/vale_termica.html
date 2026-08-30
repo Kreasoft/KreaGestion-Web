@@ -182,6 +182,16 @@
             padding: 1mm 0;
         }
 
+        .total-row-separated {
+            margin-top: 2.2mm;
+            padding-top: 2.1mm;
+            border-top: 1px dotted #999;
+        }
+
+        .total-row-emphasis {
+            font-size: 9.7pt;
+        }
+
         .total-label {
             font-weight: bold;
         }
@@ -226,6 +236,7 @@
     </style>
 </head>
 <body>
+    {% include "includes/visor_acciones.html" %}
     {% for i in copias_range %}
     <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
@@ -239,7 +250,7 @@
             <div class="company-rut">RUT: {{ vale.empresa.rut }}</div>
             <div class="company-info">
                 {{ vale.empresa.get_direccion_dte }}<br>
-                {{ vale.empresa.get_ciudad_dte }}<br>
+                {{ vale.empresa.get_comuna_dte }}{% if vale.empresa.get_comuna_dte and vale.empresa.get_ciudad_dte %}, {% endif %}{{ vale.empresa.get_ciudad_dte }}<br>
                 Fono: {{ vale.empresa.telefono|default:"Sin teléfono" }}
             </div>
         </div>
@@ -250,7 +261,7 @@
             <div class="document-folio">N° {{ vale.numero_venta }}</div>
             <div class="document-fecha">
                 {% load l10n %}
-                {{ vale.fecha_creacion|date:"d/m/Y H:i" }}
+                {{ vale.fecha_creacion|date:"d-m-Y H:i" }}
             </div>
             <div style="font-size: 7pt; margin-top: 1mm; color: #dc3545; font-weight: bold;">
                 DOCUMENTO NO TRIBUTARIO
@@ -281,10 +292,10 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1mm 2mm 1mm 0; vertical-align: bottom;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.35mm 2mm 1.35mm 0; vertical-align: bottom;">
                         <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
                     </td>
-                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1mm 0; vertical-align: bottom;">
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
                         ${{ detalle.precio_total|format_miles }}
                     </td>
                 </tr>
@@ -304,11 +315,11 @@
                 <span class="total-value">-${{ vale.descuento|format_miles }}</span>
             </div>
             {% endif %}
-            <div class="total-row">
+            <div class="total-row total-row-emphasis">
                 <span class="total-label">Neto:</span>
                 <span class="total-value">${{ vale.neto|format_miles }}</span>
             </div>
-            <div class="total-row">
+            <div class="total-row total-row-separated total-row-emphasis">
                 <span class="total-label">IVA (19%):</span>
                 <span class="total-value">${{ vale.iva|format_miles }}</span>
             </div>
@@ -349,25 +360,15 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ vale.empresa.nombre }}<br>
-            Impreso: {{ vale.fecha_creacion|date:"d/m/Y H:i" }}<br>
+            Impreso: {{ vale.fecha_creacion|date:"d-m-Y H:i" }}<br>
             {% if vale.tipo_documento == 'ticket' %}Documento interno - No válido como factura{% else %}Comprobante interno - No válido como documento tributario{% endif %}
         </div>
 
     </div>
     {% endfor %}
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()" style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            🖨️ Imprimir
-        </button>
-        <button onclick="cerrarVentana()" style="display: inline-block; padding: 5px 15px; font-size: 10pt; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px; text-decoration: none;">
-            ← Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" with fallback_url='/' %}
     <script>
-      // Hacer cerrarVentana global para el botón
       let cerrarVentana;
 
       (function() {
@@ -383,33 +384,7 @@
 
           // Función para cerrar o volver - MÁXIMA ROBUSTEZ Y VELOCIDAD
           cerrarVentana = function() {
-            const posUrl = "{% url 'ventas:pos_view' %}";
-            const params = new URLSearchParams(window.location.search);
-            const returnUrlParam = params.get('return_url');
-            const targetUrl = returnUrlParam ? decodeURIComponent(returnUrlParam) : posUrl;
-
-            console.log('[VALE AUTO] Cerrando ventana vinculada al POS...');
-
-            // SI HAY OPENER, CERRAMOS SIN REDIRIGIR PARA NO RECARGAR EL POS
-            if (window.opener) {
-              try {
-                window.close();
-                // Si sigue abierta después de 100ms, intentamos redirección controlada
-                setTimeout(() => {
-                    if (!window.closed) window.location.href = targetUrl;
-                }, 100);
-              } catch(e) { 
-                  window.location.href = targetUrl;
-              }
-              return;
-            }
-            
-            // Si no hay opener pero hay historial, volvemos atrás
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.replace(targetUrl);
-            }
+            cerrarVisor({ fallbackUrl: '/' });
           }
 
           if (auto === '1') {

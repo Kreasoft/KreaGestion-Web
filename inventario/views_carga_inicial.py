@@ -341,7 +341,10 @@ def guardar_inventario_manual(request):
         if not bodega_id:
             return JsonResponse({'success': False, 'message': 'Bodega requerida.'})
         
-        bodega = get_object_or_404(Bodega, id=bodega_id, empresa=request.empresa)
+        bodega_pk = clean_id(str(bodega_id))
+        if not bodega_pk:
+            return JsonResponse({'success': False, 'message': 'Bodega requerida.'})
+        bodega = get_object_or_404(Bodega, id=int(bodega_pk), empresa=request.empresa)
         
         resultados = {
             'exitosos': 0,
@@ -352,13 +355,15 @@ def guardar_inventario_manual(request):
         with transaction.atomic():
             for item in inventarios:
                 try:
-                    articulo_id = item.get('articulo_id')
+                    articulo_id = clean_id(str(item.get('articulo_id') or ''))
                     cantidad = Decimal(str(item.get('cantidad', 0)))
                     
                     if cantidad < 0:
                         cantidad = Decimal('0')
                     
-                    articulo = get_object_or_404(Articulo, id=articulo_id, empresa=request.empresa)
+                    if not articulo_id:
+                        raise ValueError('Artículo inválido')
+                    articulo = get_object_or_404(Articulo, id=int(articulo_id), empresa=request.empresa)
                     
                     # Calcular stock actual por movimientos confirmados en esta bodega
                     current = Decimal('0')

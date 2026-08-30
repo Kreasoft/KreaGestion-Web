@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Conectar impresora - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background: #FAFAF8 !important; }
+    .imp-wrap { max-width: 720px; margin: 0 auto; }
+    .imp-paso {
+        display: flex; gap: 12px; align-items: flex-start;
+        padding: 12px 0; border-bottom: 1px solid #E8DCC8;
+    }
+    .imp-paso:last-child { border-bottom: none; }
+    .imp-num {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: #5D4037; color: #FAFAF8;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .imp-codigo {
+        font-size: 2rem; letter-spacing: 0.35em; font-weight: 700;
+        color: #5D4037; background: #E8DCC8; border-radius: 8px;
+        padding: 14px 8px; text-align: center; font-family: ui-monospace, monospace;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 8px 12px;">
+    <div class="imp-wrap">
+        <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(93, 64, 55, 0.12);">
+            <div class="card-header" style="background: var(--gradient-piedra); padding: 10px 16px;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-print me-3" style="font-size: 1.3rem; color: var(--color-piedra-texto);"></i>
+                    <div>
+                        <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.35rem;">
+                            Conectar <span class="fw-bold">impresora</span>
+                        </h2>
+                        <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.8;">
+                            Para {{ empresa.nombre }}{% if sucursal %} · {{ sucursal.nombre }}{% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body" style="background: #FAFAF8; padding: 16px 18px;">
+                {% if error %}
+                <div class="alert py-2 mb-3" style="background: #F8E6DC; border-left: 4px solid #C76F43; color: #5D4037; font-size: 0.85rem;">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <p class="mb-3" style="color: #6F5B44; font-size: 0.9rem;">
+                    En 3 pasos deja lista la impresora de esta sucursal. No hay que configurar números ni direcciones.
+                </p>
+
+                <div class="imp-paso">
+                    <div class="imp-num">1</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold" style="color: #5D4037;">Descargue el programa en este computador</div>
+                        <div class="small mb-2" style="color: #8B7355;">Descomprima la carpeta y haga doble clic en <strong>AgenteImpresion.exe</strong>.</div>
+                        <a href="{% url 'caja:descargar_agente' %}" class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: #fff; font-weight: 700;">
+                            <i class="fas fa-download me-1"></i> Descargar programa
+                        </a>
+                    </div>
+                </div>
+
+                <div class="imp-paso">
+                    <div class="imp-num">2</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold" style="color: #5D4037;">Elija sucursal y caja, y obtenga el código</div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1" style="color: #6F5B44;">Sucursal</label>
+                                <select class="form-select form-select-sm" style="border-color: #E8DCC8;"
+                                    onchange="window.location='?sucursal_id='+this.value">
+                                    {% for s in sucursales %}
+                                    <option value="{{ s.id }}" {% if sucursal and sucursal.id == s.id %}selected{% endif %}>{{ s.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1" style="color: #6F5B44;">Caja</label>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="sucursal_id" value="{{ sucursal.id|default:'' }}">
+                                    <select name="caja_id" class="form-select form-select-sm" style="border-color: #E8DCC8;">
+                                        {% for c in cajas %}
+                                        <option value="{{ c.id }}">{{ c.numero }} — {{ c.nombre }}</option>
+                                        {% empty %}
+                                        <option value="">No hay cajas en esta sucursal</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-sm mt-2" style="background: #C76F43; border: 1px solid #A85A36; color: #fff; font-weight: 700;" {% if not cajas %}disabled{% endif %}>
+                                        Obtener código
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {% if codigo %}
+                        <div class="mt-3">
+                            <div class="small mb-1" style="color: #6F5B44;">Anote este código e ingréselo en el programa:</div>
+                            <div class="imp-codigo">{{ codigo }}</div>
+                            <div class="small mt-1" style="color: #8B7355;">Válido 24 horas para {{ caja_vinculada.nombre }}.</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="imp-paso">
+                    <div class="imp-num">3</div>
+                    <div>
+                        <div class="fw-bold" style="color: #5D4037;">En el programa: ingrese el código, elija impresora e inicie</div>
+                        <div class="small" style="color: #8B7355;">Quedará imprimiendo solo los documentos de esta empresa y sucursal.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

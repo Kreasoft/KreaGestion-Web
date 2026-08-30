@@ -56,7 +56,7 @@ class Command(BaseCommand):
                     self.stdout.write(f'\n🔄 Procesando DTE {dte.tipo_dte} N° {dte.folio}...')
                     
                     
-                    # Usar el servicio centralizado para regenerar todo con la nueva lógica (dte_gdexpress)
+                    # Usar el servicio centralizado para regenerar todo con la nueva lógica
                     from facturacion_electronica.dte_service import DTEService
                     
                     service = DTEService(empresa)

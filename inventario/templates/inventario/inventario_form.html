@@ -4,9 +4,35 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS -->
+{% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<style>
+    body { background: #FAFAF8 !important; }
+    .form-control, .form-select, .form-control-stone, .form-select-stone {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
+        accent-color: #6F5B44 !important;
+    }
+    textarea.form-control, textarea.form-control-stone { height: auto !important; min-height: 48px !important; }
+    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+    .select2-container .select2-selection--single { height: 28px !important; border: 1px solid #D4C4A8 !important; border-radius: 4px !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 26px !important; font-size: 0.75rem !important; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 26px !important; }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single { border-color: #6F5B44 !important; }
+    .form-label-stone { font-weight: 600; color: #6F5B44; font-size: 0.72rem; margin-bottom: 2px; }
+    .stone-calc-box { background: #F5F1E8; border: 1px solid #D4C4A8; border-radius: 6px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; }
+    .calc-label { color: #6F5B44; font-weight: 700; font-size: 0.75rem; }
+    .calc-value { color: #6F5B44; font-weight: 800; font-size: 1rem; }
+</style>
+{% endblock %}
+{% comment %} unused compact leftover {% endcomment %}
+{% if False %}
 <style>
     /* VARIABLES ESTILO PIEDRA */
     :root {
@@ -148,40 +174,35 @@
         height: 40px !important;
     }
 </style>
-{% endblock %}
+{% endif %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-lg-10">
-            
-            <div class="single-card-container">
-                
-                <!-- HEADER STONE PREMIUM -->
-                <div class="stone-header-premium">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-exchange-alt"></i>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Movimientos</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">
+                                    {% if form.instance.pk %}Edición de movimiento existente{% else %}Registro de nuevo movimiento{% endif %}
+                                </div>
+                            </div>
                         </div>
-                        <div class="header-text">
-                            <h1>{{ titulo }}</h1>
-                            <p>
-                                {% if form.instance.pk %}Edición de movimiento existente{% else %}Registro de nuevo movimiento de inventario{% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <a href="{% url 'inventario:inventario_list' %}" class="header-btn">
-                            <i class="fas fa-arrow-left me-2"></i> Cancelar
+                        <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                            <i class="fas fa-arrow-left me-1"></i> Cancelar
                         </a>
                     </div>
                 </div>
 
-                <div class="card-body p-5">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 12px;">
                     <form method="post" id="movimientoForm">
                         {% csrf_token %}
 
-                        <div class="row g-4">
+                        <div class="row g-2">
                             <!-- Tipo de Movimiento -->
                             <div class="col-md-6">
                                 <label class="form-label-stone">
@@ -231,7 +252,12 @@
                                 <label class="form-label-stone">
                                     <i class="fas fa-box me-1"></i> Artículo <span class="text-danger">*</span>
                                 </label>
-                                {{ form.articulo|add_class:"form-select-stone select2-stone"|attr:"data-placeholder:Buscar artículo..." }}
+                                <div class="d-flex gap-1 align-items-center">
+                                    <div class="flex-grow-1">{{ form.articulo|add_class:"form-select-stone select2-stone"|attr:"data-placeholder:Buscar artículo..." }}</div>
+                                    <button type="button" class="btn btn-sm btn-articulos-f10" data-articulos-f10 title="Buscar artículos (F10)">
+                                        <i class="fas fa-search me-1"></i>F10
+                                    </button>
+                                </div>
                                 {% if form.articulo.errors %}
                                     <div class="text-danger small mt-1">{{ form.articulo.errors.0 }}</div>
                                 {% endif %}
@@ -305,15 +331,13 @@
                         </div>
 
                         <!-- Botón Guardar -->
-                        <div class="mt-5 pt-3 border-top border-light d-flex justify-content-end">
-                            <button type="submit" class="header-btn btn-action-primary px-5 py-2" style="font-size: 1rem;">
-                                <i class="fas fa-save me-2"></i> {{ submit_text|default:"Guardar Movimiento" }}
+                        <div class="mt-2 pt-2 border-top d-flex justify-content-end" style="border-color: #E8DCC8 !important;">
+                            <button type="submit" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                                <i class="fas fa-save me-1"></i> {{ submit_text|default:"Guardar Movimiento" }}
                             </button>
                         </div>
                     </form>
                 </div>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}

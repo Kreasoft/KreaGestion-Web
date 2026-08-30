@@ -27,6 +27,31 @@ def print(*args, **kwargs):
     return None
 
 
+def _apertura_activa_empresa(request, sucursal=None):
+    """Apertura abierta de la sucursal operativa; no toma cajas de otra sucursal."""
+    from empresas.middleware import resolver_sucursal_operativa
+    sucursal = sucursal or resolver_sucursal_operativa(request)
+    qs = AperturaCaja.objects.filter(
+        caja__empresa=request.empresa,
+        estado='abierta',
+    ).select_related('caja', 'caja__sucursal', 'caja__estacion_trabajo')
+    if sucursal is not None:
+        qs = qs.filter(caja__sucursal=sucursal)
+    return qs.order_by('-fecha_apertura').first()
+
+
+def _filtrar_tickets_por_caja(qs, caja):
+    """Tickets de la sucursal (y estación, si la caja tiene TPV asignado)."""
+    from django.db.models import Q
+    if not caja:
+        return qs
+    if getattr(caja, 'sucursal_id', None):
+        qs = qs.filter(Q(sucursal=caja.sucursal) | Q(sucursal__isnull=True))
+    if getattr(caja, 'estacion_trabajo_id', None):
+        qs = qs.filter(Q(estacion_trabajo=caja.estacion_trabajo) | Q(estacion_trabajo__isnull=True))
+    return qs
+
+
 # ========================================
 # GESTIÓN DE CAJAS
 # ========================================
@@ -37,9 +62,14 @@ def print(*args, **kwargs):
 def caja_list(request):
     """Lista de cajas"""
     cajas = Caja.objects.filter(empresa=request.empresa).select_related('sucursal', 'estacion_trabajo', 'bodega')
-    
     context = {
         'cajas': cajas,
+        'stats': {
+            'total': cajas.count(),
+            'activas': cajas.filter(activo=True).count(),
+            'inactivas': cajas.filter(activo=False).count(),
+            'sin_bodega': cajas.filter(bodega__isnull=True).count(),
+        },
     }
     return render(request, 'caja/caja_list.html', context)
 
@@ -123,12 +153,17 @@ def apertura_list(request):
     )
     
     apertura_activa = AperturaCaja.objects.filter(caja__empresa=request.empresa, estado='abierta').first()
+
+    from empresas.middleware import resolver_sucursal_operativa
+    from caja.impresion_utils import agente_impresion_en_linea
+    sucursal_op = resolver_sucursal_operativa(request)
     
     context = {
         'aperturas': aperturas,
         'estado_filtro': estado,
         'cajas_disponibles': cajas_disponibles,
         'apertura_activa': apertura_activa,
+        'alerta_agente_impresion': not agente_impresion_en_linea(request.empresa, sucursal_op),
     }
     return render(request, 'caja/apertura_list.html', context)
 
@@ -171,8 +206,8 @@ def apertura_create(request):
             messages.error(request, f'Error al abrir la caja: {str(e)}')
             return redirect('caja:apertura_list')
     else:
-        # Si se accede por GET, mostrar el formulario tradicional
-        form = AperturaCajaForm(empresa=request.empresa)
+        from empresas.middleware import resolver_sucursal_operativa
+        form = AperturaCajaForm(empresa=request.empresa, sucursal=resolver_sucursal_operativa(request))
         context = {
             'form': form,
             'title': 'Abrir Caja',
@@ -249,7 +284,14 @@ def apertura_detail(request, pk):
         tipo_documento_planeado__isnull=True
     ).exclude(
         tipo_documento_planeado=''
-    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]  # Limitar a 500 para rendimiento
+    )
+    suc_caja = getattr(getattr(apertura, 'caja', None), 'sucursal', None)
+    if suc_caja:
+        tickets_pendientes = tickets_pendientes.filter(Q(sucursal=suc_caja) | Q(sucursal__isnull=True))
+    est_caja = getattr(getattr(apertura, 'caja', None), 'estacion_trabajo', None)
+    if est_caja:
+        tickets_pendientes = tickets_pendientes.filter(Q(estacion_trabajo=est_caja) | Q(estacion_trabajo__isnull=True))
+    tickets_pendientes = tickets_pendientes.select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]
     
     # Debug simplificado (sin usar métodos de queryset después de slice)
     print(f"[DEBUG APERTURA_DETAIL] Tickets pendientes cargados (máximo 500)")
@@ -478,7 +520,7 @@ def estado_caf_pos(request):
                     'folio_hasta': caf.folio_hasta,
                     'folio_actual': caf.folio_actual,
                     'folios_disponibles': caf.folios_disponibles(),
-                    'fecha_autorizacion': caf.fecha_autorizacion.strftime('%d/%m/%Y') if caf.fecha_autorizacion else '',
+                    'fecha_autorizacion': caf.fecha_autorizacion.strftime('%d-%m-%Y') if caf.fecha_autorizacion else '',
                     'dias_para_vencer': caf.dias_para_vencer() if caf.fecha_autorizacion else 0,
                     'esta_vigente': caf.esta_vigente()
                 })
@@ -500,7 +542,7 @@ def estado_caf_pos(request):
             })
     else:
         # Si no es AJAX, redirigir a la lista de CAF
-        return redirect('facturacion_electronica:caf_list')
+        return redirect('facturacion_electronica:listar_cafs')
 
 
 # ========================================
@@ -552,20 +594,17 @@ def procesar_venta_buscar(request):
     if tickets_sin_planeado.exists():
         tickets_sin_planeado.update(tipo_documento_planeado='boleta')
 
-    # Obtener apertura activa
-    apertura_activa = None
-    for caja in Caja.objects.filter(empresa=request.empresa, activo=True):
-        apertura = caja.get_apertura_activa()
-        if apertura:
-            apertura_activa = apertura
-            break
+    # Obtener apertura activa de la sucursal (no de otra sucursal de la empresa)
+    from empresas.middleware import resolver_sucursal_operativa
+    sucursal_caja = resolver_sucursal_operativa(request)
+    apertura_activa = _apertura_activa_empresa(request, sucursal_caja)
     
     # Si no hay caja abierta, preparar formulario de apertura
     mostrar_modal_apertura = False
     form_apertura = None
     if not apertura_activa:
         mostrar_modal_apertura = True
-        form_apertura = AperturaCajaForm(empresa=request.empresa)
+        form_apertura = AperturaCajaForm(empresa=request.empresa, sucursal=sucursal_caja)
     
     # Buscar ticket
     if request.method == 'POST':
@@ -574,12 +613,15 @@ def procesar_venta_buscar(request):
         if numero_ticket:
             try:
                 # Buscar ticket que no haya sido facturado aún - LÓGICA SIMPLE
-                ticket = Venta.objects.filter(
+                ticket_qs = Venta.objects.filter(
                     empresa=request.empresa,
                     numero_venta=numero_ticket,
                     tipo_documento='ticket',
-                    facturado=False  # Solo tickets NO facturados
-                ).first()
+                    facturado=False
+                )
+                caja_abierta = getattr(apertura_activa, 'caja', None)
+                ticket_qs = _filtrar_tickets_por_caja(ticket_qs, caja_abierta)
+                ticket = ticket_qs.order_by('-fecha_creacion').first()
                 
                 if ticket:
                     # Verificar si ya tiene proceso en caja
@@ -608,13 +650,17 @@ def procesar_venta_buscar(request):
         tipo_documento_planeado__isnull=True
     ).exclude(
         tipo_documento_planeado=''
-    ).select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]
+    )
+    tickets_pendientes = _filtrar_tickets_por_caja(tickets_pendientes, getattr(apertura_activa, 'caja', None))
+    tickets_pendientes = tickets_pendientes.select_related('cliente', 'vendedor', 'estacion_trabajo').order_by('-fecha_creacion')[:500]
 
+    from caja.impresion_utils import agente_impresion_en_linea
     context = {
         'apertura_activa': apertura_activa,
         'tickets_pendientes': tickets_pendientes,
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
+        'alerta_agente_impresion': not agente_impresion_en_linea(request.empresa, sucursal_caja),
     }
     return render(request, 'caja/procesar_venta_buscar.html', context)
 
@@ -695,20 +741,16 @@ def procesar_venta(request, ticket_id):
         messages.warning(request, 'Este ticket ya ha sido facturado. No se puede procesar nuevamente.')
         return redirect(next_url)
     
-    # Obtener apertura activa
-    apertura_activa = None
-    for caja in Caja.objects.filter(empresa=request.empresa, activo=True):
-        apertura = caja.get_apertura_activa()
-        if apertura:
-            apertura_activa = apertura
-            break
+    from empresas.middleware import resolver_sucursal_operativa
+    sucursal_caja = resolver_sucursal_operativa(request)
+    apertura_activa = _apertura_activa_empresa(request, sucursal_caja)
     
     # Si no hay caja abierta, preparar formulario de apertura
     mostrar_modal_apertura = False
     form_apertura = None
     if not apertura_activa:
         mostrar_modal_apertura = True
-        form_apertura = AperturaCajaForm(empresa=request.empresa)
+        form_apertura = AperturaCajaForm(empresa=request.empresa, sucursal=sucursal_caja)
     
     # Inicializar form para GET o POST con errores
     form = ProcesarVentaForm(empresa=request.empresa, ticket=ticket, initial={'ticket_id': ticket.id})
@@ -965,6 +1007,16 @@ def procesar_venta(request, ticket_id):
                 validacion_pagos_ok = False
             else:
                 print(f"[OK] Validación de pagos correcta: ${total_pagado:,.0f} >= ${total_ticket:,.0f}")
+                if tipo_documento != 'factura':
+                    for datos_pago in formas_pago_dict.values():
+                        forma_pago_chk = FormaPago.objects.filter(pk=datos_pago['forma_pago_id']).first()
+                        if forma_pago_chk and forma_pago_chk.es_cuenta_corriente:
+                            messages.error(
+                                request,
+                                'El crédito / cuenta corriente solo se permite en facturas. La boleta se cobra al contado.'
+                            )
+                            validacion_pagos_ok = False
+                            break
         
         # Si hay errores de validación, retornar el formulario con los errores
         if not validacion_pagos_ok:
@@ -1173,9 +1225,11 @@ def procesar_venta(request, ticket_id):
                         print(f"   - Tipo Documento: {tipo_doc_crear}")
                         print(f"   - Tipo Planeado: {tipo_doc_planeado_crear}")
                         
+                        fecha_cierre_caja = timezone.localdate()
                         venta_final = Venta.objects.create(
                         empresa=request.empresa,
                         numero_venta=numero_venta_temporal,  # Se actualizará con el folio CAF si se genera DTE
+                        fecha=fecha_cierre_caja,
                         cliente=ticket.cliente,
                         vendedor=vendedor_seleccionado,
                         vehiculo=vehiculo_seleccionado,
@@ -1184,6 +1238,7 @@ def procesar_venta(request, ticket_id):
                         estacion_trabajo=ticket.estacion_trabajo,
                         tipo_documento=tipo_doc_crear,
                         tipo_documento_planeado=tipo_doc_planeado_crear,
+                        tipo_despacho=(ticket.tipo_despacho or '1') if tipo_doc_crear == 'guia' else None,
                         subtotal=ticket.subtotal,
                         descuento=ticket.descuento,
                         neto=ticket.neto,
@@ -1263,7 +1318,7 @@ def procesar_venta(request, ticket_id):
                         # 3. Actualizar cuenta corriente si aplica
                         for idx, datos_pago in formas_pago_dict.items():
                             forma_pago = FormaPago.objects.get(pk=datos_pago['forma_pago_id'])
-                            if forma_pago.es_cuenta_corriente and ticket.cliente:
+                            if forma_pago.es_cuenta_corriente and ticket.cliente and tipo_documento == 'factura':
                                 actualizar_cuenta_corriente_cliente(venta_final, ticket.cliente)
                                 break
 
@@ -1279,7 +1334,7 @@ def procesar_venta(request, ticket_id):
                         observaciones=observaciones
                     )
                     
-                    if es_venta_final and primer_movimiento and primer_movimiento.forma_pago.es_cuenta_corriente:
+                    if es_venta_final and primer_movimiento and primer_movimiento.forma_pago.es_cuenta_corriente and tipo_documento == 'factura':
                         venta_procesada.cuenta_corriente_actualizada = True
                     
                     # Descontar stock (solo si NO es guía)
@@ -1420,7 +1475,8 @@ def procesar_venta(request, ticket_id):
                                 empresa=request.empresa,
                                 tipo_dte=tipo_dte,
                                 folio=folio_dte,  # ← USAR EL FOLIO DEL CAF, NO numero_venta
-                                fecha_emision=venta_final.fecha,
+                                fecha_emision=fecha_cierre_caja,
+                                venta=venta_final,
                                 usuario_creacion=request.user,
                                 estado_sii='NoEnviado',
                                 caf_utilizado=caf,  # CAF ya viene validado y con folio asignado desde FolioService
@@ -1444,10 +1500,10 @@ def procesar_venta(request, ticket_id):
                             # Asociar la venta al DTE para poder generar el XML
                             # El generador espera una relación 'orden_despacho', la usamos de forma genérica.
                             dte.orden_despacho.add(venta_final)
-                            dte.save()
+                            dte.save(update_fields=['venta'])
                             
                             # Generar hoja de ruta automáticamente si aplica
-                            if tipo_documento == 'factura' and venta_final.cliente and venta_final.vehiculo and venta_final.chofer:
+                            if tipo_documento == 'factura' and venta_final.cliente:
                                 try:
                                     from pedidos.utils_hoja_ruta import generar_hoja_ruta_automatica
                                     hoja_ruta = generar_hoja_ruta_automatica(dte, venta_final, request.empresa)
@@ -1468,41 +1524,14 @@ def procesar_venta(request, ticket_id):
                             firmador = FirmadorDTE(empresa.certificado_digital.path, empresa.password_certificado)
                             xml_firmado = firmador.firmar_xml(xml_sin_firmar)
 
-                            # 3. Generar TED (usar DTEBox si está habilitado, sino generar localmente)
-                            ted_xml = None
-                            if empresa.dtebox_habilitado:
-                                print(f"[DTE] Usando DTEBox para timbraje offline...")
-                                try:
-                                    from facturacion_electronica.dtebox_service import DTEBoxService
-                                    dtebox = DTEBoxService(empresa)
-                                    resultado = dtebox.timbrar_dte(xml_firmado)
-                                    
-                                    if resultado['success']:
-                                        ted_xml = resultado['ted']
-                                        print(f"[DTE] ✅ TED obtenido desde DTEBox")
-                                    else:
-                                        print(f"[DTE] ⚠️ Error en DTEBox: {resultado['error']}")
-                                        print(f"[DTE] Fallback: Generando TED localmente...")
-                                        # Fallback a generación local
-                                        primer_item_nombre = venta_final.ventadetalle_set.first().articulo.nombre if venta_final.ventadetalle_set.exists() else 'Venta POS'
-                                        dte_data = {'rut_emisor': dte.rut_emisor, 'tipo_dte': dte.tipo_dte, 'folio': dte.folio, 'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'), 'rut_receptor': dte.rut_receptor, 'razon_social_receptor': dte.razon_social_receptor, 'monto_total': dte.monto_total, 'item_1': primer_item_nombre}
-                                        caf_data = {'rut_emisor': dte.caf_utilizado.empresa.rut, 'razon_social': dte.caf_utilizado.empresa.razon_social_sii or dte.caf_utilizado.empresa.razon_social, 'tipo_documento': dte.caf_utilizado.tipo_documento, 'folio_desde': dte.caf_utilizado.folio_desde, 'folio_hasta': dte.caf_utilizado.folio_hasta, 'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'), 'modulo': 'MODULO_PLACEHOLDER', 'exponente': 'EXPONENTE_PLACEHOLDER', 'firma': dte.caf_utilizado.firma_electronica}
-                                        ted_xml = firmador.generar_ted(dte_data, caf_data)
-                                except Exception as e_dtebox:
-                                    print(f"[DTE] ⚠️ Error al inicializar DTEBox: {str(e_dtebox)}")
-                                    print(f"[DTE] Fallback: Generando TED localmente...")
-                                    # Fallback a generación local
-                                    primer_item_nombre = venta_final.ventadetalle_set.first().articulo.nombre if venta_final.ventadetalle_set.exists() else 'Venta POS'
-                                    dte_data = {'rut_emisor': dte.rut_emisor, 'tipo_dte': dte.tipo_dte, 'folio': dte.folio, 'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'), 'rut_receptor': dte.rut_receptor, 'razon_social_receptor': dte.razon_social_receptor, 'monto_total': dte.monto_total, 'item_1': primer_item_nombre}
-                                    caf_data = {'rut_emisor': dte.caf_utilizado.empresa.rut, 'razon_social': dte.caf_utilizado.empresa.razon_social_sii or dte.caf_utilizado.empresa.razon_social, 'tipo_documento': dte.caf_utilizado.tipo_documento, 'folio_desde': dte.caf_utilizado.folio_desde, 'folio_hasta': dte.caf_utilizado.folio_hasta, 'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'), 'modulo': 'MODULO_PLACEHOLDER', 'exponente': 'EXPONENTE_PLACEHOLDER', 'firma': dte.caf_utilizado.firma_electronica}
-                                    ted_xml = firmador.generar_ted(dte_data, caf_data)
-                            else:
-                                # Generación local (método original)
-                                print(f"[DTE] Generando TED localmente...")
-                                primer_item_nombre = venta_final.ventadetalle_set.first().articulo.nombre if venta_final.ventadetalle_set.exists() else 'Venta POS'
-                                dte_data = {'rut_emisor': dte.rut_emisor, 'tipo_dte': dte.tipo_dte, 'folio': dte.folio, 'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'), 'rut_receptor': dte.rut_receptor, 'razon_social_receptor': dte.razon_social_receptor, 'monto_total': dte.monto_total, 'item_1': primer_item_nombre}
-                                caf_data = {'rut_emisor': dte.caf_utilizado.empresa.rut, 'razon_social': dte.caf_utilizado.empresa.razon_social_sii or dte.caf_utilizado.empresa.razon_social, 'tipo_documento': dte.caf_utilizado.tipo_documento, 'folio_desde': dte.caf_utilizado.folio_desde, 'folio_hasta': dte.caf_utilizado.folio_hasta, 'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'), 'modulo': 'MODULO_PLACEHOLDER', 'exponente': 'EXPONENTE_PLACEHOLDER', 'firma': dte.caf_utilizado.firma_electronica}
-                                ted_xml = firmador.generar_ted(dte_data, caf_data)
+                            # 3. Generar TED localmente desde CAF
+                            print(f"[DTE] Generando TED localmente...")
+                            primer_item_nombre = venta_final.ventadetalle_set.first().articulo.nombre if venta_final.ventadetalle_set.exists() else 'Venta POS'
+                            dte_data = {'rut_emisor': dte.rut_emisor, 'tipo_dte': dte.tipo_dte, 'folio': dte.folio, 'fecha_emision': dte.fecha_emision.strftime('%Y-%m-%d'), 'rut_receptor': dte.rut_receptor, 'razon_social_receptor': dte.razon_social_receptor, 'monto_total': dte.monto_total, 'item_1': primer_item_nombre}
+                            caf_data = {'rut_emisor': dte.caf_utilizado.empresa.rut, 'razon_social': dte.caf_utilizado.empresa.razon_social_sii or dte.caf_utilizado.empresa.razon_social, 'tipo_documento': dte.caf_utilizado.tipo_documento, 'folio_desde': dte.caf_utilizado.folio_desde, 'folio_hasta': dte.caf_utilizado.folio_hasta, 'fecha_autorizacion': dte.caf_utilizado.fecha_autorizacion.strftime('%Y-%m-%d'), 'modulo': 'MODULO_PLACEHOLDER', 'exponente': 'EXPONENTE_PLACEHOLDER', 'firma': dte.caf_utilizado.firma_electronica}
+                            ted_xml = firmador.generar_ted(dte_data, caf_data)
+
+
 
                             # 4. Generar datos para PDF417
                             pdf417_data = firmador.generar_datos_pdf417(ted_xml)
@@ -1684,7 +1713,7 @@ def procesar_venta(request, ticket_id):
                             from caja.models import ColaImpresion
                             from caja.impresion_utils import generar_esc_pos_ticket
                             
-                            venta_final.dte_asociado = dte_para_mostrar
+                            venta_final._dte_para_ticket = dte_para_mostrar
                             contenido = generar_esc_pos_ticket(venta_final)
                             
                             caja_id_cola = apertura_activa.caja.id if apertura_activa else None
@@ -2032,68 +2061,17 @@ def descontar_stock_venta_completo(venta, bodega):
 def actualizar_cuenta_corriente_cliente(venta, cliente):
     """Actualiza la cuenta corriente del cliente con la venta a crédito"""
     try:
-        from tesoreria.models import CuentaCorrienteCliente, MovimientoCuentaCorrienteCliente, DocumentoCliente
-        from datetime import timedelta
+        from tesoreria.services import sincronizar_venta_credito_en_tesoreria
 
-        # Obtener o crear la cuenta corriente del cliente
-        cuenta_corriente, created = CuentaCorrienteCliente.objects.get_or_create(
-            empresa=venta.empresa,
-            cliente=cliente,
-            defaults={
-                'limite_credito': 100000,  # Límite por defecto
-                'dias_credito': 30  # 30 días por defecto
-            }
+        registrado = sincronizar_venta_credito_en_tesoreria(
+            venta,
+            usuario=venta.usuario_creacion,
+            descripcion=f"Venta a crédito {venta.numero_venta}",
         )
-
-        if created:
-            print(f"[OK] Nueva cuenta corriente creada para {cliente.nombre}")
-
-        # Crear o actualizar DocumentoCliente
-        documento, doc_created = DocumentoCliente.objects.get_or_create(
-            empresa=venta.empresa,
-            numero_documento=venta.numero_venta,
-            tipo_documento='factura' if venta.tipo_documento == 'factura' else 'boleta',
-            defaults={
-                'cliente': cliente,
-                'fecha_emision': venta.fecha,
-                'fecha_vencimiento': venta.fecha + timedelta(days=cuenta_corriente.dias_credito),
-                'total': int(venta.total),
-                'monto_pagado': 0,
-                'saldo_pendiente': venta.total,
-                'estado_pago': 'pendiente',
-                'creado_por': venta.usuario_creacion
-            }
-        )
-        
-        if doc_created:
-            print(f"[OK] Documento creado: {documento.tipo_documento} {documento.numero_documento}")
-
-        # Registrar el movimiento
-        saldo_anterior = cuenta_corriente.saldo_total
-
-        movimiento = MovimientoCuentaCorrienteCliente.objects.create(
-            cuenta_corriente=cuenta_corriente,
-            venta=venta,
-            tipo_movimiento='debe',  # El cliente debe pagar
-            monto=venta.total,
-            saldo_anterior=saldo_anterior,
-            saldo_nuevo=saldo_anterior + venta.total,
-            estado='confirmado',
-            registrado_por=venta.usuario_creacion
-        )
-
-        # Actualizar saldos de la cuenta corriente
-        cuenta_corriente.saldo_total += venta.total
-        cuenta_corriente.saldo_pendiente += venta.total
-        cuenta_corriente.save()
-
-        # Actualizar la venta con la cuenta corriente
-        venta.observaciones += f"\n[CRÉDITO] Registrado en cuenta corriente - Movimiento #{movimiento.id}"
-        venta.save()
-
-        print(f"[OK] Venta a credito registrada: {cliente.nombre} - ${venta.total} - Movimiento #{movimiento.id}")
-
-        return True
+        if registrado:
+            print(f"[OK] Venta a credito registrada: {cliente.nombre} - ${venta.total}")
+            return True
+        return False
 
     except Exception as e:
         print(f"[ERROR] Error al registrar venta a credito: {e}")

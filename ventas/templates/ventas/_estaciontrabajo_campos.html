@@ -1,0 +1,162 @@
+<style>
+    .est-form .form-control, .est-form .form-select {
+        height: 26px !important; min-height: 26px !important; padding: 2px 8px !important;
+        font-size: 0.72rem !important; border-color: #D4C4A8 !important;
+    }
+    .est-form textarea.form-control { height: auto !important; min-height: 42px !important; }
+    .est-form .form-control:focus, .est-form .form-select:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important;
+    }
+    .est-form .form-label { font-size: 0.72rem; color: #5D4037; font-weight: 600; margin-bottom: 2px; }
+    .est-form .form-check-label { font-size: 0.72rem; color: #5D4037; }
+    .est-sec { background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+    .est-sec-pos { background: #F7F2EC; border-color: #D4C4A8; }
+    .est-sec-h { font-size: 0.72rem; font-weight: 700; color: #5D4037; letter-spacing: 0.02em; margin-bottom: 6px; text-transform: uppercase; }
+    .est-hint { font-size: 0.65rem; color: #8B7355; line-height: 1.25; margin-top: 2px; }
+    .est-err { font-size: 0.68rem; color: #C76F43; }
+    .est-cierre { margin-top: 8px; padding: 6px 8px; background: #fff; border: 1px solid #E8DCC8; border-radius: 5px; }
+    .est-cierre-extras.is-off { opacity: 0.45; }
+    .est-docs { width: 100%; border-collapse: collapse; }
+    .est-docs th { font-size: 0.65rem; color: #8B7355; text-transform: uppercase; font-weight: 700; padding: 3px 6px; border-bottom: 1px solid #E8DCC8; }
+    .est-docs td { padding: 3px 6px; font-size: 0.72rem; color: #5D4037; border-bottom: 1px solid #F5F1E8; vertical-align: middle; }
+    .est-docs input.form-control { width: 72px; margin: 0 auto; display: block; text-align: center; }
+</style>
+<div class="est-form">
+    <div class="est-sec">
+        <div class="est-sec-h">Identidad</div>
+        <div class="row g-2">
+            <div class="col-4">
+                <label class="form-label">Sucursal *</label>
+                {{ form.sucursal }}
+                {% if form.sucursal.errors %}<div class="est-err">{{ form.sucursal.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-4">
+                <label class="form-label">Número *</label>
+                {{ form.numero }}
+                {% if form.numero.errors %}<div class="est-err">{{ form.numero.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-4">
+                <label class="form-label">Nombre *</label>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}<div class="est-err">{{ form.nombre.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-2 d-flex align-items-end pb-1">
+                <div class="form-check form-switch mb-0">
+                    {{ form.activo }}
+                    <label class="form-check-label" for="{{ form.activo.id_for_label }}">Activa</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Descripción</label>
+                {{ form.descripcion }}
+            </div>
+        </div>
+    </div>
+
+    <div class="est-sec est-sec-pos">
+        <div class="est-sec-h">
+            <i class="fas fa-cash-register me-1"></i>Cómo trabaja el POS
+        </div>
+        <div class="row g-2">
+            <div class="col-md-6">
+                <label class="form-label">Modo de operación *</label>
+                {{ form.modo_pos }}
+                <div class="est-hint">Normal: cliente al final. Con cliente: RUT obligatorio al inicio (precios especiales).</div>
+                {% if form.modo_pos.errors %}<div class="est-err">{{ form.modo_pos.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Correlativo ticket</label>
+                {{ form.correlativo_ticket }}
+                {% if form.correlativo_ticket.errors %}<div class="est-err">{{ form.correlativo_ticket.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Código comodín</label>
+                {{ form.codigo_comodin }}
+                <div class="est-hint">Producto libre en el POS.</div>
+            </div>
+        </div>
+        <div class="est-cierre">
+            <div class="form-check form-switch mb-1">
+                {{ form.cierre_directo }}
+                <label class="form-check-label fw-bold" for="{{ form.cierre_directo.id_for_label }}">
+                    Cierre directo — cierra y emite el DTE en un paso
+                </label>
+            </div>
+            <div class="row g-2 est-cierre-extras">
+                <div class="col-md-6">
+                    <label class="form-label">Flujo del RUT</label>
+                    {{ form.flujo_cierre_directo }}
+                    <div class="est-hint">Al inicio: pide cliente antes de vender. Al final: lo pide al cerrar.</div>
+                </div>
+                <div class="col-md-6 d-flex align-items-end pb-1">
+                    <div class="form-check form-switch mb-0">
+                        {{ form.enviar_sii_directo }}
+                        <label class="form-check-label" for="{{ form.enviar_sii_directo.id_for_label }}">
+                            Enviar al SII automáticamente
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="est-sec">
+        <div class="est-sec-h">
+            <i class="fas fa-file-alt me-1"></i>Documentos, límites e impresión
+        </div>
+        <table class="est-docs">
+            <thead>
+                <tr>
+                    <th>Documento</th>
+                    <th class="text-center">Emite</th>
+                    <th class="text-center">Máx. ítems</th>
+                    <th class="text-center">Copias</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Factura</td>
+                    <td class="text-center"><div class="form-check form-switch d-inline-flex justify-content-center mb-0">{{ form.puede_facturar }}</div></td>
+                    <td>{{ form.max_items_factura }}</td>
+                    <td>{{ form.copias_factura }}</td>
+                </tr>
+                <tr>
+                    <td>Boleta</td>
+                    <td class="text-center"><div class="form-check form-switch d-inline-flex justify-content-center mb-0">{{ form.puede_boletar }}</div></td>
+                    <td>{{ form.max_items_boleta }}</td>
+                    <td>{{ form.copias_boleta }}</td>
+                </tr>
+                <tr>
+                    <td>Guía</td>
+                    <td class="text-center"><div class="form-check form-switch d-inline-flex justify-content-center mb-0">{{ form.puede_guia }}</div></td>
+                    <td>{{ form.max_items_guia }}</td>
+                    <td>{{ form.copias_guia }}</td>
+                </tr>
+                <tr>
+                    <td>Cotización</td>
+                    <td class="text-center"><div class="form-check form-switch d-inline-flex justify-content-center mb-0">{{ form.puede_cotizar }}</div></td>
+                    <td>{{ form.max_items_cotizacion }}</td>
+                    <td>{{ form.copias_cotizacion }}</td>
+                </tr>
+                <tr>
+                    <td>Ticket</td>
+                    <td class="text-center"><div class="form-check form-switch d-inline-flex justify-content-center mb-0">{{ form.puede_ticket }}</div></td>
+                    <td>{{ form.max_items_ticket }}</td>
+                    <td>{{ form.copias_ticket }}</td>
+                </tr>
+                <tr>
+                    <td>Vale</td>
+                    <td class="text-center"><div class="form-check form-switch d-inline-flex justify-content-center mb-0">{{ form.puede_vale }}</div></td>
+                    <td>{{ form.max_items_vale }}</td>
+                    <td>{{ form.copias_vale }}</td>
+                </tr>
+                <tr>
+                    <td>Nota de crédito</td>
+                    <td class="text-center" style="color:#A89880;">—</td>
+                    <td class="text-center" style="color:#A89880;">—</td>
+                    <td>{{ form.copias_notacredito }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

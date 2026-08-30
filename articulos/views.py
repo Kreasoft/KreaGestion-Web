@@ -1296,7 +1296,7 @@ def lista_precio_gestionar_precios(request, pk):
                         PrecioArticulo.objects.update_or_create(
                             articulo=articulo,
                             lista_precio=lista,
-                            defaults={'precio': precio_value}
+                            defaults={'precio': precio_value.quantize(Decimal('0.01'))}
                         )
                         guardados += 1
                     else:

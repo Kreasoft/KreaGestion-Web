@@ -5,9 +5,20 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .modal-footer { padding: 6px 12px !important; }
+    .form-check-input:checked { background-color: #8B8B3A !important; border-color: #6F6F2E !important; }
+    .form-check-input:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+</style>
+{% endblock %}
+
 {% block extra_css %}
 <style>
-    /* Estilos Piedra y Variables Globales */
     :root {
         --color-piedra-primario: #8B7355;
         --color-piedra-secundario: #6F5B44;
@@ -16,33 +27,16 @@
         --gradient-piedra: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
         --color-piedra-texto: #5D4037;
         --color-piedra-borde: #D4C4A8;
-        
-        /* Colores Soft UI Pastel */
-        --pastel-terracota: #E6B8A2;
-        --pastel-azul: #B4C5E4;
-        --pastel-rosa: #F3C4C4;
-        --pastel-verde: #C1E1C1;
     }
-
-    body {
-        background: #FAFAF8 !important;
-        min-height: 100vh;
-    }
-
+    body { background: #FAFAF8 !important; min-height: 100vh; }
     .card-piedra {
-        border: 2px solid #E8DCC8; 
-        border-radius: 15px; 
-        overflow: hidden; 
+        border: 2px solid #E8DCC8;
+        border-radius: 8px;
+        overflow: hidden;
         box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
         background: white;
     }
-
-    .table-piedra {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: 'Poppins', sans-serif;
-    }
-
+    .table-piedra { width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif; }
     .table-piedra thead th {
         background: #FDFCFB;
         border-bottom: 2px solid #E8DCC8;
@@ -51,403 +45,211 @@
         text-transform: uppercase;
         font-size: 0.7rem;
         letter-spacing: 1px;
-        padding: 12px 15px;
+        padding: 5px 10px;
     }
-
-    .table-piedra tbody tr {
-        height: 32px;
-        transition: all 0.2s ease;
-    }
-
-    .table-piedra tbody tr:nth-of-type(odd) {
-        background-color: rgba(245, 241, 232, 0.3);
-    }
-
-    .table-piedra tbody tr:nth-of-type(even) {
-        background-color: white;
-    }
-
-    .table-piedra tbody tr:hover {
-        background-color: #F5F1E8 !important;
-    }
-
+    .table-piedra tbody tr { height: 32px; }
+    .table-piedra tbody tr:nth-of-type(odd) { background-color: rgba(245, 241, 232, 0.3); }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8 !important; }
     .table-piedra tbody td {
-        padding: 8px 15px;
+        padding: 2px 10px;
         border-bottom: 1px solid #F5F1E8;
         vertical-align: middle;
-        font-size: 0.85rem;
-        color: #4A5568;
+        font-size: 0.78rem;
+        color: #5D4037;
     }
-    
-    .btn-action-piedra {
-        width: 24px;
-        height: 24px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: white;
-        border: 1px solid #D4C4A8;
+    .badge-doc {
+        display: inline-block;
+        padding: 1px 6px;
         border-radius: 4px;
-        color: #8B7355;
-        font-size: 0.7rem;
-        transition: all 0.2s ease;
-        text-decoration: none;
-        cursor: pointer;
+        font-size: 0.62rem;
+        font-weight: 600;
+        background: #F5F1E8;
+        color: #6F5B44;
+        border: 1px solid #D4C4A8;
+        line-height: 1.3;
     }
-
-    .btn-action-piedra:hover {
-        background: #8B7355;
-        color: white !important;
-        transform: scale(1.1);
+    .badge-modo {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        background: #E8DCC8;
+        color: #5D4037;
     }
-
-    /* Badges Personalizados */
-    .badge-pastel {
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-weight: 500;
-        font-size: 0.7rem;
-        border: 1px solid transparent;
+    .badge-cierre {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 600;
     }
-    
-    .badge-pastel-factura { background: #E3F2FD; color: #1976D2; border-color: #BBDEFB; }
-    .badge-pastel-boleta { background: #E8F5E9; color: #2E7D32; border-color: #C8E6C9; }
-    .badge-pastel-guia { background: #FFF3E0; color: #EF6C00; border-color: #FFE0B2; }
-    .badge-pastel-cotizacion { background: #F3E5F5; color: #7B1FA2; border-color: #E1BEE7; }
-    .badge-pastel-vale { background: #EFEBE9; color: #5D4037; border-color: #D7CCC8; }
-
-    /* Modal Styles */
-    .modal-dialog {
-        max-width: 600px;
-        margin: 1.75rem auto;
-    }
-    
-    .modal-content {
-        max-height: 80vh;
-        overflow: hidden;
-    }
-    
-    .modal-body {
-        max-height: calc(80vh - 120px);
-        overflow-y: auto;
-    }
-    
-    .form-check-input:checked {
-        background-color: #8B7355;
-        border-color: #8B7355;
-    }
+    .badge-cierre-on { background: #EFE8C8; color: #6F6F2E; }
+    .badge-cierre-off { background: #F5F1E8; color: #8B7355; }
+    .modal-dialog { max-width: 820px; }
+    .modal-content { max-height: 90vh; overflow: hidden; }
+    .modal-body { max-height: calc(90vh - 110px); overflow-y: auto; }
+    .est-sec { background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+    .est-sec-pos { background: #F7F2EC; border-color: #D4C4A8; }
+    .est-sec-h { font-size: 0.72rem; font-weight: 700; color: #5D4037; letter-spacing: 0.02em; margin-bottom: 6px; text-transform: uppercase; }
+    .est-hint { font-size: 0.65rem; color: #8B7355; line-height: 1.25; }
+    .est-docs { width: 100%; border-collapse: collapse; }
+    .est-docs th { font-size: 0.65rem; color: #8B7355; text-transform: uppercase; font-weight: 700; padding: 3px 6px; border-bottom: 1px solid #E8DCC8; }
+    .est-docs td { padding: 3px 6px; font-size: 0.72rem; color: #5D4037; border-bottom: 1px solid #F5F1E8; vertical-align: middle; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
-    <div class="row">
-        <div class="col-12">
-            <div class="card card-piedra">
-                <!-- Header con Estilo Piedra Premium -->
-                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-desktop fa-2x me-3" style="color: var(--color-piedra-texto); opacity: 0.8;"></i>
-                            <div>
-                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
-                                    Gestión de <span class="fw-bold">Estaciones</span>
-                                </h2>
-                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
-                                    Configura las estaciones POS y sus tipos de documentos
-                                </div>
-                            </div>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card card-piedra">
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
+            <div class="d-flex justify-content-between align-items-center gap-3">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-desktop me-2" style="color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                    <div>
+                        <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                            Estaciones de <span class="fw-bold">Trabajo</span>
+                        </h2>
+                        <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
+                            Define cómo opera cada caja del POS: modo, cierre, documentos e impresión
                         </div>
-                        <button class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
-                            <i class="fas fa-plus me-1"></i> Nueva Estación
-                        </button>
                     </div>
                 </div>
-                
-                <div class="card-body" style="padding: 20px;">
-                    <!-- Búsqueda -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <form method="get" class="row g-2 align-items-end" style="background: #FAFAF8; padding: 15px; border-radius: 10px; border: 1px solid #E8DCC8;">
-                                <div class="col-md-10">
-                                    <label class="form-label fw-bold" style="font-size: 0.75rem; color: #6F5B44;">
-                                        <i class="fas fa-search me-1"></i>Buscar
-                                    </label>
-                                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Buscar por número o nombre..." value="{{ search }}" style="border: 1px solid #D4C4A8;">
-                                </div>
-                                <div class="col-md-2">
-                                    <button type="submit" class="btn btn-sm w-100" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); border: none; color: white; font-weight: 600; font-size: 0.75rem; height: 31px;">
-                                        <i class="fas fa-search me-2"></i>Buscar
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <!-- Tabla de estaciones -->
-                    <div class="table-responsive rounded-bottom" style="background: white;">
-                        <table class="table-piedra mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 10%;">Número</th>
-                                    <th style="width: 25%;">Nombre</th>
-                                    <th style="width: 25%;">Documentos Permitidos</th>
-                                    <th style="width: 15%;">Corre. Ticket</th>
-                                    <th style="width: 10%;">Estado</th>
-                                    <th style="width: 15%; text-align: center;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for estacion in page_obj %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <div style="width: 28px; height: 28px; background: #E8DCC8; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #6F5B44; margin-right: 8px;">
-                                                {{ estacion.numero }}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="fw-bold" style="color: #5D4037;">{{ estacion.nombre }}</td>
-                                    <td>
-                                        <div class="d-flex flex-wrap gap-1">
-                                            {% if estacion.puede_facturar %}
-                                                <span class="badge-pastel badge-pastel-factura">Factura</span>
-                                            {% endif %}
-                                            {% if estacion.puede_boletar %}
-                                                <span class="badge-pastel badge-pastel-boleta">Boleta</span>
-                                            {% endif %}
-                                            {% if estacion.puede_guia %}
-                                                <span class="badge-pastel badge-pastel-guia">Guía</span>
-                                            {% endif %}
-                                            {% if estacion.puede_cotizar %}
-                                                <span class="badge-pastel badge-pastel-cotizacion">Cotización</span>
-                                            {% endif %}
-                                            {% if estacion.puede_vale %}
-                                                <span class="badge-pastel badge-pastel-vale">Vale</span>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span style="font-family: 'Courier New', monospace; font-weight: bold; color: #6F5B44;">
-                                            #{{ estacion.correlativo_ticket|stringformat:"06d" }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        {% if estacion.activo %}
-                                            <span class="badge" style="background-color: #e8f5e9; color: #2e7d32; font-size: 0.7rem;">Activo</span>
-                                        {% else %}
-                                            <span class="badge" style="background-color: #ffebee; color: #c62828; font-size: 0.7rem;">Inactivo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <button class="btn-action-piedra" title="Ver" onclick="verEstacion({{ estacion.id }})">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button class="btn-action-piedra" title="Editar" onclick="editarEstacion({{ estacion.id }})">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn-action-piedra" title="Eliminar" onclick="eliminarEstacion({{ estacion.id }}, '{{ estacion.nombre }}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center py-5">
-                                        <i class="fas fa-desktop fa-3x mb-3" style="color: #D4C4A8;"></i>
-                                        <h6 style="color: #8B7355;">No hay estaciones de trabajo registradas</h6>
-                                        <button class="btn btn-sm mt-2" style="background: #8B7355; color: white;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
-                                            <i class="fas fa-plus me-1"></i>Crear Primera Estación
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Paginación -->
-                    {% if page_obj.has_other_pages %}
-                    <div class="d-flex justify-content-center mt-4">
-                        <nav aria-label="Paginación">
-                            <ul class="pagination pagination-sm">
-                                {% if page_obj.has_previous %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" style="color: #8B7355;">&lsaquo;</a>
-                                    </li>
-                                {% endif %}
-                                
-                                <li class="page-item active">
-                                    <span class="page-link" style="background-color: #8B7355; border-color: #8B7355;">{{ page_obj.number }}</span>
-                                </li>
-                                
-                                {% if page_obj.has_next %}
-                                    <li class="page-item">
-                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" style="color: #8B7355;">&rsaquo;</a>
-                                    </li>
-                                {% endif %}
-                            </ul>
-                        </nav>
-                    </div>
-                    {% endif %}
+                <div class="d-flex align-items-center gap-2">
+                    <form method="get" class="d-flex align-items-center gap-1">
+                        <input type="text" name="search" class="form-control" placeholder="Buscar estación..." value="{{ search }}" style="width: 200px;">
+                        <button type="submit" class="btn btn-sm" style="background: #8B7355; border: none; color: #fff; font-size: 0.72rem; height: 26px;">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                    <button class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem; height: 26px;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
+                        <i class="fas fa-plus me-1"></i> Nueva Estación
+                    </button>
                 </div>
             </div>
+        </div>
+
+        <div class="card-body" style="padding: 8px 10px;">
+            <div class="table-responsive rounded-bottom" style="background: white;">
+                <table class="table-piedra tabla-nombre-completo mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 8%;">Nº</th>
+                            <th style="width: 16%;">Nombre</th>
+                            <th style="width: 12%;">Sucursal</th>
+                            <th style="width: 12%;">Modo POS</th>
+                            <th style="width: 14%;">Cierre</th>
+                            <th style="width: 18%;">Documentos</th>
+                            <th style="width: 8%;">Ticket</th>
+                            <th style="width: 6%;" class="text-center">Estado</th>
+                            <th style="width: 6%;" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for estacion in page_obj %}
+                        <tr>
+                            <td>
+                                <span style="display:inline-flex;width:24px;height:24px;background:#E8DCC8;border-radius:50%;align-items:center;justify-content:center;font-weight:700;color:#6F5B44;font-size:0.72rem;">
+                                    {{ estacion.numero }}
+                                </span>
+                            </td>
+                            <td class="td-nombre fw-bold">{{ estacion.nombre }}</td>
+                            <td>{{ estacion.sucursal.nombre|default:"Sin sucursal" }}</td>
+                            <td>
+                                <span class="badge-modo">
+                                    {% if estacion.modo_pos == 'con_cliente' %}Con cliente{% else %}Normal{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if estacion.cierre_directo %}
+                                    <span class="badge-cierre badge-cierre-on">Directo</span>
+                                    <span class="est-hint" style="display:inline;margin-left:4px;">
+                                        {% if estacion.flujo_cierre_directo == 'rut_inicio' %}RUT inicio{% else %}RUT final{% endif %}
+                                        {% if estacion.enviar_sii_directo %} · SII{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="badge-cierre badge-cierre-off">Manual</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% if estacion.puede_facturar %}<span class="badge-doc">Factura</span>{% endif %}
+                                    {% if estacion.puede_boletar %}<span class="badge-doc">Boleta</span>{% endif %}
+                                    {% if estacion.puede_guia %}<span class="badge-doc">Guía</span>{% endif %}
+                                    {% if estacion.puede_cotizar %}<span class="badge-doc">Cotiz.</span>{% endif %}
+                                    {% if estacion.puede_ticket %}<span class="badge-doc">Ticket</span>{% endif %}
+                                    {% if estacion.puede_vale %}<span class="badge-doc">Vale</span>{% endif %}
+                                </div>
+                            </td>
+                            <td style="font-family: 'Courier New', monospace; font-weight: 700; color: #6F5B44;">
+                                #{{ estacion.correlativo_ticket|stringformat:"06d" }}
+                            </td>
+                            <td class="text-center">
+                                <span class="estado-dot {% if estacion.activo %}estado-dot-activo{% else %}estado-dot-inactivo{% endif %}" title="{% if estacion.activo %}Activo{% else %}Inactivo{% endif %}"></span>
+                            </td>
+                            <td class="td-acciones text-center">
+                                <button class="ico-32" title="Ver" onclick="verEstacion({{ estacion.id }})"><i class="fas fa-eye"></i></button>
+                                <button class="ico-32" title="Editar" onclick="editarEstacion({{ estacion.id }})"><i class="fas fa-edit"></i></button>
+                                <button class="ico-32" title="Eliminar" onclick="eliminarEstacion({{ estacion.id }}, '{{ estacion.nombre|escapejs }}')"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-3">
+                                <i class="fas fa-desktop fa-2x mb-2" style="color: #D4C4A8;"></i>
+                                <div style="color: #8B7355; font-size: 0.85rem;">No hay estaciones de trabajo</div>
+                                <button class="btn btn-sm mt-2" style="background: #8B8B3A; color: white;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
+                                    <i class="fas fa-plus me-1"></i>Crear primera estación
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-center mt-2">
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}" style="color: #8B7355;">&lsaquo;</a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link" style="background-color: #8B7355; border-color: #8B7355;">{{ page_obj.number }}</span>
+                        </li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}" style="color: #8B7355;">&rsaquo;</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Modal Crear Estación -->
 <div class="modal fade" id="modalCrearEstacion" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content" style="border: none; border-radius: 15px; display: flex; flex-direction: column; max-height: 90vh;">
+        <div class="modal-content" style="border: none; border-radius: 8px; display: flex; flex-direction: column; max-height: 90vh;">
             <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid var(--color-piedra-borde); flex-shrink: 0;">
-                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto);">
-                    <i class="fas fa-desktop me-2"></i>Nueva Estación de Trabajo
+                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1rem;">
+                    <i class="fas fa-desktop me-2"></i>Nueva estación de trabajo
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="post" action="{% url 'ventas:estaciontrabajo_create' %}" id="formCrearEstacion" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
                 {% csrf_token %}
-                <div class="modal-body" style="padding: 25px; overflow-y: auto; flex: 1; min-height: 0;">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">Número de Estación *</label>
-                                <input type="text" name="numero" class="form-control" placeholder="Ej: 001" required maxlength="10">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label" style="font-weight: 600; color: #6F5B44;">Nombre *</label>
-                                <input type="text" name="nombre" class="form-control" placeholder="Ej: Caja Principal" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label" style="font-weight: 600; color: #6F5B44;">Descripción</label>
-                        <textarea name="descripcion" class="form-control" rows="2" placeholder="Descripción de la estación de trabajo"></textarea>
-                    </div>
-                    
-                    <div class="p-3 mb-3 rounded" style="background: #FAFAF8; border: 1px solid #E8DCC8;">
-                        <h6 style="color: #5D4037; font-weight: 600; margin-bottom: 15px; border-bottom: 1px solid #E8DCC8; padding-bottom: 8px;">
-                            <i class="fas fa-file-alt me-2"></i>Documentos Permitidos
-                        </h6>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="checkbox" name="puede_facturar" class="form-check-input" id="puedeFacturarCrear">
-                                    <label class="form-check-label" for="puedeFacturarCrear">Factura</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="checkbox" name="puede_boletar" class="form-check-input" id="puedeBoletarCrear" checked>
-                                    <label class="form-check-label" for="puedeBoletarCrear">Boleta</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="checkbox" name="puede_guia" class="form-check-input" id="puedeGuiaCrear">
-                                    <label class="form-check-label" for="puedeGuiaCrear">Guía</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="checkbox" name="puede_cotizar" class="form-check-input" id="puedeCotizarCrear" checked>
-                                    <label class="form-check-label" for="puedeCotizarCrear">Cotización</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="checkbox" name="puede_vale" class="form-check-input" id="puedeValeCrear">
-                                    <label class="form-check-label" for="puedeValeCrear">Vale</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label text-muted small fw-bold">Modo POS</label>
-                                <select name="modo_pos" class="form-select form-select-sm">
-                                    <option value="normal" selected>Normal</option>
-                                    <option value="con_cliente">Con Cliente</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label text-muted small fw-bold">Correlativo Ticket</label>
-                                <input type="number" name="correlativo_ticket" class="form-control form-control-sm" value="1" min="1">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label text-muted small fw-bold">Código Comodín</label>
-                        <input type="text" name="codigo_comodin" class="form-control form-control-sm" value="999999" placeholder="Para productos libres">
-                    </div>
-
-                    <h6 style="color: #5D4037; font-weight: 600; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #E8DCC8; padding-bottom: 5px;">
-                        <i class="fas fa-list-ol me-2"></i>Límites de Items
-                    </h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">Máx. Factura</label>
-                            <input type="number" name="max_items_factura" class="form-control form-control-sm" value="20">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">Máx. Boleta</label>
-                            <input type="number" name="max_items_boleta" class="form-control form-control-sm" value="35">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">Máx. Guía</label>
-                            <input type="number" name="max_items_guia" class="form-control form-control-sm" value="50">
-                        </div>
-                    </div>
-
-                    <h6 style="color: #5D4037; font-weight: 600; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #E8DCC8; padding-bottom: 5px;">
-                        <i class="fas fa-copy me-2"></i>Copias por Documento
-                    </h6>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">C. Factura</label>
-                            <input type="number" name="copias_factura" class="form-control form-control-sm" value="1">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">C. Boleta</label>
-                            <input type="number" name="copias_boleta" class="form-control form-control-sm" value="1">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">C. Guía</label>
-                            <input type="number" name="copias_guia" class="form-control form-control-sm" value="1">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">C. N. Crédito</label>
-                            <input type="number" name="copias_notacredito" class="form-control form-control-sm" value="1">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">C. Cotiz.</label>
-                            <input type="number" name="copias_cotizacion" class="form-control form-control-sm" value="1">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small mb-0">C. Ticket</label>
-                            <input type="number" name="copias_ticket" class="form-control form-control-sm" value="1">
-                        </div>
-                    </div>
-                    
-                    <div class="form-check form-switch ps-5 mt-3">
-                        <input type="checkbox" name="activo" class="form-check-input" id="activoCrear" checked>
-                        <label class="form-check-label fw-bold" for="activoCrear" style="color: #2e7d32;">Estación activa</label>
-                    </div>
+                <div class="modal-body" style="overflow-y: auto; flex: 1; min-height: 0;">
+                    {% include "ventas/_estaciontrabajo_campos.html" with form=form_crear %}
                 </div>
-                <div class="modal-footer" style="border-top: 1px solid #E8DCC8; padding: 15px 25px; background: #FAFAF8; flex-shrink: 0;">
+                <div class="modal-footer" style="border-top: 1px solid #E8DCC8; background: #FAFAF8; flex-shrink: 0;">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none;">
+                    <button type="submit" class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: white;">
                         <i class="fas fa-save me-1"></i>Guardar
                     </button>
                 </div>
@@ -456,52 +258,56 @@
     </div>
 </div>
 
-<!-- Modal Ver Estación -->
 <div class="modal fade" id="modalVerEstacion" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden;">
+        <div class="modal-content" style="border: none; border-radius: 8px; overflow: hidden;">
             <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid var(--color-piedra-borde);">
-                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto);">
-                    <i class="fas fa-desktop me-2"></i>Detalle de la Estación
+                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1rem;">
+                    <i class="fas fa-desktop me-2"></i>Detalle de la estación
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" style="padding: 25px; max-height: 70vh; overflow-y: auto;" id="detalleEstacion">
-                <!-- Se carga dinámicamente -->
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid #E8DCC8; padding: 15px 25px; background: #FAFAF8;">
+            <div class="modal-body" id="detalleEstacion"></div>
+            <div class="modal-footer" style="border-top: 1px solid #E8DCC8; background: #FAFAF8;">
                 <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Editar Estación -->
 <div class="modal fade" id="modalEditarEstacion" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="border: none; border-radius: 15px; overflow: hidden;">
+        <div class="modal-content" style="border: none; border-radius: 8px; overflow: hidden;">
             <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid var(--color-piedra-borde);">
-                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto);">
-                    <i class="fas fa-edit me-2"></i>Editar Estación de Trabajo
+                <h5 class="modal-title" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1rem;">
+                    <i class="fas fa-edit me-2"></i>Editar estación de trabajo
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" style="padding: 25px; max-height: 70vh; overflow-y: auto;" id="formEditarEstacion">
-                <!-- Se carga dinámicamente -->
-            </div>
-            <div class="modal-footer" style="border-top: 1px solid #E8DCC8; padding: 15px 25px; background: #FAFAF8;" id="footerEditarEstacion">
-                <!-- Se carga dinámicamente -->
-            </div>
+            <div class="modal-body" id="formEditarEstacion"></div>
+            <div class="modal-footer" style="border-top: 1px solid #E8DCC8; background: #FAFAF8;" id="footerEditarEstacion"></div>
         </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+function syncCierreDirecto(root) {
+    if (!root) return;
+    var chk = root.querySelector('[data-est-cierre]');
+    var extras = root.querySelector('.est-cierre-extras');
+    if (!chk || !extras) return;
+    extras.classList.toggle('is-off', !chk.checked);
+    if (!chk.dataset.bound) {
+        chk.addEventListener('change', function () { extras.classList.toggle('is-off', !chk.checked); });
+        chk.dataset.bound = '1';
+    }
+}
+
 function verEstacion(id) {
     fetch(`/ventas/estaciones-trabajo/${id}/`)
-        .then(response => response.text())
-        .then(html => {
+        .then(function (response) { return response.text(); })
+        .then(function (html) {
             document.getElementById('detalleEstacion').innerHTML = html;
             new bootstrap.Modal(document.getElementById('modalVerEstacion')).show();
         });
@@ -509,178 +315,109 @@ function verEstacion(id) {
 
 function editarEstacion(id) {
     fetch(`/ventas/estaciones-trabajo/${id}/editar/?v=${new Date().getTime()}`)
-        .then(response => {
-            if (response.ok) {
-                return response.text();
-            } else {
-                throw new Error('Error al cargar el formulario');
-            }
+        .then(function (response) {
+            if (!response.ok) throw new Error('Error al cargar el formulario');
+            return response.text();
         })
-        .then(html => {
+        .then(function (html) {
             document.getElementById('formEditarEstacion').innerHTML = html;
-            
-            // Generar footer del modal
-            const footerHtml = `
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-1"></i>Cancelar
-                </button>
-                <button type="submit" class="btn btn-sm" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white; border: none;" form="formEditarEstacionSubmit">
-                    <i class="fas fa-save me-1"></i>Guardar Cambios
-                </button>
-            `;
-            document.getElementById('footerEditarEstacion').innerHTML = footerHtml;
-            
-            const modal = new bootstrap.Modal(document.getElementById('modalEditarEstacion'));
-            modal.show();
-            
-            // Manejar envío del formulario
-            const form = document.getElementById('formEditarEstacionSubmit');
+            document.getElementById('footerEditarEstacion').innerHTML =
+                '<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>' +
+                '<button type="submit" class="btn btn-sm" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;" form="formEditarEstacionSubmit">' +
+                '<i class="fas fa-save me-1"></i>Guardar cambios</button>';
+            new bootstrap.Modal(document.getElementById('modalEditarEstacion')).show();
+            var form = document.getElementById('formEditarEstacionSubmit');
             if (form) {
-                // Remover listeners anteriores si existen
                 form.removeEventListener('submit', handleFormSubmit);
                 form.addEventListener('submit', handleFormSubmit);
-                
-                // Asegurar que el modal se cierre correctamente al hacer clic en cancelar
-                const cancelBtn = document.querySelector('#modalEditarEstacion .btn-secondary');
-                if (cancelBtn) {
-                    cancelBtn.addEventListener('click', function() {
-                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEstacion'));
-                        if (modal) {
-                            modal.hide();
-                            setTimeout(() => {
-                                document.getElementById('formEditarEstacion').innerHTML = '';
-                                document.getElementById('footerEditarEstacion').innerHTML = '';
-                            }, 300);
-                        }
-                    });
-                }
+                syncCierreDirecto(form);
             }
         })
-        .catch(error => {
-            console.error('Error:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Error al cargar el formulario de edición'
-            });
+        .catch(function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Error al cargar el formulario de edición' });
         });
 }
 
 function handleFormSubmit(e) {
     e.preventDefault();
-    const form = e.target;
-    const formData = new FormData(form);
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEstacion'));
-    
+    var form = e.target;
+    var formData = new FormData(form);
+    var modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarEstacion'));
     fetch(form.action, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    }).then(response => {
-        if (response.headers.get('content-type')?.includes('application/json')) {
-            return response.json();
-        } else {
-            return { success: true, message: 'Operación completada' };
-        }
-    })
-    .then(data => {
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    }).then(function (response) { return response.json(); })
+    .then(function (data) {
         if (data.success) {
-            if (modal) {
-                modal.hide();
-                setTimeout(() => {
-                    document.getElementById('formEditarEstacion').innerHTML = '';
-                    document.getElementById('footerEditarEstacion').innerHTML = '';
-                }, 300);
-            }
-            Swal.fire({
-                title: '¡Éxito!',
-                text: 'Estación de trabajo actualizada exitosamente',
-                icon: 'success',
-                timer: 1500,
-                showConfirmButton: false
-            }).then(() => location.reload());
+            if (modal) modal.hide();
+            Swal.fire({ title: 'Guardado', text: 'Estación actualizada', icon: 'success', timer: 1400, showConfirmButton: false })
+                .then(function () { location.reload(); });
         } else {
-            Swal.fire('Error', data.message || 'Error al actualizar', 'error');
+            var msg = data.message || 'Revisa los datos de la estación';
+            if (data.errors) {
+                msg = Object.keys(data.errors).map(function (k) { return k + ': ' + data.errors[k]; }).join('\n');
+            }
+            Swal.fire('Error', msg, 'error');
         }
-    }).catch(error => {
-        console.error(error);
-        Swal.fire('Error', 'Ocurrió un error al procesar la solicitud', 'error');
+    }).catch(function () {
+        Swal.fire('Error', 'No se pudo guardar la estación', 'error');
     });
 }
 
 function eliminarEstacion(id, nombre) {
     Swal.fire({
-        title: '¿Eliminar Estación?',
-        html: `¿Estás seguro de eliminar <strong>${nombre}</strong>?`,
+        title: '¿Eliminar estación?',
+        html: '¿Eliminar <strong>' + nombre + '</strong>?',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6c757d',
+        confirmButtonColor: '#C76F43',
+        cancelButtonColor: '#8B7355',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch(`/ventas/estaciones-trabajo/${id}/eliminar/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                }
-            }).then(response => {
-                 if (response.ok) {
-                    Swal.fire({
-                        title: '¡Eliminado!',
-                        text: 'La estación de trabajo ha sido eliminada.',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire('Error', 'No se pudo eliminar la estación.', 'error');
-                }
-            });
-        }
+    }).then(function (result) {
+        if (!result.isConfirmed) return;
+        fetch(`/ventas/estaciones-trabajo/${id}/eliminar/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        }).then(function (response) {
+            if (response.ok) {
+                Swal.fire({ title: 'Eliminada', icon: 'success', timer: 1400, showConfirmButton: false })
+                    .then(function () { location.reload(); });
+            } else {
+                Swal.fire('Error', 'No se pudo eliminar la estación.', 'error');
+            }
+        });
     });
 }
 
-// Manejar envío del formulario de creación
-document.getElementById('formCrearEstacion').addEventListener('submit', function(e) {
+document.getElementById('formCrearEstacion').addEventListener('submit', function (e) {
     e.preventDefault();
-    const formData = new FormData(this);
-    
+    var formData = new FormData(this);
     fetch(this.action, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    }).then(response => {
-        if (response.ok) {
-             return { success: true };
-        } else {
-             throw new Error('Error en la respuesta');
-        }
-    }).then(data => {
-        if (data.success) {
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    }).then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+    .then(function (res) {
+        if (res.data.success) {
             bootstrap.Modal.getInstance(document.getElementById('modalCrearEstacion')).hide();
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: 'Estación de trabajo creada exitosamente',
-                timer: 2000,
-                showConfirmButton: false
-            }).then(() => location.reload());
+            Swal.fire({ icon: 'success', title: 'Creada', text: 'Estación de trabajo creada', timer: 1600, showConfirmButton: false })
+                .then(function () { location.reload(); });
+        } else {
+            var msg = res.data.message || 'Revisa los datos de la estación';
+            if (res.data.errors) {
+                msg = Object.keys(res.data.errors).map(function (k) { return k + ': ' + res.data.errors[k]; }).join('\n');
+            }
+            Swal.fire('Error', msg, 'error');
         }
-    }).catch(error => {
-        console.error(error);
+    }).catch(function () {
         Swal.fire('Error', 'Error al crear la estación', 'error');
     });
 });
 
-// Manejar mensajes
+syncCierreDirecto(document.getElementById('formCrearEstacion'));
+
 {% if messages %}
     {% for message in messages %}
         Swal.fire({

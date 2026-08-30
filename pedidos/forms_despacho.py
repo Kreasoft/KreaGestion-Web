@@ -88,26 +88,68 @@ class OrdenDespachoForm(forms.ModelForm):
             self.fields['tipo_documento'].widget = forms.HiddenInput()
 
         if empresa:
-            # Filtrar solo pedidos que tengan saldo pendiente real
-            from django.db.models import Sum, F, Q, Count, Subquery, OuterRef
-            
-            # Subconsulta para identificar pedidos que ya están totalmente despachados o completados
-            self.fields['orden_pedido'].queryset = OrdenPedido.objects.filter(
-                empresa=empresa, 
-                estado__in=['confirmada', 'en_proceso', 'preparando_despacho']
-            ).alias(
-                cant_total=Sum('items__cantidad'),
-                cant_despachada=Sum('items__despachos__cantidad')
-            ).filter(
-                # Mostrar solo donde la cantidad despachada sea nula o menor a la solicitada
-                Q(cant_despachada__isnull=True) | Q(cant_despachada__lt=F('cant_total'))
-            ).select_related('cliente').order_by('-fecha_creacion')
+            from django.db.models import Q
             from .models_transporte import Chofer, Vehiculo
+
+            pedidos_qs = OrdenPedido.con_saldo_pendiente(empresa=empresa)
+
+            pedido_actual_id = None
+            if self.data:
+                pedido_actual_id = self.data.get(self.add_prefix('orden_pedido'))
+            elif self.instance and getattr(self.instance, 'orden_pedido_id', None):
+                pedido_actual_id = self.instance.orden_pedido_id
+            elif self.initial.get('orden_pedido'):
+                inicial = self.initial.get('orden_pedido')
+                pedido_actual_id = getattr(inicial, 'pk', inicial)
+
+            if pedido_actual_id:
+                pedidos_qs = OrdenPedido.objects.filter(empresa=empresa).filter(
+                    Q(pk__in=pedidos_qs.values('pk')) | Q(pk=pedido_actual_id)
+                )
+
+            self.fields['orden_pedido'].queryset = pedidos_qs.select_related('cliente').order_by('-fecha_creacion')
             self.fields['chofer'].queryset = Chofer.objects.filter(empresa=empresa, activo=True).order_by('nombre')
             self.fields['vehiculo'].queryset = Vehiculo.objects.filter(empresa=empresa, activo=True).order_by('patente')
 
-        if self.initial.get('orden_pedido'):
-            self.fields['orden_pedido'].widget = forms.HiddenInput()
+        self.fields['orden_pedido'].empty_label = 'Seleccione un pedido'
+        self.fields['orden_pedido'].widget.attrs.pop('required', None)
+
+        self.fields['chofer'].required = False
+        self.fields['vehiculo'].required = False
+        self.fields['tipo_traslado'].required = False
+        self.fields['direccion_entrega'].required = False
+
+    def clean_orden_pedido(self):
+        pedido = self.cleaned_data.get('orden_pedido')
+        if pedido and pedido.estado in ('completada', 'cancelada'):
+            raise forms.ValidationError(
+                'Este pedido está %s y no admite nuevos despachos.' % pedido.get_estado_display().lower()
+            )
+        if pedido and not pedido.tiene_saldo_pendiente():
+            mismo_pedido = (
+                self.instance
+                and self.instance.pk
+                and self.instance.orden_pedido_id == pedido.pk
+            )
+            if not mismo_pedido:
+                raise forms.ValidationError(
+                    'Este pedido no tiene saldo pendiente por despachar.'
+                )
+        return pedido
+
+    def clean(self):
+        cleaned = super().clean()
+        tipo = cleaned.get('tipo_documento')
+        if tipo == 'guia':
+            if not cleaned.get('tipo_traslado'):
+                self.add_error('tipo_traslado', 'Obligatorio en guía de despacho.')
+            if not cleaned.get('chofer'):
+                self.add_error('chofer', 'Obligatorio en guía de despacho.')
+            if not cleaned.get('vehiculo'):
+                self.add_error('vehiculo', 'Obligatorio en guía de despacho.')
+            if not (cleaned.get('direccion_entrega') or '').strip():
+                self.add_error('direccion_entrega', 'Obligatorio en guía de despacho.')
+        return cleaned
 
 
 class DetalleOrdenDespachoForm(forms.ModelForm):
@@ -181,9 +223,9 @@ DetalleOrdenDespachoFormSet = inlineformset_factory(
     OrdenDespacho,
     DetalleOrdenDespacho,
     form=DetalleOrdenDespachoForm,
-    extra=1,
+    extra=0,
     can_delete=True,
-    min_num=1,
-    validate_min=True,
+    min_num=0,
+    validate_min=False,
 )
 

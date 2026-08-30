@@ -39,9 +39,9 @@
         /* Cabecera */
         .header {
             text-align: center;
-            border-bottom: 2px dashed #000;
-            padding-bottom: 3mm;
-            margin-bottom: 3mm;
+            padding-bottom: 2mm;
+            margin-bottom: 1mm;
+            border: 0;
         }
 
         .company-logo {
@@ -54,43 +54,38 @@
             font-size: 11pt;
             font-weight: bold;
             margin-bottom: 1mm;
+            border: none;
         }
 
         .company-info {
             font-size: 8pt;
             line-height: 1.3;
+            border: none;
         }
 
-        .company-rut {
-            font-size: 9pt;
-            font-weight: bold;
-            margin: 2mm 0;
-        }
-
-        /* Cuadro del Documento */
-        .document-box {
+        /* Un solo recuadro SII: RUT + tipo + folio */
+        table.sii-id-box {
+            width: 100%;
             border: 2px solid #000;
-            padding: 2mm;
-            text-align: center;
-            margin: 3mm 0;
-            background: #fff;
+            border-collapse: collapse;
+            margin: 3mm 0 2mm 0;
         }
 
-        .document-type {
+        table.sii-id-box td {
+            border: 0;
+            text-align: center;
+            padding: 2.5mm 2mm;
+            background: #fff;
             font-size: 10pt;
             font-weight: bold;
-            margin-bottom: 1mm;
+            line-height: 1.35;
         }
 
-        .document-folio {
-            font-size: 12pt;
-            font-weight: bold;
-            margin-bottom: 1mm;
-        }
-
-        .document-fecha {
+        .document-meta {
+            text-align: center;
             font-size: 8pt;
-            margin-top: 1mm;
+            margin-bottom: 2mm;
+            border: none;
         }
 
         /* Datos del Cliente (más simple para boletas) */
@@ -162,6 +157,16 @@
             padding: 1mm 0;
         }
 
+        .total-row-separated {
+            margin-top: 2.2mm;
+            padding-top: 2.1mm;
+            border-top: 1px dotted #999;
+        }
+
+        .total-row-emphasis {
+            font-size: 9.7pt;
+        }
+
         .total-label {
             font-weight: bold;
         }
@@ -230,6 +235,7 @@
 </head>
 
 <body>
+    {% include "includes/visor_acciones.html" %}
     {% for i in copias_range %}
     <div class="ticket-container {% if not forloop.last %}page-break{% endif %}">
 
@@ -239,45 +245,44 @@
             <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo">
             {% endif %}
 
-            <div class="company-name">{{ venta.empresa.nombre }}</div>
-            <div class="company-rut">RUT: {{ venta.empresa.rut }}</div>
+            <div class="company-name">{{ venta.empresa.nombre|default:dte.empresa.nombre }}</div>
             <div class="company-info">
                 {{ venta.empresa.get_direccion_dte }}<br>
-                {{ venta.empresa.get_ciudad_dte }}<br>
+                {{ venta.empresa.get_comuna_dte }}{% if venta.empresa.get_comuna_dte and venta.empresa.get_ciudad_dte %}, {% endif %}{{ venta.empresa.get_ciudad_dte }}<br>
                 Fono: {{ venta.empresa.telefono|default:"Sin teléfono" }}
             </div>
         </div>
 
-        <!-- CUADRO DEL DOCUMENTO -->
-        <div class="document-box">
-            <div class="document-type">BOLETA ELECTRÓNICA</div>
-            <div class="document-folio">
-                {% if dte and dte.folio %}
-                N° {{ dte.folio }}
-                {% else %}
-                N° {{ venta.numero_venta }}
-                {% endif %}
-            </div>
-            <div class="document-fecha">
-                {% load l10n %}
-                {{ venta.fecha_creacion|date:"d/m/Y H:i" }}
-            </div>
-            <div style="font-size: 7pt; margin-top: 1mm;">
-                SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}
-            </div>
+        <table class="sii-id-box" cellspacing="0" cellpadding="0" width="100%">
+            <tr>
+                <td align="center" style="border: 0;">
+                    RUT {{ dte.rut_emisor|default:venta.empresa.rut }}<br>
+                    BOLETA ELECTRÓNICA<br>
+                    {% if dte and dte.folio %}N° {{ dte.folio }}{% else %}N° {{ venta.numero_venta }}{% endif %}
+                </td>
+            </tr>
+        </table>
+        <div class="document-meta">
+            {% load l10n %}
+            {{ venta.fecha_creacion|date:"d-m-Y H:i" }}<br>
+            SII - {{ venta.empresa.oficina_sii|default:venta.empresa.get_ciudad_dte|upper }}
             {% if dte and dte.folio and venta.numero_venta %}
-            <div style="font-size: 8pt; margin-top: 1mm; font-weight: bold; border-top: 1px dotted #000; padding-top: 1mm;">
-                VALE REF: #{{ venta.numero_venta }}
-            </div>
+            <br>VALE REF: #{{ venta.numero_venta }}
             {% endif %}
         </div>
 
         <!-- DATOS DEL CLIENTE (Simple para boletas) -->
-        {% if venta.cliente.nombre and venta.cliente.nombre != "Cliente General" %}
+        {% if receptor_display.nombre and receptor_display.nombre != "Cliente General" %}
         <div class="cliente-section">
-            <strong>Cliente:</strong> {{ venta.cliente.nombre }}<br>
-            {% if venta.cliente.rut %}
-            <strong>RUT:</strong> {{ venta.cliente.rut }}
+            <strong>Cliente:</strong> {{ receptor_display.nombre }}<br>
+            {% if receptor_display.rut %}
+            <strong>RUT:</strong> {{ receptor_display.rut }}<br>
+            {% endif %}
+            {% if receptor_display.direccion %}
+            <strong>Dirección:</strong> {{ receptor_display.direccion }}<br>
+            {% endif %}
+            {% if receptor_display.comuna or receptor_display.ciudad %}
+            <strong>Ciudad:</strong> {{ receptor_display.comuna|default:"-" }}{% if receptor_display.comuna and receptor_display.ciudad %}, {% endif %}{{ receptor_display.ciudad|default:"-" }}
             {% endif %}
         </div>
         {% endif %}
@@ -288,10 +293,10 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 8pt; table-layout: fixed;">
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1mm 2mm 1mm 0; vertical-align: bottom;">
+                    <td style="width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 1.35mm 2mm 1.35mm 0; vertical-align: bottom;">
                         <strong>{{ detalle.cantidad|floatformat:0 }}</strong> {{ detalle.articulo.nombre }}
                     </td>
-                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1mm 0; vertical-align: bottom;">
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 1.35mm 0; vertical-align: bottom;">
                         ${{ detalle.precio_total|format_miles }}
                     </td>
                 </tr>
@@ -311,11 +316,11 @@
                 <span class="total-value">-${{ venta.descuento|format_miles }}</span>
             </div>
             {% endif %}
-            <div class="total-row">
+            <div class="total-row total-row-emphasis">
                 <span class="total-label">Neto:</span>
                 <span class="total-value">${{ venta.neto|format_miles }}</span>
             </div>
-            <div class="total-row">
+            <div class="total-row total-row-separated total-row-emphasis">
                 <span class="total-label">IVA (19%):</span>
                 <span class="total-value">${{ venta.iva|format_miles }}</span>
             </div>
@@ -355,7 +360,7 @@
             {% for ref in venta.referencias.all %}
             <div style="font-size: 7pt; margin-bottom: 1mm; padding: 1mm; background: #f5f5f5; border-radius: 2mm;">
                 <div><strong>Tipo:</strong> {{ ref.get_tipo_referencia_display }}</div>
-                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d/m/Y" }}</div>
+                <div><strong>Folio:</strong> {{ ref.folio_referencia }} | <strong>Fecha:</strong> {{ ref.fecha_referencia|date:"d-m-Y" }}</div>
                 {% if ref.razon_referencia %}
                 <div style="font-size: 6pt; color: #666;"><strong>Razón:</strong> {{ ref.razon_referencia|truncatewords:10 }}</div>
                 {% endif %}
@@ -390,25 +395,14 @@
         <!-- FOOTER -->
         <div class="footer">
             {{ venta.empresa.nombre }}<br>
-            Impreso: {{ venta.fecha_creacion|date:"d/m/Y H:i" }}<br>
+            Impreso: {{ venta.fecha_creacion|date:"d-m-Y H:i" }}<br>
             Gracias por su compra
         </div>
 
     </div>
     {% endfor %}
 
-    <!-- Botones de acción (solo en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 5mm; padding: 3mm;">
-        <button onclick="window.print()"
-            style="padding: 5px 15px; font-size: 10pt; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            🖨️ Imprimir
-        </button>
-        <button id="btn-cerrar" onclick="safeCloseWindow()"
-            style="padding: 5px 15px; font-size: 10pt; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 2px;">
-            ← Volver
-        </button>
-    </div>
-
+    {% include "includes/cerrar_visor.html" %}
     <script>
         // Parámetros URL globales
         const urlParams = new URLSearchParams(window.location.search);
@@ -421,46 +415,7 @@
         console.log('[DTE AUTO] Config:', { autoPrint, autoClose, autoCloseDelay, returnUrl, nCopiasConfig });
 
         function safeCloseWindow() {
-            const params = new URLSearchParams(window.location.search);
-            const returnUrl = params.get('return_url');
-            const referrer = document.referrer;
-
-            console.log('[DTE] Cerrando ventana vinculada al POS...');
-
-            // SI HAY OPENER (POPUP), CERRAR INSTANTÁNEAMENTE PARA NO RECARGAR EL POS
-            if (window.opener) {
-                try {
-                    window.close();
-                    setTimeout(() => {
-                        if (!window.closed) {
-                            if (returnUrl) window.location.href = decodeURIComponent(returnUrl);
-                            else window.close();
-                        }
-                    }, 100);
-                } catch (e) { console.log(e); }
-                return;
-            }
-
-            // PRIORIDAD: return_url
-            if (returnUrl) {
-                window.location.href = decodeURIComponent(returnUrl);
-                return;
-            }
-
-            // Fallback: usar referrer si viene del POS
-            if (referrer && referrer.includes('/pos/')) {
-                console.log('[DTE AUTO] Volviendo al POS (referrer)');
-                window.location.href = referrer;
-                return;
-            }
-            
-            // Fallback: volver atrás
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                console.log('[DTE AUTO] Fallback a Libro de Ventas');
-                window.location.href = "{% url 'facturacion_electronica:dte_list' %}";
-            }
+            cerrarVisor({ fallbackUrl: "{% url 'facturacion_electronica:dte_list' %}" });
         }
 
         // Auto-ejecuci?n

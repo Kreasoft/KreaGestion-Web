@@ -114,72 +114,69 @@ class FirmadorDTE:
     
     def firmar_xml(self, xml_string):
         """
-        Firma un XML según el estándar XMLDSig del SII
-        
-        Args:
-            xml_string: String con el XML a firmar
-            
-        Returns:
-            str: XML firmado
+        Firma un DTE con el perfil XMLDSig que valida el SII.
+
+        La libreria signxml agrega prefijos ds:, dos transforms y deja X509Data
+        antes de KeyValue en algunos casos; el XSD del SII rechaza esa forma.
+        Usamos el mismo bloque manual del empaquetador Krea: Signature sin prefijo,
+        un unico transform C14N y KeyValue antes de X509Data.
         """
         try:
-            # Parsear el XML
-            if isinstance(xml_string, str):
-                xml_string = xml_string.encode('ISO-8859-1')
-            
-            # Parser robusto para evitar fragmentación o mala lectura
-            parser = etree.XMLParser(remove_blank_text=True, encoding='ISO-8859-1', recover=True)
-            root = etree.fromstring(xml_string, parser=parser)
-            
-            # Buscar el elemento Documento que debe ser firmado
+            import re
+            from .generador_envio import (
+                _calcular_digest_elemento,
+                _construir_signature_c14n_referencia,
+            )
+
+            xml_out = xml_string if isinstance(xml_string, str) else xml_string.decode('ISO-8859-1')
+            xml_bytes = xml_out.encode('ISO-8859-1')
+            parser = etree.XMLParser(remove_blank_text=False, encoding='ISO-8859-1')
+            root = etree.fromstring(xml_bytes, parser=parser)
+
             documento = root.find('.//{http://www.sii.cl/SiiDte}Documento')
             if documento is None:
                 documento = root.find('.//Documento')
-            
             if documento is None:
-                raise ValueError("No se encontró el elemento Documento en el XML")
-            
-            # Crear el firmador
-            # Nota: El SII de Chile requiere SHA1, aunque esté deprecado
-            # Monkey-patch para permitir SHA1 (requerido por SII Chile)
-            import signxml.signer
-            original_check = signxml.signer.XMLSigner.check_deprecated_methods
-            signxml.signer.XMLSigner.check_deprecated_methods = lambda self: None
-            
-            signer = XMLSigner(
-                method=methods.enveloped,
-                signature_algorithm="rsa-sha1",
-                digest_algorithm="sha1",
-                c14n_algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+                raise ValueError("No se encontro el elemento Documento en el XML")
+
+            document_id = documento.get('ID')
+            if not document_id:
+                raise ValueError("El elemento Documento no tiene ID para firmar")
+
+            digest_b64 = _calcular_digest_elemento(documento, aplicar_enveloped=False)
+            signature_block = _construir_signature_c14n_referencia(
+                f"#{document_id}",
+                digest_b64,
+                self.private_key,
+                self.certificate,
             )
-            
-            # Restaurar el check original (buena práctica)
-            signxml.signer.XMLSigner.check_deprecated_methods = original_check
-            
-            # Firmar el documento
-            signed_root = signer.sign(
-                root,
-                key=self.private_key,
-                cert=[self.certificate],  # signxml espera una lista de certificados
-                reference_uri=f"#{documento.get('ID')}"
+
+            xml_sin_declaracion = re.sub(r'^\s*<\?xml[^?]*\?>\s*', '', xml_out).strip()
+            xml_sin_firmas = re.sub(
+                r'<(?:\w+:)?Signature\b[^>]*>.*?</(?:\w+:)?Signature>',
+                '',
+                xml_sin_declaracion,
+                flags=re.DOTALL,
+            ).strip()
+
+            cierre_dte = re.search(r'</(?:\w+:)?DTE>\s*$', xml_sin_firmas)
+            if not cierre_dte:
+                raise ValueError("No se encontro cierre DTE para insertar Signature")
+
+            xml_firmado = (
+                '<?xml version="1.0" encoding="ISO-8859-1"?>\n'
+                + xml_sin_firmas[:cierre_dte.start()]
+                + signature_block
+                + xml_sin_firmas[cierre_dte.start():]
             )
-            
-            # Convertir a string
-            xml_firmado = etree.tostring(
-                signed_root,
-                pretty_print=False,
-                xml_declaration=True,
-                encoding='ISO-8859-1'
-            ).decode('ISO-8859-1')
-            
-            print(f"XML firmado exitosamente")
-            
+
+            print("XML firmado exitosamente")
             return xml_firmado
-            
+
         except Exception as e:
             print(f"ERROR al firmar XML: {str(e)}")
             raise
-    
+
     def generar_ted(self, dte_data, caf_data):
         """
         Genera el Timbre Electrónico Digital (TED)

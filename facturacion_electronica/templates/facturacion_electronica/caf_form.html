@@ -3,18 +3,34 @@
 
 {% block title %}Cargar CAF{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select, input[type="text"], input[type="email"], input[type="number"], input[type="password"], input[type="tel"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+        height: 26px !important; min-height: 26px !important; padding: 2px 8px !important;
+        font-size: 0.72rem !important; border-color: #D4C4A8 !important;
+    }
+    textarea, textarea.form-control { height: auto !important; min-height: 52px !important; }
+    .form-control:focus, .form-select:focus, input:focus, select:focus, textarea:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; outline: none;
+    }
+    .form-label { font-size: 0.72rem; color: #5D4037; font-weight: 600; margin-bottom: 2px; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
+<div class="container" style="padding: 8px 12px;">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header" style="background: linear-gradient(135deg, #6B4423 0%, #8B5A3C 100%);">
-                    <h5 class="mb-0 text-white">
+            <div class="card shadow-sm" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
+                    <h5 class="mb-0" style="color: var(--color-piedra-texto, #5D4037); font-size: 1.15rem;">
                         <i class="fas fa-upload me-2"></i>
                         Cargar Archivo CAF
                     </h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-2" style="background: #FAFAF8;">
                     <form method="post" enctype="multipart/form-data">
                         {% csrf_token %}
 
@@ -24,7 +40,7 @@
                         </div>
                         {% endif %}
 
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <label for="{{ form.sucursal.id_for_label }}" class="form-label">
                                 {{ form.sucursal.label }}
                                 <span class="text-danger">*</span>
@@ -38,7 +54,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <label for="{{ form.tipo_documento.id_for_label }}" class="form-label">
                                 {{ form.tipo_documento.label }}
                                 <span class="text-danger">*</span>
@@ -50,6 +66,15 @@
                             {% if form.tipo_documento.errors %}
                             <div class="text-danger">{{ form.tipo_documento.errors }}</div>
                             {% endif %}
+                        </div>
+
+                        {{ form.ambiente }}
+                        <div class="mb-2">
+                            <label class="form-label">Ambiente SII</label>
+                            <div class="form-control" style="background: #F5F1E8; border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600;">
+                                {{ ambiente_actual_empresa|title }}
+                            </div>
+                            <small class="form-text text-muted">Se respeta siempre el ambiente configurado en los datos de la empresa.</small>
                         </div>
 
                         <div class="row">
@@ -76,7 +101,7 @@
                             </div>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <label for="{{ form.archivo_xml.id_for_label }}" class="form-label">
                                 {{ form.archivo_xml.label }}
                                 <span class="text-danger">*</span>
@@ -90,10 +115,11 @@
                             {% endif %}
                         </div>
 
-                        <div class="alert alert-info">
+                        <div class="alert" style="background: #F5F1E8; border: 1px solid #D4C4A8; color: #6F5B44;">
                             <h6><i class="fas fa-info-circle"></i> Instrucciones:</h6>
                             <ol class="mb-0">
                                 <li>Seleccione la sucursal y el tipo de documento.</li>
+                                <li>El ambiente se toma automáticamente desde la empresa activa.</li>
                                 <li>Cargue el archivo XML descargado del SII.</li>
                                 <li>El sistema extraerá automáticamente los datos, pero usted puede ajustar las fechas manualmente si lo requiere.</li>
                                 <li>La <strong>Fecha de Vencimiento</strong> se calcula automáticamente a 6 meses desde la autorización.</li>
@@ -126,7 +152,7 @@
                             <a href="{% url 'facturacion_electronica:listar_cafs' %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Volver
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn text-white" style="background: var(--gradient-piedra); border: none; box-shadow: 0 4px 8px rgba(139, 115, 85, 0.20);">
                                 <i class="fas fa-save"></i> Cargar CAF
                             </button>
                         </div>

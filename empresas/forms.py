@@ -10,12 +10,24 @@ class EmpresaForm(forms.ModelForm):
         widget=forms.PasswordInput(attrs={'class': 'form-control'}),
         help_text='Solo completar si desea cambiar la contraseña'
     )
+    smtp_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dejar en blanco para mantener la actual',
+            'autocomplete': 'new-password',
+        }),
+        help_text='Gmail: contraseña de aplicación. Vacío = no cambiar.',
+    )
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Hacer campos opcionales que pueden tener valores por defecto
         self.fields['giro'].required = False
         self.fields['sitio_web'].required = False
+        for campo in ('smtp_host', 'smtp_puerto', 'smtp_usuario', 'smtp_password', 'smtp_usar_tls'):
+            if campo in self.fields:
+                self.fields[campo].required = False
         
         # Establecer valores por defecto para campos opcionales cuando es creación
         if not self.instance.pk:  # Si es creación (no tiene pk)
@@ -33,7 +45,26 @@ class EmpresaForm(forms.ModelForm):
                 self.fields['max_descuento_total'].initial = 0
             if 'alerta_folios_minimos' not in self.data:
                 self.fields['alerta_folios_minimos'].initial = 10
+        elif self.instance.pk and not (self.instance.smtp_usuario or '').strip():
+            self.fields['smtp_usuario'].initial = self.instance.email or ''
     
+    def clean_codigo_actividad_economica(self):
+        from facturacion_electronica.validacion_envio import normalizar_acteco
+        valor = (self.cleaned_data.get('codigo_actividad_economica') or '').strip()
+        if not valor:
+            fe_activa = self.cleaned_data.get('facturacion_electronica')
+            if fe_activa is None:
+                fe_activa = getattr(self.instance, 'facturacion_electronica', False)
+            if fe_activa:
+                raise ValidationError(
+                    'El código de actividad económica (Acteco) es obligatorio. El SII no acepta 0.'
+                )
+            return ''
+        normalizado = normalizar_acteco(valor)
+        if not normalizado:
+            raise ValidationError('El Acteco debe ser un número mayor a 0 (código SII, ej. 620200).')
+        return normalizado
+
     def clean_regimen_tributario(self):
         """Corregir valores inválidos de regimen_tributario"""
         valor = self.cleaned_data.get('regimen_tributario')
@@ -55,12 +86,18 @@ class EmpresaForm(forms.ModelForm):
     
     def save(self, commit=True):
         instance = super().save(commit=False)
-        # Si no se proporcionó password, mantener el existente
-        if not self.cleaned_data.get('password_certificado'):
-            if self.instance.pk:  # Si es edición
-                # Recuperar el password anterior de la BD
-                original = Empresa.objects.get(pk=self.instance.pk)
+        if self.instance.pk:
+            original = Empresa.objects.get(pk=self.instance.pk)
+            if not self.cleaned_data.get('password_certificado'):
                 instance.password_certificado = original.password_certificado
+            if 'smtp_usuario' not in self.data:
+                instance.smtp_host = original.smtp_host
+                instance.smtp_puerto = original.smtp_puerto
+                instance.smtp_usuario = original.smtp_usuario
+                instance.smtp_password = original.smtp_password
+                instance.smtp_usar_tls = original.smtp_usar_tls
+            elif not self.cleaned_data.get('smtp_password'):
+                instance.smtp_password = original.smtp_password
         if commit:
             instance.save()
         return instance
@@ -70,7 +107,8 @@ class EmpresaForm(forms.ModelForm):
         fields = [
             'nombre', 'razon_social', 'rut', 'giro',
             'direccion', 'comuna', 'ciudad', 'region',
-            'telefono', 'email', 'sitio_web', 'logo',
+            'telefono', 'email', 'smtp_host', 'smtp_puerto', 'smtp_usuario', 'smtp_password',
+            'smtp_usar_tls', 'sitio_web', 'logo',
             'regimen_tributario', 'tipo_industria', 'usa_produccion', 'usa_sistema_despacho',
             'max_descuento_lineal', 'max_descuento_total',
             'facturacion_electronica',
@@ -93,6 +131,10 @@ class EmpresaForm(forms.ModelForm):
             'region': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'telefono': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'required': True}),
+            'smtp_host': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'smtp.gmail.com'}),
+            'smtp_puerto': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'smtp_usuario': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'tucorreo@gmail.com'}),
+            'smtp_usar_tls': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'sitio_web': forms.URLInput(attrs={'class': 'form-control'}),
             'logo': forms.FileInput(attrs={'class': 'form-control'}),
             'regimen_tributario': forms.Select(attrs={'class': 'form-select'}),
@@ -163,26 +205,23 @@ class FacturacionElectronicaForm(forms.ModelForm):
         if 'resolucion_fecha' in self.fields:
             self.fields['resolucion_fecha'].input_formats = ['%Y-%m-%d']
     
+    def clean_codigo_actividad_economica(self):
+        from facturacion_electronica.validacion_envio import normalizar_acteco
+        valor = (self.cleaned_data.get('codigo_actividad_economica') or '').strip()
+        if not valor:
+            raise ValidationError(
+                'El código de actividad económica (Acteco) es obligatorio. El SII no acepta 0.'
+            )
+        normalizado = normalizar_acteco(valor)
+        if not normalizado:
+            raise ValidationError('El Acteco debe ser un número mayor a 0 (código SII, ej. 620200).')
+        return normalizado
+
     def save(self, commit=True):
         instance = super().save(commit=False)
-        # Si no se proporcionó password, mantener el existente
-        if not self.cleaned_data.get('password_certificado'):
-            if self.instance.pk:  # Si es edición
-                # Recuperar el password anterior de la BD
-                original = Empresa.objects.get(pk=self.instance.pk)
-                instance.password_certificado = original.password_certificado
-        # Si no se proporcionó api_key, mantener el existente
-        if not self.cleaned_data.get('api_key'):
-            if self.instance.pk:  # Si es edición
-                # Recuperar el api_key anterior de la BD
-                original = Empresa.objects.get(pk=self.instance.pk)
-                instance.api_key = original.api_key
-        # Si no se proporcionó dtebox_auth_key, mantener el existente
-        if not self.cleaned_data.get('dtebox_auth_key'):
-            if self.instance.pk:  # Si es edición
-                # Recuperar el dtebox_auth_key anterior de la BD
-                original = Empresa.objects.get(pk=self.instance.pk)
-                instance.dtebox_auth_key = original.dtebox_auth_key
+        if not self.cleaned_data.get('password_certificado') and self.instance.pk:
+            original = Empresa.objects.get(pk=self.instance.pk)
+            instance.password_certificado = original.password_certificado
         if commit:
             instance.save()
         return instance
@@ -194,8 +233,6 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'ambiente_sii',
             'certificado_digital',
             'password_certificado',
-            'api_url',
-            'api_key',
             'razon_social_sii',
             'giro_sii',
             'codigo_actividad_economica',
@@ -207,14 +244,6 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'resolucion_numero',
             'email_intercambio',
             'email_contacto_sii',
-            # Campos DTEBox
-            'dtebox_habilitado',
-            'dtebox_url',
-            'dtebox_auth_key',
-            'dtebox_ambiente',
-            'dtebox_pdf417_columns',
-            'dtebox_pdf417_level',
-            'dtebox_pdf417_type',
         ]
         widgets = {
             'facturacion_electronica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -235,16 +264,6 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'resolucion_numero': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Número de resolución'}),
             'email_intercambio': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email para recibir acuses'}),
             'email_contacto_sii': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email registrado en SII'}),
-            'api_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://api.ejemplo.com/dte'}),
-            'api_key': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ingrese su API KEY', 'type': 'password', 'autocomplete': 'off'}),
-            # Widgets DTEBox
-            'dtebox_habilitado': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'dtebox_url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'http://192.168.1.100/api/Core.svc/core/SendDocumentAsXML'}),
-            'dtebox_auth_key': forms.TextInput(attrs={'class': 'form-control', 'type': 'password', 'placeholder': 'Llave de autenticación DTEBox', 'autocomplete': 'off'}),
-            'dtebox_ambiente': forms.Select(attrs={'class': 'form-select'}),
-            'dtebox_pdf417_columns': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10}),
-            'dtebox_pdf417_level': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 8}),
-            'dtebox_pdf417_type': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10}),
         }
         labels = {
             # labels dict remains

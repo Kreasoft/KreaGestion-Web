@@ -6,215 +6,154 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    .est-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(93, 64, 55, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+    .est-dialog { width: 100%; max-width: 440px; }
+    .est-dialog-card {
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 12px 32px rgba(93, 64, 55, 0.28);
+    }
+    .est-dialog-card > .modal-header {
+        background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        border-bottom: 2px solid #C76F43;
+        padding: 8px 14px;
+    }
+    .est-dialog-card > form > .modal-body { padding: 10px 14px; background: #FAFAF8; }
+    .est-dialog-card > form > .modal-footer {
+        padding: 8px 14px;
+        background: #fff;
+        border-top: 1px solid #E8DCC8;
+    }
+    .est-meta {
+        background: #FDFCFB;
+        border: 1px solid #E8DCC8;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.72rem;
+        margin-bottom: 10px;
+    }
+    .est-meta .row-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .est-meta .row-line:last-child { margin-bottom: 0; }
+    .est-badge {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        padding: 2px 8px;
+        border-radius: 6px;
+        color: #5D4037;
+        background: #E8DCC8;
+    }
+    .est-badge.pendiente { background: #E8DCC8; }
+    .est-badge.enviada { background: #C49A52; color: #FAFAF8; }
+    .est-badge.aceptada { background: #C4D4A8; }
+    .est-badge.rechazada { background: #E8C4B8; color: #5D4037; }
+    .est-badge.vencida { background: #D4C4A8; }
+    .est-badge.convertida { background: #6F5B44; color: #FAFAF8; }
+    .est-dialog-card .form-select {
+        height: 28px !important;
+        min-height: 28px !important;
+        padding: 2px 8px !important;
+        font-size: 0.75rem !important;
+        border: 1px solid #D4C4A8 !important;
+        border-radius: 6px !important;
+        background-color: #fff !important;
+        color: #5D4037 !important;
+    }
+    .est-dialog-card .form-select:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 2px rgba(111, 91, 68, 0.15) !important;
+    }
+    .est-info {
+        margin-top: 6px;
+        font-size: 0.68rem;
+        color: #6F5B44;
+    }
+    .btn-est-ok {
+        background: #6F5B44;
+        color: #FAFAF8;
+        border: none;
+        font-weight: 700;
+        font-size: 0.72rem;
+        padding: 5px 12px;
+        border-radius: 6px;
+    }
+    .btn-est-ok:hover { background: #5D4037; color: #FAFAF8; }
+    .btn-est-cancel {
+        background: transparent;
+        color: #6F5B44;
+        border: 1px solid #D4C4A8;
+        font-weight: 600;
+        font-size: 0.72rem;
+        padding: 5px 12px;
+        border-radius: 6px;
+        text-decoration: none;
+    }
+    .btn-est-cancel:hover { background: #F1E9DD; color: #5D4037; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(139, 115, 85, 0.15);">
-                <!-- Header Estilo Piedra Premium -->
-                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 20px 25px;">
-                    <h5 class="mb-0 fw-normal" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px;">
-                        <i class="fas fa-edit me-2 opacity-80"></i> GESTIÓN DE <span class="fw-bold">ESTADO</span>
+<div class="est-overlay">
+    <div class="est-dialog" role="dialog" aria-modal="true" aria-labelledby="modalCambiarEstadoLabel">
+        <div class="est-dialog-card">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0" id="modalCambiarEstadoLabel" style="font-size: 0.95rem; color:#5D4037; font-weight: 700;">
+                        Gestión de estado
                     </h5>
+                    <div style="font-size: 0.68rem; color:#6F5B44;">Cotización #{{ cotizacion.numero_venta }}</div>
                 </div>
-                
-                <div class="card-body" style="background: white; padding: 30px;">
-                    <!-- Información de la cotización -->
-                    <div class="card mb-4 border-0" style="border-radius: 12px; background: #FDFCFB; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                        <div class="card-body p-4">
-                            <h6 style="color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem; margin-bottom: 20px;">
-                                <i class="fas fa-info-circle me-2 opacity-50"></i> Resumen del Documento
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-sm-6">
-                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Número</small>
-                                    <strong style="color: #2D3748;">#{{ cotizacion.numero_venta }}</strong>
-                                </div>
-                                <div class="col-sm-6">
-                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Total</small>
-                                    <strong style="color: #8B7355;">${{ cotizacion.total|format_miles }}</strong>
-                                </div>
-                                <div class="col-12">
-                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Cliente</small>
-                                    <strong style="color: #2D3748;">{{ cotizacion.cliente.nombre|default:"Sin cliente" }}</strong>
-                                </div>
-                                <div class="col-12">
-                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Estado Actual</small>
-                                    <span class="badge" style="background: {% if cotizacion.estado_cotizacion == 'pendiente' %}#D4C4A8{% elif cotizacion.estado_cotizacion == 'enviada' %}#A8C6D4{% elif cotizacion.estado_cotizacion == 'aceptada' %}#C4D4A8{% elif cotizacion.estado_cotizacion == 'rechazada' %}#D4A8A8{% elif cotizacion.estado_cotizacion == 'vencida' %}#BDBDBD{% elif cotizacion.estado_cotizacion == 'convertida' %}#A8A8D4{% else %}#D4C4A8{% endif %}; color: #5D4037; font-size: 0.7rem; padding: 4px 10px; border-radius: 6px;">
-                                        {{ cotizacion.get_estado_cotizacion_display|default:"Pendiente"|upper }}
-                                    </span>
-                                </div>
-                            </div>
+                <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn-close" aria-label="Cerrar" style="font-size: 0.7rem;"></a>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="est-meta">
+                        <div class="mb-1" style="font-size: 0.62rem; font-weight: 700; color:#8B7355; text-transform: uppercase;">Resumen</div>
+                        <div class="row-line"><span class="text-muted">Número</span><strong>#{{ cotizacion.numero_venta }}</strong></div>
+                        <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:36 }}</strong></div>
+                        <div class="row-line"><span class="text-muted">Total</span><strong style="color:#C76F43;">${{ cotizacion.total|format_miles }}</strong></div>
+                        <div class="row-line">
+                            <span class="text-muted">Estado actual</span>
+                            <span class="est-badge {{ cotizacion.estado_cotizacion|default:'pendiente' }}">{{ cotizacion.get_estado_cotizacion_display|default:"Pendiente"|upper }}</span>
                         </div>
                     </div>
-                    
-                    <!-- Formulario -->
-                    <form method="post" id="formCambiarEstado">
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            <label for="estado" class="form-label text-uppercase" style="font-size: 0.7rem; font-weight: 700; color: #8B7355; letter-spacing: 1px;">
-                                <i class="fas fa-exchange-alt me-2"></i>Seleccionar Nuevo Estado
-                            </label>
-                            <select name="estado" id="estado" class="form-select form-select-lg" required style="border: 2px solid #E8DCC8; border-radius: 10px; font-size: 1rem; color: #2D3748; background-color: #FDFCFB;">
-                                {% for value, label in estados %}
-                                    <option value="{{ value }}" {% if cotizacion.estado_cotizacion == value %}selected{% endif %}>
-                                        {{ label|upper }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                            <div class="mt-2 text-muted small" style="font-style: italic;">
-                                <i class="fas fa-lightbulb me-1"></i> El cambio de estado se reflejará inmediatamente en el listado.
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex gap-3 mt-5">
-                            <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-outline-piedra flex-grow-1 py-2">
-                                <i class="fas fa-times me-2"></i>CANCELAR
-                            </a>
-                            <button type="button" class="btn btn-piedra flex-grow-1 py-2" onclick="confirmarCambioEstado()">
-                                <i class="fas fa-check-circle me-2"></i>GUARDAR CAMBIOS
-                            </button>
-                        </div>
-                    </form>
+
+                    <label for="estado" class="form-label mb-1" style="font-size: 0.68rem; font-weight: 700; color:#8B7355; text-transform: uppercase;">
+                        Nuevo estado
+                    </label>
+                    <select name="estado" id="estado" class="form-select" required>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if cotizacion.estado_cotizacion == value %}selected{% endif %}>{{ label|upper }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="est-info">
+                        <i class="fas fa-info-circle me-1"></i>El cambio se verá de inmediato en el listado.
+                    </div>
                 </div>
-            </div>
-            
-            <div class="text-center mt-4">
-                <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm btn-link text-decoration-none" style="color: #D4C4A8; font-weight: 600;">
-                    <i class="fas fa-arrow-left me-1"></i> Volver al listado general
-                </a>
-            </div>
+                <div class="modal-footer">
+                    <a href="{% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn-est-cancel">
+                        <i class="fas fa-times me-1"></i> Cancelar
+                    </a>
+                    <button type="submit" class="btn-est-ok">
+                        <i class="fas fa-check me-1"></i> Guardar cambios
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-function confirmarCambioEstado() {
-    const select = document.getElementById('estado');
-    const nuevoEstado = select.options[select.selectedIndex].text;
-    const estadoActual = '{{ cotizacion.get_estado_cotizacion_display|default:"Pendiente" }}';
-    
-    Swal.fire({
-        title: '<span style="font-family: Poppins; font-weight: 600;">¿Confirmar Cambio?</span>',
-        html: `
-            <div style="text-align: left; padding: 15px; font-family: Poppins;">
-                <p style="color: #718096; margin-bottom: 15px;">Estás a punto de actualizar el estado de este documento.</p>
-                <div style="background: #FDFCFB; padding: 20px; border-radius: 12px; border: 2px solid #F5F1E8;">
-                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; border-bottom: 1px solid #F5F1E8; pb-2">
-                        <span style="color: #A0AEC0;">Documento:</span>
-                        <strong style="color: #2D3748;">#{{ cotizacion.numero_venta }}</strong>
-                    </div>
-                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between;">
-                        <span style="color: #A0AEC0;">De:</span>
-                        <strong style="color: #E53E3E;">${estadoActual}</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                        <span style="color: #A0AEC0;">A:</span>
-                        <strong style="color: #38A169;">${nuevoEstado}</strong>
-                    </div>
-                </div>
-            </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#8B7355',
-        cancelButtonColor: '#CBD5E0',
-        confirmButtonText: 'SÍ, ACTUALIZAR',
-        cancelButtonText: 'CANCELAR',
-        reverseButtons: true,
-        customClass: {
-            popup: 'premium-swal-popup',
-            confirmButton: 'premium-confirm-btn',
-            cancelButton: 'premium-cancel-btn'
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            Swal.fire({
-                title: 'Procesando...',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-            document.getElementById('formCambiarEstado').submit();
-        }
-    });
-}
-
-// Estilos premium para Swal
-const style = document.createElement('style');
-style.textContent = `
-    .premium-swal-popup {
-        border-radius: 20px !important;
-        padding: 2.5rem 0 1.5rem 0 !important;
-    }
-    .premium-confirm-btn {
-        padding: 10px 30px !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        letter-spacing: 0.5px !important;
-    }
-    .premium-cancel-btn {
-        padding: 10px 30px !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        letter-spacing: 0.5px !important;
-    }
-`;
-document.head.appendChild(style);
-
-{% if messages %}
-    {% for message in messages %}
-        Swal.fire({
-            icon: '{% if message.tags == "success" %}success{% elif message.tags == "error" %}error{% else %}info{% endif %}',
-            title: '{% if message.tags == "success" %}Operación Exitosa{% else %}Aviso{% endif %}',
-            text: '{{ message }}',
-            confirmButtonColor: '#8B7355',
-            timer: 3000,
-            timerProgressBar: true
-        });
-    {% endfor %}
-{% endif %}
-</script>
-
-<style>
-.btn-piedra {
-    background: var(--color-piedra-boton);
-    color: white;
-    border: none;
-    font-weight: 700;
-    border-radius: 10px;
-    transition: all 0.3s ease;
-}
-
-.btn-piedra:hover {
-    background: #6F5B44;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(111, 91, 68, 0.3);
-}
-
-.btn-outline-piedra {
-    background: transparent;
-    color: #8B7355;
-    border: 2px solid #D4C4A8;
-    font-weight: 700;
-    border-radius: 10px;
-    transition: all 0.3s ease;
-}
-
-.btn-outline-piedra:hover {
-    background: #F5F1E8;
-    color: #6F5B44;
-}
-
-select#estado:focus {
-    border-color: #8B7355 !important;
-    box-shadow: 0 0 0 0.25rem rgba(139, 115, 85, 0.1) !important;
-}
-
-/* Tipografía Poppins para títulos si no está cargada */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap');
-</style>
 {% endblock %}

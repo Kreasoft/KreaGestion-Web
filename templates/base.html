@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <title>{% block page_title %}GestionCloud{% endblock %}</title>
+    <title>{% block page_title %}{% block title %}GestionCloud{% endblock %}{% endblock %}</title>
     <link rel="icon" type="image/png" href="{% static 'image/LogoCloud-5.png' %}">
 
     <!-- Font Poppins -->
@@ -29,10 +29,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- Paletas de Colores Personalizadas -->
-    <link rel="stylesheet" href="{% static 'css/custom-colors.css' %}?v=1.1">
-    <link rel="stylesheet" href="{% static 'css/stone-premium.css' %}?v=1.0">
+    <link rel="stylesheet" href="{% static 'css/custom-colors.css' %}?v=1.3">
+    <link rel="stylesheet" href="{% static 'css/stone-premium.css' %}?v=1.3">
 
     {% block extra_css %}{% endblock %}
+    <link rel="stylesheet" href="{% static 'css/print-professional.css' %}?v=20260714.2" media="print">
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -195,7 +196,7 @@
         }
 
         .sidebar-nav {
-            padding: 0.5rem 0;
+            padding: 0.25rem 0;
         }
 
         /* Eliminar scroll del sidebar directamente (el scroll va en el wrapper) */
@@ -226,17 +227,18 @@
         }
 
         .nav-item {
-            margin: 0.1rem 0;
+            margin: 0;
         }
 
         .nav-link {
             display: flex;
             align-items: center;
-            padding: 0.5rem 1.5rem;
+            padding: 0.28rem 1.15rem;
             color: #495057;
             text-decoration: none;
             transition: all 0.3s ease;
             border-left: 3px solid transparent;
+            font-size: 0.85rem;
         }
 
         .nav-link:hover {
@@ -253,8 +255,9 @@
 
         .nav-icon {
             width: 20px;
-            margin-right: 1rem;
+            margin-right: 0.7rem;
             text-align: center;
+            font-size: 0.9rem;
         }
 
         .sidebar.collapsed .nav-icon {
@@ -264,6 +267,7 @@
         .nav-text {
             font-weight: 500;
             color: #495057;
+            font-size: 0.85rem;
         }
 
         .sidebar.collapsed .nav-text {
@@ -299,31 +303,31 @@
 
         .submenu {
             background-color: rgba(0, 0, 0, 0.05);
-            border-radius: 0.5rem;
-            margin: 0.2rem 1rem;
+            border-radius: 0.4rem;
+            margin: 0.05rem 0.75rem;
             overflow: hidden;
         }
 
         .submenu-items {
-            padding: 0.15rem 0;
+            padding: 0.05rem 0;
         }
 
         .submenu-separator {
             height: 1px;
             background: linear-gradient(90deg, transparent, rgba(139, 115, 85, 0.2), transparent);
-            margin: 0.3rem 1rem;
+            margin: 0.12rem 0.75rem;
         }
 
         .submenu-link {
-            padding: 0.4rem 1rem 0.4rem 2.5rem;
+            padding: 0.22rem 0.75rem 0.22rem 2.2rem;
             color: #6c757d;
             text-decoration: none;
             display: flex;
             align-items: center;
             transition: all 0.2s;
-            font-size: 0.875rem;
-            border-radius: 0.375rem;
-            margin: 0.1rem 0.5rem;
+            font-size: 0.8rem;
+            border-radius: 0.3rem;
+            margin: 0.02rem 0.35rem;
             text-align: left;
             position: relative;
         }
@@ -343,24 +347,31 @@
         .submenu-link:hover {
             background-color: rgba(139, 115, 85, 0.1);
             color: #495057;
-            padding-left: 2.7rem;
+            padding-left: 2.4rem;
         }
 
         .submenu-link.active {
-            background-color: rgba(139, 115, 85, 0.15);
-            color: #8B7355;
-            font-weight: 600;
-            border-left: 3px solid #8B7355;
+            background-color: #E8DCC8;
+            color: #5D4037;
+            font-weight: 700;
+            border-left: 3px solid #C76F43;
         }
 
         .submenu-link.active::before {
-            background: #8B7355;
+            background: #C76F43;
             width: 6px;
             height: 6px;
         }
 
+        .has-submenu:has(.submenu-link.active) > .submenu-toggle {
+            background-color: #F5F1E8;
+            border-left-color: #C76F43;
+            color: #5D4037;
+            font-weight: 600;
+        }
+
         .submenu-link i {
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             width: 1.25rem;
             margin-left: 0.5rem;
         }
@@ -570,10 +581,13 @@
             border-bottom: 2px solid #dee2e6;
         }
 
-        /* Badges */
+        /* Badges: compactos para no estirar filas de listas */
         .badge {
-            font-weight: 500;
-            padding: 0.5em 0.75em;
+            font-weight: 600;
+            padding: 2px 6px;
+            font-size: 0.65rem;
+            line-height: 1.2;
+            vertical-align: middle;
         }
 
         /* Forms */
@@ -1012,17 +1026,924 @@
             color: #5D4037;
             border-color: rgba(111, 91, 68, 0.4);
         }
+
+        /* Menú superior: mismas opciones del lateral, en barra arriba */
+        body.menu-superior .sidebar {
+            position: relative;
+            top: auto;
+            left: auto;
+            width: 100%;
+            height: auto;
+            min-height: 40px;
+            flex-direction: row;
+            align-items: stretch;
+            overflow: visible;
+            border-right: none;
+            border-bottom: 3px solid #C76F43;
+            box-shadow: 0 4px 14px rgba(93, 64, 55, 0.28);
+            background: #5D4037;
+        }
+        body.menu-superior .sidebar::after {
+            display: none;
+        }
+        body.menu-superior .sidebar.collapsed {
+            display: none;
+            width: 100%;
+        }
+        body.menu-superior .sidebar-header {
+            flex: 0 0 auto;
+            width: auto;
+            padding: 4px 10px;
+            border-bottom: none;
+            border-right: 1px solid rgba(232, 220, 200, 0.28);
+            display: flex;
+            align-items: center;
+        }
+        body.menu-superior .sidebar-header .logo-container img,
+        body.menu-superior .sidebar-header .logo-img {
+            height: 32px !important;
+            width: auto !important;
+            max-width: 120px;
+        }
+        body.menu-superior .toggle-sidebar-mobile {
+            display: none !important;
+        }
+        body.menu-superior .sidebar-scroll-wrapper {
+            flex: 1 1 auto;
+            overflow-x: auto;
+            overflow-y: hidden;
+            min-width: 0;
+            min-height: 0;
+        }
+        body.menu-superior .sidebar-nav {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 0;
+            width: max-content;
+        }
+        body.menu-superior .nav-item {
+            position: relative;
+            margin: 0;
+        }
+        body.menu-superior .nav-link:not(.submenu-link) {
+            padding: 0 10px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            white-space: nowrap;
+            color: #E8DCC8;
+        }
+        body.menu-superior .nav-icon {
+            font-size: 0.85rem;
+            width: 16px;
+            margin-right: 6px;
+            color: #E8DCC8;
+        }
+        body.menu-superior .submenu-arrow {
+            font-size: 0.55rem;
+            margin-left: 4px;
+            color: #E8DCC8;
+        }
+        body.menu-superior .nav-item.has-submenu > .submenu.collapse {
+            display: none !important;
+        }
+        body.menu-superior .submenu-items {
+            padding: 0;
+        }
+        body.menu-superior .submenu-link {
+            padding: 0 14px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #5D4037;
+        }
+        body.menu-superior .main-content,
+        body.menu-superior .main-content.expanded {
+            margin-left: 0 !important;
+        }
+        body.menu-superior.hide-top-bar .main-content {
+            margin-top: 0;
+        }
+        @media (max-width: 991.98px) {
+            body.menu-superior .sidebar {
+                display: flex;
+            }
+            body.menu-superior .sidebar.collapsed {
+                display: none;
+            }
+        }
     </style>
     {% block extra_head %}{% endblock %}
+    <style id="menu-superior-forzado">
+        html body.menu-superior nav.sidebar#sidebar {
+            position: relative !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            transform: none !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            box-sizing: border-box !important;
+            height: 40px !important;
+            min-height: 40px !important;
+            max-height: 40px !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            overflow: visible !important;
+            border-right: none !important;
+            border-top: 1px solid #8B7355 !important;
+            border-bottom: 3px solid #C76F43 !important;
+            box-shadow: 0 4px 14px rgba(93, 64, 55, 0.32) !important;
+            background: linear-gradient(180deg, #6F5B44 0%, #5D4037 100%) !important;
+            z-index: 1030 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar.collapsed {
+            display: flex !important;
+            width: 100% !important;
+            height: 40px !important;
+            transform: none !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar::after {
+            display: none !important;
+        }
+        html body.menu-superior .sidebar-scroll-wrapper {
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            height: 40px !important;
+            max-height: 40px !important;
+            scrollbar-width: none !important;
+            overscroll-behavior-x: contain !important;
+        }
+        html body.menu-superior .sidebar-scroll-wrapper::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+        html body.menu-superior .sidebar-nav {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            padding: 0 !important;
+            height: 40px !important;
+            width: max-content !important;
+            max-width: none !important;
+            white-space: nowrap !important;
+        }
+        html body.menu-superior .sidebar-nav > hr {
+            display: none !important;
+        }
+        html body.menu-superior .sidebar-header {
+            width: auto !important;
+            flex: 0 0 auto !important;
+            padding: 0 8px !important;
+            height: 40px !important;
+            border-bottom: none !important;
+            border-right: 1px solid rgba(232, 220, 200, 0.28) !important;
+        }
+        html body.menu-superior .sidebar-header .logo-container {
+            padding: 2px 6px !important;
+            background: #FAFAF8 !important;
+            border-radius: 4px !important;
+        }
+        html body.menu-superior .sidebar-header .logo-img,
+        html body.menu-superior .sidebar-header .logo-container img {
+            height: 22px !important;
+            max-height: 22px !important;
+            width: auto !important;
+        }
+        html body.menu-superior .nav-item {
+            position: relative !important;
+            margin: 0 !important;
+            flex: 0 0 auto !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link) {
+            padding: 0 10px !important;
+            height: 40px !important;
+            font-size: 0.68rem !important;
+            font-weight: 600 !important;
+            line-height: 40px !important;
+            white-space: nowrap !important;
+            border-left: none !important;
+            gap: 6px !important;
+            letter-spacing: 0.01em !important;
+            color: #E8DCC8 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link):hover {
+            background: rgba(232, 220, 200, 0.16) !important;
+            border-left: none !important;
+            color: #FAFAF8 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link).active {
+            background: #C76F43 !important;
+            border-left: none !important;
+            color: #FAFAF8 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link) .nav-icon {
+            width: 14px !important;
+            margin-right: 4px !important;
+            font-size: 0.78rem !important;
+            color: #E8DCC8 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link):hover .nav-icon,
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link).active .nav-icon {
+            color: #FAFAF8 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .nav-text {
+            display: inline !important;
+            font-size: 0.68rem !important;
+            line-height: 1 !important;
+            color: #E8DCC8 !important;
+            white-space: nowrap !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link).active > .nav-text,
+        html body.menu-superior nav.sidebar#sidebar .sidebar-nav > .nav-item > .nav-link:not(.submenu-link):hover > .nav-text {
+            color: #FAFAF8 !important;
+        }
+        html body.menu-superior .submenu-arrow {
+            position: static !important;
+            transform: none !important;
+            font-size: 0.5rem !important;
+            margin-left: 4px !important;
+            right: auto !important;
+            top: auto !important;
+            color: inherit !important;
+            display: inline-block !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link {
+            padding: 0 5px !important;
+            gap: 0 !important;
+            justify-content: center !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link > .nav-text,
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link > .submenu-arrow,
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link > .nav-badges {
+            display: none !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link > .nav-icon {
+            margin-right: 0 !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link:hover {
+            background: rgba(232, 220, 200, 0.16) !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar.nav-icons-only .sidebar-nav > .nav-item > .nav-link.active {
+            background: #C76F43 !important;
+        }
+        html body.menu-superior .nav-badges:not(:has(.badge)) {
+            display: none !important;
+        }
+        html body.menu-superior nav.sidebar#sidebar .nav-item.has-submenu:hover > .nav-link:not(.active):not(.submenu-link),
+        html body.menu-superior nav.sidebar#sidebar .nav-item.has-submenu.submenu-open > .nav-link:not(.active):not(.submenu-link) {
+            background: rgba(232, 220, 200, 0.16) !important;
+            color: #FAFAF8 !important;
+        }
+        html body.menu-superior .nav-item.has-submenu > .submenu.collapse {
+            display: none !important;
+        }
+        html body.menu-superior #menu-superior-flyout {
+            display: none;
+            position: fixed;
+            z-index: 4000;
+            padding-top: 4px;
+            pointer-events: auto;
+        }
+        html body.menu-superior #menu-superior-flyout > .submenu {
+            display: block !important;
+            position: static !important;
+            min-width: 220px !important;
+            background: #FAFAF8 !important;
+            border: 1px solid #E8DCC8 !important;
+            border-radius: 0 0 8px 8px !important;
+            box-shadow: 0 10px 22px rgba(93, 64, 55, 0.18) !important;
+            padding: 4px 0 !important;
+            margin: 0 !important;
+            height: auto !important;
+            max-height: min(70vh, 420px) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+        }
+        html body.menu-superior .submenu-items {
+            padding: 0 !important;
+        }
+        html body.menu-superior .submenu-separator {
+            height: 1px !important;
+            margin: 4px 12px !important;
+            background: #E8DCC8 !important;
+        }
+        html body.menu-superior a.nav-link.submenu-link {
+            display: flex !important;
+            align-items: center !important;
+            height: 24px !important;
+            min-height: 24px !important;
+            max-height: 26px !important;
+            padding: 0 14px 0 16px !important;
+            margin: 0 !important;
+            font-size: 0.78rem !important;
+            font-weight: 600 !important;
+            line-height: 24px !important;
+            letter-spacing: 0 !important;
+            border-radius: 0 !important;
+            border-left: 3px solid transparent !important;
+            gap: 8px !important;
+            color: #5D4037 !important;
+            background: transparent !important;
+        }
+        html body.menu-superior a.nav-link.submenu-link:hover {
+            padding: 0 14px 0 16px !important;
+            background: #F1E9DD !important;
+            color: #5D4037 !important;
+        }
+        html body.menu-superior a.nav-link.submenu-link.active {
+            padding: 0 14px 0 16px !important;
+            border-left: 3px solid #C76F43 !important;
+            background: #E8DCC8 !important;
+            color: #5D4037 !important;
+        }
+        html body.menu-superior a.nav-link.submenu-link::before {
+            display: none !important;
+        }
+        html body.menu-superior a.nav-link.submenu-link i,
+        html body.menu-superior a.nav-link.submenu-link .nav-icon {
+            font-size: 0.72rem !important;
+            width: 14px !important;
+            margin: 0 6px 0 0 !important;
+            color: #5D4037 !important;
+        }
+        html body.menu-superior .badge {
+            font-size: 0.5rem !important;
+            padding: 0.1em 0.3em !important;
+        }
+        html body.menu-superior #mainContent.main-content,
+        html body.menu-superior #mainContent.main-content.expanded {
+            margin-left: 0 !important;
+        }
+        @media (max-width: 991.98px) {
+            html body.menu-superior nav.sidebar#sidebar,
+            html body.menu-superior nav.sidebar#sidebar.collapsed,
+            html body.menu-superior nav.sidebar#sidebar.show {
+                transform: none !important;
+                width: 100% !important;
+                display: flex !important;
+            }
+        }
+        /* Pestañas de contenido: el color crema del menú no debe pintar labels inactivas. */
+        html body.menu-superior #mainContent .nav-tabs .nav-link:not(.active):not(.submenu-link),
+        html body.menu-superior #mainContent .nav-tabs .nav-link:not(.active):not(.submenu-link) i,
+        html body.menu-superior #mainContent .nav-pills .nav-link:not(.active):not(.submenu-link),
+        html body.menu-superior #mainContent .nav-pills .nav-link:not(.active):not(.submenu-link) i,
+        html body.menu-superior #mainContent .nav-tabs-piedra .nav-link:not(.active),
+        html body.menu-superior #mainContent .nav-tabs-stone .nav-link:not(.active),
+        html body.menu-superior #mainContent .nav-link[role="tab"]:not(.active) {
+            color: #5D4037 !important;
+            opacity: 1;
+        }
+        html body.menu-superior #mainContent .nav-tabs .nav-link:not(.active):not(.submenu-link):hover,
+        html body.menu-superior #mainContent .nav-tabs .nav-link:not(.active):not(.submenu-link):hover i,
+        html body.menu-superior #mainContent .nav-pills .nav-link:not(.active):not(.submenu-link):hover,
+        html body.menu-superior #mainContent .nav-pills .nav-link:not(.active):not(.submenu-link):hover i,
+        html body.menu-superior #mainContent .nav-tabs-piedra .nav-link:not(.active):hover,
+        html body.menu-superior #mainContent .nav-tabs-stone .nav-link:not(.active):hover,
+        html body.menu-superior #mainContent .nav-link[role="tab"]:not(.active):hover {
+            color: #C76F43 !important;
+        }
+    </style>
+    <style id="sin-azul-controles">
+        /* Regla de oro: ningún control activo en azul de Bootstrap. */
+        .form-check-input:checked {
+            background-color: #8B8B3A !important;
+            border-color: #6F6F2E !important;
+        }
+        .form-check-input:focus {
+            border-color: #6F5B44 !important;
+            box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.22) !important;
+        }
+        .form-switch .form-check-input:focus {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%23fff'/%3e%3c/svg%3e") !important;
+        }
+    </style>
+    <style id="regla-listas-28px">
+        /* Regla de oro: alto de fila en TODAS las listas = 28px.
+           Va al final del <head> para ganar a Bootstrap, extra_css y extra_head. */
+        .table-piedra,
+        .table-piedra-compact,
+        .table-piedra-gestion,
+        .tabla-informe,
+        .tabla-32,
+        #cotiz-tabla,
+        .table-stone,
+        .table-compact,
+        .main-content .table-responsive > table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+        }
+        .tabla-nombre-completo {
+            table-layout: auto !important;
+        }
+        .estado-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            vertical-align: middle;
+        }
+        .estado-dot-activo { background: #2E7D32; }
+        .estado-dot-inactivo { background: #C2185B; }
+        .estado-dot-moroso { background: #7B1FA2; }
+        .estado-dot-suspendido { background: #9E9E9E; }
+        .estado-dot-proceso { background: #F59E0B; }
+        .estado-dot-info { background: #7B1FA2; }
+        .ico-32 {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 18px;
+            height: 18px;
+            padding: 0 !important;
+            line-height: 1 !important;
+            font-size: 10px;
+            text-align: center;
+            border: 1px solid #D4C4A8;
+            border-radius: 3px;
+            color: #8B7355;
+            background: transparent !important;
+            text-decoration: none;
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        .ico-32 i { line-height: 1 !important; display: block; }
+        .ico-32:hover { background: rgba(139, 115, 85, 0.12) !important; color: #6F5B44; }
+        .table-piedra > thead > tr > th,
+        .table-piedra-compact > thead > tr > th,
+        .table-piedra-gestion > thead > tr > th,
+        .tabla-informe > thead > tr > th,
+        .tabla-32 > thead > tr > th,
+        #cotiz-tabla > thead > tr > th,
+        .table-stone > thead > tr > th,
+        .table-compact > thead > tr > th,
+        .main-content .table-responsive > table > thead > tr > th,
+        table.table.table-piedra > :not(caption) > thead > tr > th,
+        table.table.table-piedra-compact > :not(caption) > thead > tr > th,
+        table.table.tabla-informe > :not(caption) > thead > tr > th {
+            height: 28px !important;
+            padding: 0 8px !important;
+            line-height: 16px !important;
+            font-size: 12px !important;
+            box-sizing: border-box !important;
+            vertical-align: middle !important;
+            white-space: nowrap !important;
+        }
+        .table-piedra > tbody > tr,
+        .table-piedra-compact > tbody > tr,
+        .table-piedra-gestion > tbody > tr,
+        .tabla-informe > tbody > tr,
+        .tabla-32 > tbody > tr,
+        #cotiz-tabla > tbody > tr,
+        .table-stone > tbody > tr,
+        .table-compact > tbody > tr,
+        .main-content .table-responsive > table > tbody > tr {
+            height: 28px !important;
+        }
+        .table-piedra > tbody > tr > td,
+        .table-piedra-compact > tbody > tr > td,
+        .table-piedra-gestion > tbody > tr > td,
+        .tabla-informe > tbody > tr > td,
+        .tabla-32 > tbody > tr > td,
+        #cotiz-tabla > tbody > tr > td,
+        .table-stone > tbody > tr > td,
+        .table-compact > tbody > tr > td,
+        .main-content .table-responsive > table > tbody > tr > td,
+        table.table.table-piedra > :not(caption) > tbody > tr > td,
+        table.table.table-piedra-compact > :not(caption) > tbody > tr > td,
+        table.table.tabla-informe > :not(caption) > tbody > tr > td {
+            height: 28px !important;
+            padding: 0 8px !important;
+            line-height: 18px !important;
+            font-size: 13.5px !important;
+            box-sizing: border-box !important;
+            vertical-align: middle !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        .table-piedra > tbody > tr > td > *,
+        .table-piedra-compact > tbody > tr > td > *,
+        .tabla-32 > tbody > tr > td > *,
+        .main-content .table-responsive > table > tbody > tr > td > * {
+            line-height: 16px !important;
+            max-height: 28px !important;
+        }
+        .main-content .table-responsive > table > tbody > tr.libro-grupo-cabecera,
+        .main-content .table-responsive > table > tbody > tr.libro-grupo-cabecera > td,
+        .main-content .table-responsive > table > tbody > tr.libro-grupo-cabecera > td > * {
+            height: auto !important;
+            min-height: 32px !important;
+            max-height: none !important;
+            overflow: visible !important;
+            white-space: nowrap !important;
+            line-height: 20px !important;
+        }
+        .main-content .table-responsive > table > tbody > tr.libro-grupo-cabecera > td {
+            padding: 6px 10px !important;
+        }
+        .tabla-nombre-completo > tbody > tr > td.td-nombre,
+        .tabla-nombre-completo > tbody > tr > td.td-acciones {
+            overflow: visible !important;
+            text-overflow: clip !important;
+        }
+        .table-piedra > tbody > tr > td .badge,
+        .table-piedra-compact > tbody > tr > td .badge,
+        .table-piedra-gestion > tbody > tr > td .badge,
+        .tabla-32 > tbody > tr > td .badge,
+        #cotiz-tabla > tbody > tr > td .badge,
+        .table-stone > tbody > tr > td .badge,
+        .table-compact > tbody > tr > td .badge,
+        .main-content .table-responsive > table > tbody > tr > td .badge {
+            padding: 2px 6px !important;
+            font-size: 10px !important;
+            line-height: 16px !important;
+            height: 18px !important;
+            max-height: 18px !important;
+            font-weight: 600 !important;
+            vertical-align: middle !important;
+        }
+        .table-piedra > tbody > tr > td .btn,
+        .table-piedra > tbody > tr > td .btn-sm,
+        .table-piedra > tbody > tr > td .btn-action-piedra,
+        .table-piedra-compact > tbody > tr > td .btn,
+        .table-piedra-compact > tbody > tr > td .btn-action-piedra,
+        .table-piedra-gestion > tbody > tr > td .btn,
+        .tabla-32 > tbody > tr > td .ico-32,
+        #cotiz-tabla > tbody > tr > td .ico-32,
+        .main-content .table-responsive > table > tbody > tr > td .btn,
+        .main-content .table-responsive > table > tbody > tr > td .btn-action-piedra,
+        .main-content .table-responsive > table > tbody > tr > td .ico-32,
+        .main-content .table-piedra > tbody > tr > td .ico-32 {
+            width: 20px !important;
+            height: 20px !important;
+            min-width: 20px !important;
+            min-height: 20px !important;
+            max-height: 20px !important;
+            padding: 0 !important;
+            line-height: 1 !important;
+            font-size: 11px !important;
+            box-sizing: border-box !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background: transparent !important;
+        }
+        .main-content .table-responsive > table > tbody > tr > td .btn-gavel,
+        .main-content .table-responsive > table > tbody > tr > td .btn-gavel i {
+            background: #E8DCC8 !important;
+            color: #5D4037 !important;
+            border: 1px solid #C49A52 !important;
+        }
+        .table-piedra > tbody > tr > td .d-flex,
+        .table-piedra-compact > tbody > tr > td .d-flex,
+        .tabla-32 > tbody > tr > td .d-flex,
+        .main-content .table-responsive > table > tbody > tr > td .d-flex {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            gap: 4px !important;
+            height: auto !important;
+            max-height: 28px !important;
+            min-height: 0 !important;
+        }
+        .table-piedra > tbody > tr > td .d-flex > *,
+        .tabla-32 > tbody > tr > td .d-flex > *,
+        .main-content .table-responsive > table > tbody > tr > td .d-flex > * {
+            line-height: 16px !important;
+            max-height: 20px !important;
+        }
+        .table-piedra > tbody > tr > td small,
+        .tabla-32 > tbody > tr > td small,
+        .main-content .table-responsive > table > tbody > tr > td small {
+            font-size: 10px !important;
+            line-height: 16px !important;
+        }
+        .table-piedra > tbody > tr:has(> td[colspan]) > td,
+        .table-piedra-compact > tbody > tr:has(> td[colspan]) > td,
+        .tabla-32 > tbody > tr:has(> td[colspan]) > td,
+        #cotiz-tabla > tbody > tr:has(> td[colspan]) > td,
+        .main-content .table-responsive > table > tbody > tr:has(> td[colspan]) > td {
+            height: auto !important;
+            max-height: none !important;
+            white-space: normal !important;
+            line-height: 1.4 !important;
+            padding: 16px 8px !important;
+            overflow: visible !important;
+        }
+        /* POS: no tocar sus tablas */
+        #tabla-referencias td,
+        #tabla-referencias th,
+        .pos-page table td,
+        .pos-page table th {
+            height: auto !important;
+            max-height: none !important;
+            white-space: normal !important;
+        }
+    </style>
+    <style id="fondo-listas">
+        /* fondolistas.png solo si el interruptor Fondo del dashboard está ON.
+           No aplica a POS ni al buscador F10. */
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive,
+        body.fondo-foto:not(.pos-page) .main-content .table-container {
+            background-image: url("{% static 'img/fondolistas.png' %}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-color: transparent !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content table.table-piedra,
+        body.fondo-foto:not(.pos-page) .main-content table.table-piedra-compact,
+        body.fondo-foto:not(.pos-page) .main-content table.table-piedra-gestion,
+        body.fondo-foto:not(.pos-page) .main-content table.tabla-informe,
+        body.fondo-foto:not(.pos-page) .main-content table.tabla-32,
+        body.fondo-foto:not(.pos-page) .main-content table.table-stone,
+        body.fondo-foto:not(.pos-page) .main-content table.table-compact,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table {
+            background-image: url("{% static 'img/fondolistas.png' %}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-color: transparent !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive table,
+        body.fondo-foto:not(.pos-page) .main-content .table-container table {
+            background-image: none !important;
+            background-color: transparent !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra-compact > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra-gestion > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-32 > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .table-stone > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .table-compact > thead > tr > th,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > thead > tr > th {
+            background-color: rgba(253, 252, 251, 0.58) !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra-compact > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra-compact > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra-gestion > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra-gestion > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-32 > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-32 > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-stone > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .table-stone > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-compact > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .table-compact > tbody > tr > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr > td {
+            background-color: rgba(255, 255, 255, 0.22) !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > tbody > tr:nth-of-type(odd),
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > tbody > tr:nth-of-type(odd) > td,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > tbody > tr:nth-of-type(odd),
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > tbody > tr:nth-of-type(odd) > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr:nth-of-type(odd),
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr:nth-of-type(odd) > td {
+            background-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > tbody > tr:hover,
+        body.fondo-foto:not(.pos-page) .main-content .table-piedra > tbody > tr:hover > td,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > tbody > tr:hover,
+        body.fondo-foto:not(.pos-page) .main-content .tabla-informe > tbody > tr:hover > td,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr:hover,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr:hover > td {
+            background-color: rgba(255, 248, 238, 0.48) !important;
+        }
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr.libro-grupo-cabecera,
+        body.fondo-foto:not(.pos-page) .main-content .table-responsive > table > tbody > tr.libro-grupo-cabecera > td {
+            background-color: rgba(239, 232, 220, 0.92) !important;
+        }
+        .pos-page .table-responsive,
+        .pos-page .table-container,
+        .pos-page table,
+        #articulosF10Tabla,
+        #tabla-referencias {
+            background-image: none !important;
+        }
+    </style>
+    <style id="select2-clientes-global-css">
+        .select2-container.select2-cliente-global { width: 100% !important; }
+        .select2-container.select2-cliente-global .select2-selection--single {
+            height: 28px !important;
+            min-height: 28px !important;
+            border: 1px solid #D4C4A8 !important;
+            border-radius: 4px !important;
+            background: #fff !important;
+        }
+        .select2-container.select2-cliente-global .select2-selection__rendered {
+            height: 28px !important;
+            line-height: 26px !important;
+            padding-left: 8px !important;
+            padding-right: 24px !important;
+            font-size: 0.75rem !important;
+            color: #4A5568 !important;
+        }
+        .select2-container.select2-cliente-global .select2-selection__arrow {
+            height: 26px !important;
+        }
+        .select2-dropdown.select2-clientes-dropdown {
+            min-width: min(520px, calc(100vw - 24px)) !important;
+            border-color: #D4C4A8 !important;
+            font-size: 0.78rem !important;
+        }
+        .select2-clientes-dropdown .select2-search__field {
+            height: 28px !important;
+            min-height: 28px !important;
+            border: 1px solid #D4C4A8 !important;
+            border-radius: 4px !important;
+            padding: 2px 8px !important;
+        }
+        .select2-clientes-dropdown .select2-results__option {
+            min-height: 24px !important;
+            padding: 3px 8px !important;
+            line-height: 18px !important;
+        }
+        .select2-clientes-dropdown .select2-results__options {
+            max-height: min(430px, calc(100vh - 170px)) !important;
+        }
+        .select2-cliente-fila {
+            display: grid;
+            grid-template-columns: 112px minmax(0, 1fr);
+            column-gap: 10px;
+            align-items: center;
+            width: 100%;
+        }
+        .select2-cliente-rut {
+            width: 112px;
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            color: #6F5B44;
+            white-space: nowrap;
+        }
+        .select2-cliente-nombre {
+            min-width: 0;
+            color: #3F352D;
+            white-space: nowrap;
+        }
+    </style>
+    <style id="ventas-compact-global-css">
+        /* Densidad uniforme para Ventas; el POS queda expresamente excluido. */
+        body.ventas-compact .single-card-container {
+            margin-top: 4px !important;
+            margin-bottom: 10px !important;
+            border-radius: 10px !important;
+        }
+        body.ventas-compact .stone-header-premium,
+        body.ventas-compact .premium-header,
+        body.ventas-compact .page-header {
+            min-height: 42px !important;
+            padding: 5px 10px !important;
+        }
+        body.ventas-compact .header-icon-box {
+            width: 28px !important;
+            height: 28px !important;
+            border-radius: 7px !important;
+            font-size: 0.9rem !important;
+        }
+        body.ventas-compact .header-text h1,
+        body.ventas-compact .stone-header-premium h1 {
+            font-size: 1rem !important;
+            line-height: 1.1 !important;
+        }
+        body.ventas-compact .header-text p { font-size: 0.65rem !important; }
+        body.ventas-compact .stone-header-premium .btn,
+        body.ventas-compact .premium-header .btn,
+        body.ventas-compact .page-header .btn {
+            min-height: 28px !important;
+            padding: 3px 9px !important;
+            font-size: 0.72rem !important;
+        }
+        body.ventas-compact .stone-filter-box,
+        body.ventas-compact .filter-section,
+        body.ventas-compact .filters-card,
+        body.ventas-compact .filter-card {
+            padding: 5px 8px !important;
+            margin-bottom: 5px !important;
+            border-radius: 7px !important;
+        }
+        body.ventas-compact .stone-filter-box .row,
+        body.ventas-compact .filter-section .row,
+        body.ventas-compact .filters-card .row {
+            --bs-gutter-x: 8px;
+            --bs-gutter-y: 4px;
+        }
+        body.ventas-compact .stone-filter-box label,
+        body.ventas-compact .filter-section label,
+        body.ventas-compact .filters-card label {
+            margin-bottom: 2px !important;
+            font-size: 0.66rem !important;
+            line-height: 14px !important;
+        }
+        body.ventas-compact .form-control-stone,
+        body.ventas-compact .form-select-stone,
+        body.ventas-compact .form-control-premium,
+        body.ventas-compact .form-select-premium,
+        body.ventas-compact .filter-section .form-control,
+        body.ventas-compact .filter-section .form-select,
+        body.ventas-compact .stone-filter-box .btn,
+        body.ventas-compact .filter-section .btn,
+        body.ventas-compact .btn-action-primary {
+            height: 28px !important;
+            min-height: 28px !important;
+            padding: 2px 8px !important;
+            border-radius: 6px !important;
+            font-size: 0.72rem !important;
+        }
+        body.ventas-compact .stat-card {
+            min-height: 46px !important;
+            border-radius: 8px !important;
+        }
+        body.ventas-compact .stat-content { padding: 5px 9px !important; }
+        body.ventas-compact .stat-value { font-size: 0.92rem !important; }
+        body.ventas-compact .stat-label { font-size: 0.61rem !important; }
+        body.ventas-compact .stat-icon {
+            right: 8px !important;
+            bottom: 7px !important;
+            font-size: 1.3rem !important;
+        }
+        body.ventas-compact .stone-filter-box + .row,
+        body.ventas-compact .filter-section + .row,
+        body.ventas-compact .row.g-3.mb-4.justify-content-center {
+            --bs-gutter-x: 8px;
+            margin-bottom: 6px !important;
+        }
+        body.ventas-compact .table-piedra thead th,
+        body.ventas-compact .table-premium thead th {
+            height: 28px !important;
+            padding: 3px 8px !important;
+            font-size: 0.68rem !important;
+        }
+        body.ventas-compact .table-piedra tbody td,
+        body.ventas-compact .table-premium tbody td {
+            height: 28px !important;
+            padding: 2px 8px !important;
+            font-size: 0.75rem !important;
+        }
+        body.ventas-compact .card-body.p-2 { padding: 6px !important; }
+    </style>
+    <style id="nombres-completos-listas-css">
+        table th.columna-texto-completo,
+        table td.columna-texto-completo {
+            font-size: 11px !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            line-height: 14px !important;
+        }
+        table td.columna-texto-completo span,
+        table td.columna-texto-completo a,
+        table td.columna-texto-completo div {
+            max-width: none !important;
+            font-size: 11px !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            line-height: 14px !important;
+        }
+        body.pedido-detail-compact .tabla-detalle-pedido th {
+            height: 25px !important;
+            padding: 2px 7px !important;
+            font-size: 10px !important;
+            line-height: 17px !important;
+        }
+        body.pedido-detail-compact .tabla-detalle-pedido tbody tr,
+        body.pedido-detail-compact .tabla-detalle-pedido td {
+            height: 28px !important;
+        }
+        body.pedido-detail-compact .tabla-detalle-pedido td {
+            padding: 1px 7px !important;
+            font-size: 11px !important;
+            line-height: 13px !important;
+        }
+        body.pedido-detail-compact .tabla-detalle-pedido td div {
+            font-size: 10px !important;
+            line-height: 12px !important;
+            white-space: normal !important;
+        }
+    </style>
 </head>
 
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}{% if request.resolver_match.namespace == 'ventas' and '/pos/' not in request.path %} ventas-compact{% endif %}{% if fondo_foto %} fondo-foto{% endif %}{% if menu_superior %} menu-superior{% endif %}">
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div class="logo-container">
-                    <img src="{% static 'image/LogoCloud-5.png' %}?v=1" alt="GestionCloud" class="logo-img">
+                    <img src="{% static 'image/logogestioncloud.png' %}?v=20260714" alt="GestionCloud" class="logo-img">
                 </div>
                 <button class="toggle-sidebar-mobile d-lg-none" id="toggleSidebarMobile">
                     <i class="fas fa-bars"></i>
@@ -1037,9 +1958,8 @@
                 <a href="{% url 'dashboard' %}"
                     class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
                     <i class="nav-icon fas fa-tachometer-alt"></i>
-                    <span class="nav-text d-flex align-items-center justify-content-between">
-                        Dashboard
-                        <div class="d-flex gap-1 align-items-center">
+                    <span class="nav-text">Dashboard</span>
+                    <span class="nav-badges d-flex gap-1 align-items-center">
                             {% if GLOBAL_GUIAS_PENDIENTES_COUNT > 0 %}
                             <span class="badge rounded-pill {% if GLOBAL_GUIAS_URGENCIA_MES %}bg-danger{% else %}bg-warning text-dark{% endif %} animate__animated animate__pulse animate__infinite" 
                                   style="font-size: 0.6rem; padding: 0.3em 0.5em;" 
@@ -1055,7 +1975,6 @@
                                 {{ GLOBAL_CAF_ALERTS|length }}
                             </span>
                             {% endif %}
-                        </div>
                     </span>
                 </a>
             </div>
@@ -1145,12 +2064,12 @@
             {% if perms.ventas.view_venta or perms.ventas.view_cotizacion or perms.ventas.view_vendedor or perms.ventas.view_formapago or perms.ventas.view_estaciontrabajo or perms.clientes.view_cliente or user.is_superuser %}
             <div class="nav-item has-submenu">
                 <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#ventasSubmenu"
-                    aria-expanded="{% if request.resolver_match.app_name == 'ventas' and 'precio_cliente' not in request.resolver_match.url_name %}true{% else %}false{% endif %}">
+                    aria-expanded="{% if 'precio_cliente' not in request.resolver_match.url_name and request.resolver_match.app_name == 'ventas' or request.resolver_match.app_name == 'clientes' or request.resolver_match.app_name == 'facturacion_electronica' or 'caf' in request.path %}true{% else %}false{% endif %}">
                     <i class="nav-icon fas fa-cash-register"></i>
                     <span class="nav-text">Ventas</span>
                     <i class="fas fa-chevron-down submenu-arrow"></i>
                 </a>
-                <div class="collapse submenu {% if request.resolver_match.app_name == 'ventas' and 'precio_cliente' not in request.resolver_match.url_name %}show{% endif %}"
+                <div class="collapse submenu {% if 'precio_cliente' not in request.resolver_match.url_name and request.resolver_match.app_name == 'ventas' or request.resolver_match.app_name == 'clientes' or request.resolver_match.app_name == 'facturacion_electronica' or 'caf' in request.path %}show{% endif %}"
                     id="ventasSubmenu">
                     <div class="submenu-items">
                         <!-- Operaciones -->
@@ -1189,10 +2108,20 @@
                             <i class="fas fa-book me-2" style="color: #A0826D;"></i>
                             <span>Libro de Ventas</span>
                         </a>
+                        <a href="{% url 'ventas:libro_guias' %}"
+                            class="nav-link submenu-link {% if 'libro-guias' in request.path %}active{% endif %}">
+                            <i class="fas fa-truck me-2" style="color: #A0826D;"></i>
+                            <span>Libro de Guías</span>
+                        </a>
                         <a href="{% url 'ventas:facturar_guias_list' %}"
                             class="nav-link submenu-link {% if 'facturar-guias' in request.path %}active{% endif %}">
                             <i class="fas fa-file-invoice me-2" style="color: #A0826D;"></i>
                             <span class="fw-bold" style="color: #5D4037;">Facturar Guías</span>
+                        </a>
+                        <a href="{% url 'ventas:facturar_directo' %}"
+                            class="nav-link submenu-link {% if 'facturador-directo' in request.path %}active{% endif %}">
+                            <i class="fas fa-file-circle-plus me-2" style="color: #A0826D;"></i>
+                            <span class="fw-bold" style="color: #5D4037;">Facturador Directo</span>
                         </a>
                         {% endif %}
                         {% if perms.ventas.view_notacredito or user.is_superuser %}
@@ -1533,8 +2462,13 @@
                         {% if perms.caja.view_caja or user.is_superuser %}
                         <a href="{% url 'caja:caja_list' %}"
                             class="nav-link submenu-link {% if 'cajas' in request.path %}active{% endif %}">
-                            <i class="fas fa-cog me-2" style="color: #17a2b8;"></i>
+                            <i class="fas fa-cog me-2" style="color: #8B7355;"></i>
                             <span>Gestión de Cajas</span>
+                        </a>
+                        <a href="{% url 'caja:conectar_impresora' %}"
+                            class="nav-link submenu-link {% if 'impresora' in request.path %}active{% endif %}">
+                            <i class="fas fa-print me-2" style="color: #C76F43;"></i>
+                            <span>Conectar impresora</span>
                         </a>
                         {% endif %}
                     </div>
@@ -1736,6 +2670,325 @@
         </div>
         </div>
     </nav>
+    <script id="menu-superior-icons-only-js">
+        (function () {
+            if (!document.body) return;
+            var sidebar = document.getElementById('sidebar');
+            var nav = sidebar && sidebar.querySelector('.sidebar-nav');
+            if (!sidebar || !nav) return;
+
+            var wrap = sidebar.querySelector('.sidebar-scroll-wrapper') || sidebar;
+            var STORAGE_KEY = 'gc-menu-reveal-item';
+            var isSuperior = document.body.classList.contains('menu-superior');
+            var flyout = document.getElementById('menu-superior-flyout');
+            var openItem = null;
+
+            function itemKey(item) {
+                if (!item) return '';
+                var toggle = item.querySelector(':scope > .nav-link');
+                if (!toggle) return '';
+                return toggle.getAttribute('data-bs-target') || toggle.getAttribute('href') || '';
+            }
+
+            function pathOfHref(href) {
+                try {
+                    return new URL(href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+                } catch (e) {
+                    return '';
+                }
+            }
+
+            function findActiveTopItem() {
+                var current = window.location.pathname.replace(/\/+$/, '') || '/';
+                var bestItem = null;
+                var bestLen = -1;
+                nav.querySelectorAll(':scope > .nav-item').forEach(function (item) {
+                    item.querySelectorAll('a.nav-link[href]').forEach(function (link) {
+                        var href = link.getAttribute('href');
+                        if (!href || href === '#') return;
+                        var path = pathOfHref(href);
+                        if (!path) return;
+                        var match = false;
+                        if (path === '/') {
+                            match = current === '/';
+                        } else {
+                            match = current === path || current.startsWith(path + '/');
+                        }
+                        if (match && path.length > bestLen) {
+                            bestItem = item;
+                            bestLen = path.length;
+                        }
+                    });
+                });
+                if (!bestItem) {
+                    var activeLink = nav.querySelector('a.nav-link.active');
+                    if (activeLink) bestItem = activeLink.closest('.sidebar-nav > .nav-item');
+                }
+                if (!bestItem) {
+                    try {
+                        var saved = sessionStorage.getItem(STORAGE_KEY);
+                        if (saved) {
+                            nav.querySelectorAll(':scope > .nav-item').forEach(function (item) {
+                                if (!bestItem && itemKey(item) === saved) bestItem = item;
+                            });
+                        }
+                    } catch (err) {}
+                }
+                return bestItem;
+            }
+
+            function revealActiveMenuItem() {
+                var item = findActiveTopItem();
+                if (!item || !wrap) return;
+                var topLink = item.querySelector(':scope > .nav-link');
+                var targets = [];
+                if (topLink) targets.push(topLink);
+                var activeSub = item.querySelector('a.submenu-link.active, a.nav-link.active');
+                if (activeSub && targets.indexOf(activeSub) === -1) targets.push(activeSub);
+                if (!targets.length) targets.push(item);
+
+                targets.forEach(function (el) {
+                    var wrapRect = wrap.getBoundingClientRect();
+                    var r = el.getBoundingClientRect();
+                    if (!wrapRect.width) return;
+                    var pad = 12;
+                    var dx = 0;
+                    var dy = 0;
+                    if (r.left < wrapRect.left + pad) dx = r.left - wrapRect.left - pad;
+                    else if (r.right > wrapRect.right - pad) dx = r.right - wrapRect.right + pad;
+                    if (r.top < wrapRect.top + pad) dy = r.top - wrapRect.top - pad;
+                    else if (r.bottom > wrapRect.bottom - pad) dy = r.bottom - wrapRect.bottom + pad;
+                    if (dx) wrap.scrollLeft += dx;
+                    if (dy) wrap.scrollTop += dy;
+                });
+                if (topLink) topLink.classList.add('active');
+            }
+
+            window.gcRevealActiveMenuItem = revealActiveMenuItem;
+
+            document.addEventListener('click', function (e) {
+                var link = e.target.closest('a.nav-link[href]');
+                if (!link) return;
+                var href = link.getAttribute('href');
+                if (!href || href === '#') return;
+                var inSidebar = sidebar.contains(link);
+                var inFlyout = flyout && flyout.contains(link);
+                if (!inSidebar && !inFlyout) return;
+                var item = inFlyout && openItem ? openItem : link.closest('.sidebar-nav > .nav-item');
+                if (!item) return;
+                try { sessionStorage.setItem(STORAGE_KEY, itemKey(item)); } catch (err) {}
+            }, true);
+
+            if (!isSuperior) {
+                document.addEventListener('DOMContentLoaded', function () {
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(revealActiveMenuItem);
+                    });
+                });
+                return;
+            }
+
+            nav.querySelectorAll(':scope > .nav-item > .nav-link').forEach(function (link) {
+                var textEl = link.querySelector(':scope > .nav-text');
+                if (!textEl) return;
+                var label = '';
+                textEl.childNodes.forEach(function (node) {
+                    if (node.nodeType === 3) label += node.textContent;
+                });
+                label = label.replace(/\s+/g, ' ').trim() || (textEl.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!label) return;
+                if (!link.getAttribute('title')) link.setAttribute('title', label);
+                if (!link.getAttribute('aria-label')) link.setAttribute('aria-label', label);
+            });
+
+            var scheduled = false;
+            var MIN_WIDTH_LABELS = 640;
+            var EDGE_PX = 72;
+            var scrollDir = 0;
+            var scrollSpeed = 0;
+            var scrollRaf = null;
+
+            function labeledOverflows() {
+                var items = nav.querySelectorAll(':scope > .nav-item');
+                if (!items.length) return false;
+                var wrapRect = wrap.getBoundingClientRect();
+                if (wrapRect.width < 40) return false;
+                var last = items[items.length - 1];
+                var link = last.querySelector(':scope > .nav-link') || last;
+                return link.getBoundingClientRect().right - wrapRect.right > 2;
+            }
+
+            function fitNav() {
+                sidebar.classList.remove('nav-icons-only');
+                void nav.offsetWidth;
+                var wrapRect = wrap.getBoundingClientRect();
+                if (wrapRect.width < 40) return;
+                if (wrapRect.width < MIN_WIDTH_LABELS && labeledOverflows()) {
+                    sidebar.classList.add('nav-icons-only');
+                }
+                if (!openItem) revealActiveMenuItem();
+            }
+
+            function scheduleFit() {
+                if (scheduled) return;
+                scheduled = true;
+                requestAnimationFrame(function () {
+                    scheduled = false;
+                    fitNav();
+                });
+            }
+
+            flyout = document.getElementById('menu-superior-flyout');
+            if (!flyout) {
+                flyout = document.createElement('div');
+                flyout.id = 'menu-superior-flyout';
+                flyout.style.display = 'none';
+                document.body.appendChild(flyout);
+            }
+            var hideTimer = null;
+
+            function placeFlyout() {
+                if (!openItem || !flyout.firstElementChild) return;
+                var sub = flyout.firstElementChild;
+                var r = openItem.getBoundingClientRect();
+                flyout.style.display = 'block';
+                var sw = sub.offsetWidth || 220;
+                var left = r.left;
+                if (left + sw > window.innerWidth - 8) {
+                    left = Math.max(8, window.innerWidth - sw - 8);
+                }
+                flyout.style.top = Math.round(r.bottom - 4) + 'px';
+                flyout.style.left = Math.round(left) + 'px';
+            }
+
+            function restoreFlyout() {
+                var sub = flyout.firstElementChild;
+                if (!sub || !openItem) {
+                    openItem = null;
+                    flyout.style.display = 'none';
+                    return;
+                }
+                var slot = openItem.querySelector(':scope > .submenu-slot');
+                if (slot) openItem.insertBefore(sub, slot);
+                else openItem.appendChild(sub);
+                sub.classList.remove('show');
+                openItem.classList.remove('submenu-open');
+                openItem = null;
+                flyout.style.display = 'none';
+            }
+
+            function hideFlyout(immediate) {
+                clearTimeout(hideTimer);
+                if (immediate) {
+                    restoreFlyout();
+                    return;
+                }
+                hideTimer = setTimeout(restoreFlyout, 160);
+            }
+
+            function showFlyout(item) {
+                var sub = item.querySelector(':scope > .submenu') || (openItem === item ? flyout.firstElementChild : null);
+                if (!sub) return;
+                clearTimeout(hideTimer);
+                if (openItem && openItem !== item) restoreFlyout();
+                if (sub.parentNode !== flyout) {
+                    var slot = item.querySelector(':scope > .submenu-slot');
+                    if (!slot) {
+                        slot = document.createElement('span');
+                        slot.className = 'submenu-slot';
+                        slot.hidden = true;
+                        item.appendChild(slot);
+                    }
+                    flyout.appendChild(sub);
+                }
+                sub.classList.add('show');
+                openItem = item;
+                item.classList.add('submenu-open');
+                placeFlyout();
+                requestAnimationFrame(placeFlyout);
+            }
+
+            function tickScroll() {
+                if (!scrollDir) {
+                    scrollRaf = null;
+                    return;
+                }
+                if (flyout.matches(':hover')) {
+                    scrollDir = 0;
+                    scrollRaf = null;
+                    return;
+                }
+                var maxScroll = wrap.scrollWidth - wrap.clientWidth;
+                wrap.scrollLeft += scrollDir * scrollSpeed;
+                if (wrap.scrollLeft <= 0 && scrollDir < 0) scrollDir = 0;
+                if (wrap.scrollLeft >= maxScroll - 0.5 && scrollDir > 0) scrollDir = 0;
+                if (openItem) placeFlyout();
+                scrollRaf = requestAnimationFrame(tickScroll);
+            }
+
+            function onMenuMove(e) {
+                if (e.target.closest && (e.target.closest('.submenu') || e.target.closest('#menu-superior-flyout'))) {
+                    scrollDir = 0;
+                    return;
+                }
+                var rect = wrap.getBoundingClientRect();
+                var maxScroll = wrap.scrollWidth - wrap.clientWidth;
+                if (maxScroll <= 1) {
+                    scrollDir = 0;
+                    return;
+                }
+                var x = e.clientX - rect.left;
+                if (x < EDGE_PX && wrap.scrollLeft > 0) {
+                    scrollDir = -1;
+                    scrollSpeed = Math.max(2, (1 - x / EDGE_PX) * 12);
+                } else if (x > rect.width - EDGE_PX && wrap.scrollLeft < maxScroll) {
+                    scrollDir = 1;
+                    scrollSpeed = Math.max(2, (1 - (rect.width - x) / EDGE_PX) * 12);
+                } else {
+                    scrollDir = 0;
+                }
+                if (scrollDir && !scrollRaf) scrollRaf = requestAnimationFrame(tickScroll);
+            }
+
+            nav.querySelectorAll(':scope > .nav-item.has-submenu').forEach(function (item) {
+                item.addEventListener('mouseenter', function () { showFlyout(item); });
+                item.addEventListener('mouseleave', function () { hideFlyout(); });
+            });
+            flyout.addEventListener('mouseenter', function () { clearTimeout(hideTimer); scrollDir = 0; });
+            flyout.addEventListener('mouseleave', function () { hideFlyout(); });
+            nav.querySelectorAll(':scope > .nav-item.has-submenu > .submenu-toggle').forEach(function (toggle) {
+                toggle.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }, true);
+            });
+
+            wrap.addEventListener('mousemove', onMenuMove);
+            wrap.addEventListener('mouseleave', function () { scrollDir = 0; });
+            wrap.addEventListener('wheel', function (e) {
+                var maxScroll = wrap.scrollWidth - wrap.clientWidth;
+                if (maxScroll <= 1) return;
+                var delta = e.deltaX || e.deltaY;
+                if (!delta) return;
+                wrap.scrollLeft += delta;
+                e.preventDefault();
+            }, { passive: false });
+
+            scheduleFit();
+            document.addEventListener('DOMContentLoaded', scheduleFit);
+            window.addEventListener('resize', scheduleFit);
+            if (typeof ResizeObserver !== 'undefined') {
+                var ro = new ResizeObserver(scheduleFit);
+                ro.observe(wrap);
+            }
+            var logo = sidebar.querySelector('.sidebar-header img');
+            if (logo) logo.addEventListener('load', scheduleFit);
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(scheduleFit);
+            }
+            window.addEventListener('load', scheduleFit);
+        })();
+    </script>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -1907,9 +3160,6 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
     <script>
         // Sidebar toggle
         document.getElementById('toggleSidebar').addEventListener('click', function () {
@@ -1929,6 +3179,29 @@
             sidebar.classList.toggle('collapsed');
             mainContent.classList.toggle('expanded');
         });
+
+        if (document.body.classList.contains('menu-superior')) {
+            const sidebarSup = document.getElementById('sidebar');
+            const mainSup = document.getElementById('mainContent');
+            if (sidebarSup) {
+                sidebarSup.classList.remove('collapsed');
+                sidebarSup.classList.add('show');
+            }
+            if (mainSup) {
+                mainSup.classList.remove('expanded');
+            }
+            document.querySelectorAll('.sidebar .submenu-toggle').forEach(function (el) {
+                el.removeAttribute('data-bs-toggle');
+                el.setAttribute('aria-expanded', 'false');
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
+            });
+            document.querySelectorAll('.sidebar .submenu.collapse.show').forEach(function (el) {
+                el.classList.remove('show');
+            });
+        }
 
         // Dropdown submenu functionality
         document.querySelectorAll('.dropdown-submenu .dropdown-toggle').forEach(function (element) {
@@ -2015,7 +3288,21 @@
         });
     </script>
 
+    <script>
+        window.gcWithReturnUrl = function (url) {
+            try {
+                var u = new URL(url, window.location.origin);
+                u.searchParams.set('return_url', window.location.pathname + window.location.search);
+                return u.pathname + u.search + u.hash;
+            } catch (e) {
+                return url;
+            }
+        };
+    </script>
     {% block extra_js %}{% endblock %}
+    {% if '/pos' not in request.path %}
+    {% include 'includes/articulos_f10_modal.html' %}
+    {% endif %}
 
     <script>
         // Submenu functionality
@@ -2051,133 +3338,61 @@
             // NO cerrar submenú al hacer clic en enlaces (mantener abierto)
             // Los submenús permanecen abiertos para mejor navegación
 
-            // Auto-expand submenu if current page is in it
-            const currentUrl = window.location.pathname;
-            const articulosUrls = [
-                '/articulos/',
-                '/articulos/categorias/',
-                '/articulos/impuestos/',
-                '/articulos/unidades/'
-            ];
-
-            if (articulosUrls.some(url => currentUrl.startsWith(url))) {
-                const articulosSubmenu = document.getElementById('articulosSubmenu');
-                const articulosToggle = document.querySelector('[data-bs-target="#articulosSubmenu"]');
-
-                if (articulosSubmenu && articulosToggle) {
-                    articulosSubmenu.classList.add('show');
-                    articulosToggle.setAttribute('aria-expanded', 'true');
+            function pathOfHref(href) {
+                try {
+                    return new URL(href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+                } catch (e) {
+                    return '';
                 }
             }
 
-            // Auto-expand inventario submenu
-            const inventarioUrls = [
-                '/inventario/',
-                '/bodegas/'
-            ];
+            function markActiveSubmenu() {
+                const current = window.location.pathname.replace(/\/+$/, '') || '/';
+                const links = Array.from(document.querySelectorAll('.sidebar .submenu-link[href]'));
+                let best = null;
+                let bestLen = -1;
 
-            if (inventarioUrls.some(url => currentUrl.startsWith(url))) {
-                const inventarioSubmenu = document.getElementById('inventarioSubmenu');
-                const inventarioToggle = document.querySelector('[data-bs-target="#inventarioSubmenu"]');
+                links.forEach(function (link) {
+                    const href = link.getAttribute('href');
+                    if (!href || href === '#') return;
+                    const path = pathOfHref(href);
+                    if (!path || path === '/') return;
+                    if (current === path || current.startsWith(path + '/')) {
+                        if (path.length > bestLen) {
+                            best = link;
+                            bestLen = path.length;
+                        }
+                    }
+                });
 
-                if (inventarioSubmenu && inventarioToggle) {
-                    inventarioSubmenu.classList.add('show');
-                    inventarioToggle.setAttribute('aria-expanded', 'true');
+                links.forEach(function (link) { link.classList.remove('active'); });
+
+                if (!best) return;
+                best.classList.add('active');
+
+                const submenu = best.closest('.collapse.submenu');
+                if (!submenu) return;
+
+                document.querySelectorAll('.sidebar .collapse.submenu').forEach(function (other) {
+                    if (other === submenu) return;
+                    other.classList.remove('show');
+                    const otherToggle = document.querySelector('.submenu-toggle[data-bs-target="#' + other.id + '"]');
+                    if (otherToggle) otherToggle.setAttribute('aria-expanded', 'false');
+                });
+
+                submenu.classList.add('show');
+                const toggle = document.querySelector('.submenu-toggle[data-bs-target="#' + submenu.id + '"]');
+                if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'true');
+                    toggle.classList.add('active');
                 }
             }
 
-            // Auto-expand compras submenu
-            const comprasUrls = [
-                '/compras/',
-                '/documentos/',
-                '/proveedores/'
-            ];
-
-            if (comprasUrls.some(url => currentUrl.startsWith(url))) {
-                const comprasSubmenu = document.getElementById('comprasSubmenu');
-                const comprasToggle = document.querySelector('[data-bs-target="#comprasSubmenu"]');
-
-                if (comprasSubmenu && comprasToggle) {
-                    comprasSubmenu.classList.add('show');
-                    comprasToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-
-            // Auto-expand ventas submenu
-            const ventasUrls = [
-                '/ventas/',
-                '/clientes/'
-            ];
-
-            if (ventasUrls.some(url => currentUrl.startsWith(url))) {
-                const ventasSubmenu = document.getElementById('ventasSubmenu');
-                const ventasToggle = document.querySelector('[data-bs-target="#ventasSubmenu"]');
-
-                if (ventasSubmenu && ventasToggle) {
-                    ventasSubmenu.classList.add('show');
-                    ventasToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-
-            // Auto-expand tesoreria submenu
-            const tesoreriaUrls = [
-                '/tesoreria/'
-            ];
-
-            if (tesoreriaUrls.some(url => currentUrl.startsWith(url))) {
-                const tesoreriaSubmenu = document.getElementById('tesoreriaSubmenu');
-                const tesoreriaToggle = document.querySelector('[data-bs-target="#tesoreriaSubmenu"]');
-
-                if (tesoreriaSubmenu && tesoreriaToggle) {
-                    tesoreriaSubmenu.classList.add('show');
-                    tesoreriaToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-
-            // Auto-expand empresa titular submenu
-            const empresaTitularUrls = [
-                '/empresas/editar-empresa-activa/',
-                '/empresas/sucursales/'
-            ];
-
-            if (empresaTitularUrls.some(url => currentUrl.startsWith(url))) {
-                const empresaTitularSubmenu = document.getElementById('empresaTitularSubmenu');
-                const empresaTitularToggle = document.querySelector('[data-bs-target="#empresaTitularSubmenu"]');
-
-                if (empresaTitularSubmenu && empresaTitularToggle) {
-                    empresaTitularSubmenu.classList.add('show');
-                    empresaTitularToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-
-            // Auto-expand informes submenu
-            const informesUrls = [
-                '/informes/'
-            ];
-
-            if (informesUrls.some(url => currentUrl.startsWith(url))) {
-                const informesSubmenu = document.getElementById('informesSubmenu');
-                const informesToggle = document.querySelector('[data-bs-target="#informesSubmenu"]');
-
-                if (informesSubmenu && informesToggle) {
-                    informesSubmenu.classList.add('show');
-                    informesToggle.setAttribute('aria-expanded', 'true');
-                }
-            }
-
-            // Auto-expand produccion submenu
-            const produccionUrls = [
-                '/produccion/'
-            ];
-
-            if (produccionUrls.some(url => currentUrl.startsWith(url))) {
-                const produccionSubmenu = document.getElementById('produccionSubmenu');
-                const produccionToggle = document.querySelector('[data-bs-target="#produccionSubmenu"]');
-
-                if (produccionSubmenu && produccionToggle) {
-                    produccionSubmenu.classList.add('show');
-                    produccionToggle.setAttribute('aria-expanded', 'true');
-                }
+            markActiveSubmenu();
+            if (typeof window.gcRevealActiveMenuItem === 'function') {
+                requestAnimationFrame(function () {
+                    window.gcRevealActiveMenuItem();
+                });
             }
 
             // Función específica para enlaces del submenú de inventario
@@ -2403,6 +3618,188 @@
             }
         });
     </script>
+    <script id="lista-28px-js-v3">
+    (function () {
+        if (location.pathname.indexOf('/pos') !== -1) return;
+        function aplicarFilas28() {
+            var tablas = document.querySelectorAll('.table-piedra, .table-piedra-compact, .table-piedra-gestion, .tabla-informe, .tabla-32, #cotiz-tabla, .table-stone, .table-compact, table.table');
+            tablas.forEach(function (tabla) {
+                if (tabla.id === 'articulosF10Tabla' || tabla.classList.contains('tabla-f10') || tabla.classList.contains('tabla-detalle-pedido') || tabla.classList.contains('tabla-eventos-sii')) return;
+                var columnasTextoCompleto = [];
+                var layoutPropio = tabla.classList.contains('tabla-layout-propio');
+                var encabezados = tabla.querySelectorAll('thead tr:last-child th');
+                if (!layoutPropio) {
+                    encabezados.forEach(function (th, indice) {
+                        var titulo = (th.textContent || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+                        if (/(CLIENTE|RAZON SOCIAL|PRODUCTO|ARTICULO|DESCRIPCION)/.test(titulo)) {
+                            columnasTextoCompleto.push(indice);
+                            th.classList.add('columna-texto-completo');
+                        }
+                    });
+                }
+                tabla.querySelectorAll('tbody tr').forEach(function (tr) {
+                    columnasTextoCompleto.forEach(function (indice) {
+                        var celdaNombre = tr.children[indice];
+                        if (celdaNombre) {
+                            celdaNombre.classList.add('columna-texto-completo');
+                            celdaNombre.style.setProperty('font-size', '11px', 'important');
+                            celdaNombre.style.setProperty('white-space', 'normal', 'important');
+                            celdaNombre.style.setProperty('overflow', 'visible', 'important');
+                            celdaNombre.style.setProperty('text-overflow', 'clip', 'important');
+                        }
+                    });
+                });
+                var nombreCompleto = tabla.classList.contains('tabla-nombre-completo') || columnasTextoCompleto.length > 0;
+                tabla.style.setProperty('table-layout', nombreCompleto ? 'auto' : 'fixed', 'important');
+                tabla.style.setProperty('width', '100%', 'important');
+                tabla.querySelectorAll('tbody tr').forEach(function (tr) {
+                    if (tr.querySelector('td[colspan]')) return;
+                    tr.style.setProperty('height', '28px', 'important');
+                    tr.querySelectorAll('td, th').forEach(function (celda) {
+                        celda.style.setProperty('height', '28px', 'important');
+                        celda.style.setProperty('padding-top', '0px', 'important');
+                        celda.style.setProperty('padding-bottom', '0px', 'important');
+                        celda.style.setProperty('line-height', '18px', 'important');
+                        celda.style.setProperty('font-size', celda.classList.contains('columna-texto-completo') ? '11px' : '13.5px', 'important');
+                        celda.style.setProperty('white-space', celda.classList.contains('columna-texto-completo') ? 'normal' : 'nowrap', 'important');
+                        celda.style.setProperty('vertical-align', 'middle', 'important');
+                        celda.style.setProperty('box-sizing', 'border-box', 'important');
+                        if (celda.classList.contains('td-nombre') || celda.classList.contains('td-acciones') || celda.classList.contains('columna-texto-completo')) {
+                            celda.style.setProperty('overflow', 'visible', 'important');
+                            celda.style.setProperty('text-overflow', 'clip', 'important');
+                        } else {
+                            celda.style.setProperty('overflow', 'hidden', 'important');
+                        }
+                        if (celda.classList.contains('columna-texto-completo')) {
+                            celda.querySelectorAll('span, a, div').forEach(function (texto) {
+                                texto.style.setProperty('font-size', '11px', 'important');
+                                texto.style.setProperty('white-space', 'normal', 'important');
+                                texto.style.setProperty('overflow', 'visible', 'important');
+                                texto.style.setProperty('text-overflow', 'clip', 'important');
+                                texto.style.setProperty('max-width', 'none', 'important');
+                                texto.style.setProperty('line-height', '14px', 'important');
+                            });
+                        }
+                    });
+                    tr.querySelectorAll('.badge').forEach(function (b) {
+                        b.style.setProperty('padding', '2px 6px', 'important');
+                        b.style.setProperty('font-size', '10px', 'important');
+                        b.style.setProperty('line-height', '16px', 'important');
+                        b.style.setProperty('height', '18px', 'important');
+                        b.style.setProperty('max-height', '18px', 'important');
+                    });
+                    tr.querySelectorAll('.btn, .btn-sm, .btn-action-piedra, .btn-action-piedra-label, .ico-32').forEach(function (b) {
+                        if (b.classList.contains('js-no-compact')) return;
+                        b.style.setProperty('height', '20px', 'important');
+                        b.style.setProperty('min-height', '20px', 'important');
+                        b.style.setProperty('max-height', '20px', 'important');
+                        b.style.setProperty('padding', '0', 'important');
+                        b.style.setProperty('line-height', '1', 'important');
+                        b.style.setProperty('font-size', '11px', 'important');
+                        b.style.setProperty('display', 'inline-flex', 'important');
+                        b.style.setProperty('align-items', 'center', 'important');
+                        b.style.setProperty('justify-content', 'center', 'important');
+                        if (b.classList.contains('ico-32')) {
+                            b.style.setProperty('background', 'transparent', 'important');
+                        }
+                    });
+                    tr.querySelectorAll('.d-flex').forEach(function (d) {
+                        var esNombreCompleto = d.closest('td.columna-texto-completo');
+                        d.style.setProperty('flex-direction', 'row', 'important');
+                        d.style.setProperty('flex-wrap', 'nowrap', 'important');
+                        d.style.setProperty('align-items', 'center', 'important');
+                        d.style.setProperty('gap', '4px', 'important');
+                        d.style.setProperty('max-height', esNombreCompleto ? 'none' : '28px', 'important');
+                    });
+                });
+            });
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', aplicarFilas28);
+        } else {
+            aplicarFilas28();
+        }
+    })();
+    </script>
+    <script id="select2-clientes-global-js">
+    (function () {
+        var selectorCliente = [
+            'select[name="cliente"]',
+            'select[name="cliente_id"]',
+            'select#cliente_id',
+            'select#clienteSelect',
+            'select#id_cliente'
+        ].join(',');
+
+        function datosCliente(opcion) {
+            if (!opcion) return { rut: '', nombre: '' };
+            var elemento = opcion.element;
+            var rut = (opcion.rut || (elemento && elemento.dataset ? elemento.dataset.rut : '') || '').trim();
+            var nombre = (opcion.nombre || (elemento && elemento.dataset ? elemento.dataset.nombre : '') || '').trim();
+            var texto = (opcion.text || '').trim();
+            if (!rut) {
+                var coincidencia = texto.match(/^([0-9.]{7,12}-[0-9Kk])\s*(?:-|\||·)\s*(.+)$/);
+                if (coincidencia) {
+                    rut = coincidencia[1];
+                    nombre = nombre || coincidencia[2];
+                }
+            }
+            return { rut: rut || 'Sin RUT', nombre: nombre || texto };
+        }
+
+        function opcionCliente(opcion) {
+            if (!opcion.id) return opcion.text;
+            var datos = datosCliente(opcion);
+            return jQuery('<span class="select2-cliente-fila"><span class="select2-cliente-rut"></span><span class="select2-cliente-nombre"></span></span>')
+                .find('.select2-cliente-rut').text(datos.rut).end()
+                .find('.select2-cliente-nombre').text(datos.nombre).end();
+        }
+
+        function inicializarSelectoresCliente(contenedor) {
+            if (!window.jQuery || !jQuery.fn || !jQuery.fn.select2) return;
+            var raiz = contenedor && contenedor.querySelectorAll ? contenedor : document;
+            var elementos = [];
+            if (raiz.matches && raiz.matches(selectorCliente)) elementos.push(raiz);
+            raiz.querySelectorAll(selectorCliente).forEach(function (select) { elementos.push(select); });
+
+            elementos.forEach(function (select) {
+                var $select = jQuery(select);
+                if ($select.hasClass('select2-hidden-accessible') || select.disabled || select.closest('[data-no-select2]')) return;
+                var $modal = $select.closest('.modal');
+                var primeraOpcion = select.options.length ? select.options[0].text.trim() : 'Seleccione un cliente';
+                $select.select2({
+                    width: '100%',
+                    placeholder: primeraOpcion || 'Seleccione un cliente',
+                    allowClear: !select.required,
+                    dropdownParent: $modal.length ? $modal : jQuery(document.body),
+                    dropdownAutoWidth: true,
+                    dropdownCssClass: 'select2-clientes-dropdown',
+                    templateResult: opcionCliente
+                });
+                $select.next('.select2-container').addClass('select2-cliente-global');
+            });
+        }
+
+        function activarSelect2Clientes() {
+            inicializarSelectoresCliente(document);
+            var observador = new MutationObserver(function (mutaciones) {
+                mutaciones.forEach(function (mutacion) {
+                    mutacion.addedNodes.forEach(function (nodo) {
+                        if (nodo.nodeType === 1) inicializarSelectoresCliente(nodo);
+                    });
+                });
+            });
+            observador.observe(document.body, { childList: true, subtree: true });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', activarSelect2Clientes);
+        } else {
+            activarSelect2Clientes();
+        }
+    })();
+    </script>
+    {% block extra_js_last %}{% endblock %}
 </body>
 
 </html>

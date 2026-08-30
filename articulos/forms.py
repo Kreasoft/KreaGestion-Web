@@ -402,23 +402,24 @@ class HomologacionCodigoForm(forms.ModelForm):
             'proveedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'codigo_proveedor': forms.TextInput(attrs={
                 'class': 'form-control form-control-sm',
-                'placeholder': 'Código del proveedor'
+                'placeholder': 'Ej.: AB-123'
             }),
             'descripcion_proveedor': forms.TextInput(attrs={
                 'class': 'form-control form-control-sm',
-                'placeholder': 'Descripción según proveedor (opcional)'
+                'placeholder': 'Ej.: Filtro de aceite Premium 10W-40'
             }),
             'precio_compra': forms.NumberInput(attrs={
                 'class': 'form-control form-control-sm text-end',
                 'min': '0',
-                'step': '1'
+                'step': '1',
+                'placeholder': 'Ej.: 15990'
             }),
             'es_principal': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'observaciones': forms.Textarea(attrs={
                 'class': 'form-control form-control-sm',
                 'rows': 2,
-                'placeholder': 'Observaciones adicionales (opcional)'
+                'placeholder': 'Ej.: Compra mínima de 12 unidades'
             }),
         }
     
@@ -428,6 +429,7 @@ class HomologacionCodigoForm(forms.ModelForm):
         
         if empresa:
             self.fields['proveedor'].queryset = Proveedor.objects.filter(empresa=empresa, estado='activo')
+        self.fields['proveedor'].empty_label = 'Seleccione proveedor por RUT o nombre'
     
     def clean(self):
         cleaned_data = super().clean()

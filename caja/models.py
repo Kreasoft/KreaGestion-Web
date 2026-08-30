@@ -22,6 +22,11 @@ class Caja(models.Model):
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    agente_ultimo_ping = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Último ping del agente de impresión",
+    )
     
     # Auditoría
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -80,7 +85,7 @@ class AperturaCaja(models.Model):
         ordering = ['-fecha_apertura']
     
     def __str__(self):
-        return f"Apertura {self.caja.nombre} - {self.fecha_apertura.strftime('%d/%m/%Y %H:%M')}"
+        return f"Apertura {self.caja.nombre} - {self.fecha_apertura.strftime('%d-%m-%Y %H:%M')}"
     
     @property
     def total_ventas(self):
@@ -242,7 +247,7 @@ class MovimientoCaja(models.Model):
         ordering = ['-fecha']
     
     def __str__(self):
-        return f"{self.get_tipo_display()} - ${self.monto} - {self.fecha.strftime('%d/%m/%Y %H:%M')}"
+        return f"{self.get_tipo_display()} - ${self.monto} - {self.fecha.strftime('%d-%m-%Y %H:%M')}"
 
 
 class VentaProcesada(models.Model):
@@ -306,3 +311,26 @@ class ColaImpresion(models.Model):
 
     def __str__(self):
         return f"Impresión {self.id} - {self.get_estado_display()}"
+
+
+class CodigoVinculoImpresion(models.Model):
+    """Código simple para vincular el agente de una sucursal/caja, sin IDs técnicos."""
+    codigo = models.CharField(max_length=8, unique=True)
+    empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('empresas.Sucursal', on_delete=models.CASCADE)
+    caja = models.ForeignKey(Caja, on_delete=models.CASCADE)
+    api_base_url = models.CharField(max_length=300)
+    creado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_expiracion = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "Código de vinculación de impresora"
+        verbose_name_plural = "Códigos de vinculación de impresora"
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f"{self.codigo} — {self.empresa} / {self.sucursal}"
+
+    def vigente(self):
+        return timezone.now() <= self.fecha_expiracion

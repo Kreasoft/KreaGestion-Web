@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def enviar_dte_seguro(dte, forzar=False):
     """
-    Envía un DTE al SII/DTEBox con validación previa y manejo robusto de errores.
+    Envía un DTE al SII con validación previa y manejo robusto de errores.
     
     Args:
         dte: Instancia de DocumentoTributarioElectronico
@@ -71,80 +71,34 @@ def enviar_dte_seguro(dte, forzar=False):
             dte.refresh_from_db()
         
         logger.info(f"[ENVÍO SEGURO] ✓ Estado cambiado a 'enviando'")
-        
-        # PASO 3: Enviar a DTEBox
+        # PASO 3: Enviar directo al SII
         try:
-            from .dtebox_service import DTEBoxService
-            
-            dtebox = DTEBoxService(dte.empresa)
-            logger.info(f"[ENVÍO SEGURO] Enviando a DTEBox...")
-            
-            resultado_dtebox = dtebox.timbrar_dte(dte.xml_firmado)
-            
-            if resultado_dtebox['success']:
-                # PASO 4: Actualizar DTE con éxito
-                logger.info(f"[ENVÍO SEGURO] ✓ DTEBox respondió exitosamente")
-                
-                # Generar track_id
-                track_id = f"DTEBOX-{dte.tipo_dte}-{dte.folio}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
-                
-                with transaction.atomic():
-                    dte.estado_sii = 'enviado'
-                    dte.track_id = track_id
-                    dte.fecha_envio_sii = timezone.now()
-                    dte.respuesta_sii = resultado_dtebox.get('xml_respuesta', '')
-                    
-                    # Actualizar TED si DTEBox devolvió uno
-                    if resultado_dtebox.get('ted'):
-                        dte.timbre_electronico = resultado_dtebox['ted']
-                        
-                        # Regenerar PDF417
-                        try:
-                            from .firma_electronica import FirmadorDTE
-                            firmador = FirmadorDTE(
-                                dte.empresa.certificado_digital.path,
-                                dte.empresa.password_certificado
-                            )
-                            dte.datos_pdf417 = firmador.generar_datos_pdf417(dte.timbre_electronico)
-                            
-                            from .pdf417_generator import PDF417Generator
-                            PDF417Generator.guardar_pdf417_en_dte(dte)
-                            logger.info(f"[ENVÍO SEGURO] ✓ TED y PDF417 actualizados")
-                        except Exception as e:
-                            logger.warning(f"[ENVÍO SEGURO] ⚠️ Error al regenerar PDF417: {e}")
-                    
-                    # Limpiar error anterior si existía
-                    if hasattr(dte, 'error_envio'):
-                        dte.error_envio = None
-                    
-                    dte.save()
-                
+            from .dte_service import DTEService
+
+            service = DTEService(dte.empresa)
+            logger.info("[ENVIO SEGURO] Enviando directo al SII...")
+            resultado_sii = service.enviar_dte_al_sii(dte)
+
+            if resultado_sii.get('success'):
+                dte.refresh_from_db()
                 resultado['success'] = True
-                resultado['track_id'] = track_id
-                resultado['mensaje'] = f"✅ DTE enviado exitosamente - Track ID: {track_id}"
+                resultado['track_id'] = dte.track_id
+                resultado['mensaje'] = f"DTE enviado exitosamente al SII - Track ID: {dte.track_id}"
                 resultado['detalles'] = {
-                    'track_id': track_id,
-                    'fecha_envio': dte.fecha_envio_sii.isoformat(),
-                    'tiene_ted': bool(resultado_dtebox.get('ted'))
+                    'track_id': dte.track_id,
+                    'fecha_envio': dte.fecha_envio_sii.isoformat() if dte.fecha_envio_sii else None,
                 }
-                
-                logger.info(f"[ENVÍO SEGURO] ✅ DTE {dte.id} enviado exitosamente")
-                
             else:
-                # PASO 5: Error de DTEBox
-                error_dtebox = resultado_dtebox.get('error', 'Error desconocido')
-                logger.error(f"[ENVÍO SEGURO] ❌ Error de DTEBox: {error_dtebox}")
-                
+                error_sii = resultado_sii.get('error') or resultado_sii.get('xml_respuesta') or 'Error desconocido del SII'
                 with transaction.atomic():
                     dte.estado_sii = 'error_envio'
                     if hasattr(dte, 'error_envio'):
-                        dte.error_envio = f"DTEBox: {error_dtebox}"
+                        dte.error_envio = error_sii
                     dte.save()
-                
-                resultado['error'] = error_dtebox
-                resultado['mensaje'] = f"❌ Error de DTEBox: {error_dtebox}"
-                resultado['detalles'] = {'error_dtebox': error_dtebox}
-        
+                resultado['error'] = error_sii
+                resultado['mensaje'] = f"Error del SII: {error_sii}"
+                resultado['detalles'] = {'error_sii': error_sii}
+
         except Exception as e_envio:
             # PASO 6: Error de conexión o sistema
             logger.error(f"[ENVÍO SEGURO] ❌ Excepción al enviar: {str(e_envio)}", exc_info=True)

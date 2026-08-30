@@ -9,6 +9,7 @@ urlpatterns = [
     path('cuenta-corriente-proveedor/<int:proveedor_id>/', views.cuenta_corriente_proveedor_detail, name='cuenta_corriente_proveedor_detail'),
     path('cuenta-corriente-proveedor/<int:proveedor_id>/imprimir/', views.cuenta_corriente_proveedor_detail_print, name='cuenta_corriente_proveedor_detail_print'),
     path('cuenta-corriente-cliente/', views.cuenta_corriente_cliente_list, name='cuenta_corriente_cliente_list'),
+    path('cuenta-corriente-cliente/documento/<int:venta_id>/', views.ver_documento_cc, name='ver_documento_cc'),
     path('cuenta-corriente-cliente/imprimir/', views.cuenta_corriente_cliente_print, name='cuenta_corriente_cliente_print'),
     path('registrar-pago/', views.registrar_pago, name='registrar_pago'),
     path('obtener-formas-pago/', views.obtener_formas_pago, name='obtener_formas_pago'),

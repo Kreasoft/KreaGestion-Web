@@ -4,6 +4,44 @@ from .models import Sucursal
 from django.contrib import messages
 from django.urls import reverse
 
+
+def resolver_sucursal_operativa(request):
+    """
+    Sucursal para operar (POS, documentos).
+
+    El encabezado puede mostrar una sucursal aunque el middleware deje
+    request.sucursal_activa en None (filtro "Todas" o sin perfil). Esta
+    función replica ese fallback para que el POS no bloquee al usuario.
+    """
+    sucursal = getattr(request, 'sucursal_activa', None)
+    if sucursal:
+        return sucursal
+
+    empresa = getattr(request, 'empresa', None)
+    if not empresa:
+        return None
+
+    session = getattr(request, 'session', None)
+    if session is not None:
+        for key in ('sucursal_filtro_id', 'sucursal_activa'):
+            sucursal_id = session.get(key)
+            if not sucursal_id:
+                continue
+            sucursal = Sucursal.objects.filter(id=sucursal_id, empresa=empresa).first()
+            if sucursal:
+                return sucursal
+
+    perfil = getattr(request.user, 'perfil', None)
+    if perfil:
+        sucursal = getattr(perfil, 'sucursal', None)
+        if sucursal and sucursal.empresa_id == empresa.id:
+            return sucursal
+
+    return (
+        empresa.sucursales.filter(es_principal=True).first()
+        or empresa.sucursales.first()
+    )
+
 class EmpresaEstadoMiddleware(MiddlewareMixin):
     """
     Middleware para verificar el estado de la empresa (SaaS).
@@ -58,7 +96,7 @@ class SucursalMiddleware(MiddlewareMixin):
         request.puede_cambiar_sucursal = False
         
         # Solo procesar si el usuario está autenticado y tiene empresa
-        if not request.user.is_authenticated or not hasattr(request, 'empresa'):
+        if not request.user.is_authenticated or not getattr(request, 'empresa', None):
             return
         
         # Verificar si el usuario puede cambiar de sucursal manualmente
@@ -73,23 +111,24 @@ class SucursalMiddleware(MiddlewareMixin):
         
         if puede_cambiar:
             # Superusuarios/Administradores: Pueden seleccionar sucursal manualmente
-            sucursal_id = request.session.get('sucursal_filtro_id')
+            sucursal_id = (
+                request.session.get('sucursal_filtro_id')
+                or request.session.get('sucursal_activa')
+            )
             
             if sucursal_id:
-                try:
-                    sucursal = Sucursal.objects.get(
-                        id=sucursal_id,
-                        empresa=request.empresa,
-                        estado='activa'
-                    )
+                sucursal = Sucursal.objects.filter(
+                    id=sucursal_id,
+                    empresa=request.empresa,
+                ).first()
+                if sucursal:
                     request.sucursal_activa = sucursal
-                except Sucursal.DoesNotExist:
-                    # Limpiar sesión si la sucursal no existe
-                    if 'sucursal_filtro_id' in request.session:
-                        del request.session['sucursal_filtro_id']
+                else:
+                    request.session.pop('sucursal_filtro_id', None)
+                    request.session.pop('sucursal_activa', None)
         else:
             # Usuarios normales: Usar sucursal de su perfil automáticamente
             if hasattr(request.user, 'perfil') and request.user.perfil:
                 sucursal_perfil = request.user.perfil.sucursal
-                if sucursal_perfil and sucursal_perfil.estado == 'activa':
+                if sucursal_perfil:
                     request.sucursal_activa = sucursal_perfil

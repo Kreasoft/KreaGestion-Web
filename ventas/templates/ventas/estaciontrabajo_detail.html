@@ -1,152 +1,101 @@
-<div class="row">
-    <div class="col-md-6">
-        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
-            <i class="fas fa-info-circle me-2"></i>Información Básica
-        </h6>
-        <table class="table table-sm">
-            <tr>
-                <td style="border: none; font-weight: 600; color: #6c757d; width: 40%;">Número:</td>
-                <td style="border: none;">{{ estacion.numero }}</td>
-            </tr>
-            <tr>
-                <td style="border: none; font-weight: 600; color: #6c757d;">Nombre:</td>
-                <td style="border: none;">{{ estacion.nombre }}</td>
-            </tr>
-            <tr>
-                <td style="border: none; font-weight: 600; color: #6c757d;">Descripción:</td>
-                <td style="border: none;">{{ estacion.descripcion|default:"Sin descripción" }}</td>
-            </tr>
-            <tr>
-                <td style="border: none; font-weight: 600; color: #6c757d;">Estado:</td>
-                <td style="border: none;">
-                    {% if estacion.activo %}
-                        <span class="badge" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">Activo</span>
-                    {% else %}
-                        <span class="badge" style="background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%); color: white;">Inactivo</span>
-                    {% endif %}
-                </td>
-            </tr>
+<div class="est-form">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:#8B7355;font-weight:700;">Estación {{ estacion.numero }}</div>
+            <div style="font-size:1.05rem;font-weight:700;color:#5D4037;line-height:1.2;">{{ estacion.nombre }}</div>
+            {% if estacion.descripcion %}
+            <div style="font-size:0.72rem;color:#8B7355;">{{ estacion.descripcion }}</div>
+            {% endif %}
+        </div>
+        <span class="estado-dot {% if estacion.activo %}estado-dot-activo{% else %}estado-dot-inactivo{% endif %}" title="{% if estacion.activo %}Activo{% else %}Inactivo{% endif %}"></span>
+    </div>
+
+    <div class="est-sec est-sec-pos">
+        <div class="est-sec-h"><i class="fas fa-cash-register me-1"></i>Cómo trabaja el POS</div>
+        <div class="row g-2" style="font-size:0.75rem;color:#5D4037;">
+            <div class="col-md-4">
+                <div style="color:#8B7355;font-size:0.65rem;font-weight:700;">MODO</div>
+                {% if estacion.modo_pos == 'con_cliente' %}Con cliente al inicio{% else %}Normal — cliente al final{% endif %}
+            </div>
+            <div class="col-md-4">
+                <div style="color:#8B7355;font-size:0.65rem;font-weight:700;">CIERRE</div>
+                {% if estacion.cierre_directo %}
+                    Directo
+                    ({% if estacion.flujo_cierre_directo == 'rut_inicio' %}RUT al inicio{% else %}RUT al final{% endif %}{% if estacion.enviar_sii_directo %}, envía SII{% endif %})
+                {% else %}
+                    Manual
+                {% endif %}
+            </div>
+            <div class="col-md-2">
+                <div style="color:#8B7355;font-size:0.65rem;font-weight:700;">TICKET</div>
+                #{{ estacion.correlativo_ticket|stringformat:"06d" }}
+            </div>
+            <div class="col-md-2">
+                <div style="color:#8B7355;font-size:0.65rem;font-weight:700;">COMODÍN</div>
+                {{ estacion.codigo_comodin|default:"—" }}
+            </div>
+        </div>
+    </div>
+
+    <div class="est-sec">
+        <div class="est-sec-h"><i class="fas fa-file-alt me-1"></i>Documentos, límites e impresión</div>
+        <table class="est-docs">
+            <thead>
+                <tr>
+                    <th>Documento</th>
+                    <th class="text-center">Emite</th>
+                    <th class="text-center">Máx. ítems</th>
+                    <th class="text-center">Copias</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Factura</td>
+                    <td class="text-center">{% if estacion.puede_facturar %}Sí{% else %}—{% endif %}</td>
+                    <td class="text-center">{{ estacion.max_items_factura }}</td>
+                    <td class="text-center">{{ estacion.copias_factura }}</td>
+                </tr>
+                <tr>
+                    <td>Boleta</td>
+                    <td class="text-center">{% if estacion.puede_boletar %}Sí{% else %}—{% endif %}</td>
+                    <td class="text-center">{{ estacion.max_items_boleta }}</td>
+                    <td class="text-center">{{ estacion.copias_boleta }}</td>
+                </tr>
+                <tr>
+                    <td>Guía</td>
+                    <td class="text-center">{% if estacion.puede_guia %}Sí{% else %}—{% endif %}</td>
+                    <td class="text-center">{{ estacion.max_items_guia }}</td>
+                    <td class="text-center">{{ estacion.copias_guia }}</td>
+                </tr>
+                <tr>
+                    <td>Cotización</td>
+                    <td class="text-center">{% if estacion.puede_cotizar %}Sí{% else %}—{% endif %}</td>
+                    <td class="text-center">{{ estacion.max_items_cotizacion }}</td>
+                    <td class="text-center">{{ estacion.copias_cotizacion }}</td>
+                </tr>
+                <tr>
+                    <td>Ticket</td>
+                    <td class="text-center">{% if estacion.puede_ticket %}Sí{% else %}—{% endif %}</td>
+                    <td class="text-center">{{ estacion.max_items_ticket }}</td>
+                    <td class="text-center">{{ estacion.copias_ticket }}</td>
+                </tr>
+                <tr>
+                    <td>Vale</td>
+                    <td class="text-center">{% if estacion.puede_vale %}Sí{% else %}—{% endif %}</td>
+                    <td class="text-center">{{ estacion.max_items_vale }}</td>
+                    <td class="text-center">{{ estacion.copias_vale }}</td>
+                </tr>
+                <tr>
+                    <td>Nota de crédito</td>
+                    <td class="text-center">—</td>
+                    <td class="text-center">—</td>
+                    <td class="text-center">{{ estacion.copias_notacredito }}</td>
+                </tr>
+            </tbody>
         </table>
     </div>
-    
-    <div class="col-md-6">
-        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
-            <i class="fas fa-file-alt me-2"></i>Documentos Permitidos
-        </h6>
-        <div class="d-flex flex-wrap gap-2 mb-3">
-            {% if estacion.puede_facturar %}
-                <span class="badge" style="background: linear-gradient(135deg, #8B7355 0%, #6F5B44 100%); color: white;">
-                    <i class="fas fa-file-invoice me-1"></i>Factura
-                </span>
-            {% endif %}
-            {% if estacion.puede_boletar %}
-                <span class="badge" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white;">
-                    <i class="fas fa-receipt me-1"></i>Boleta
-                </span>
-            {% endif %}
-            {% if estacion.puede_guia %}
-                <span class="badge" style="background: linear-gradient(135deg, #C19A6B 0%, #A0826D 100%); color: white;">
-                    <i class="fas fa-truck me-1"></i>Guía
-                </span>
-            {% endif %}
-            {% if estacion.puede_cotizar %}
-                <span class="badge" style="background: linear-gradient(135deg, #D4A574 0%, #C19A6B 100%); color: white;">
-                    <i class="fas fa-calculator me-1"></i>Cotización
-                </span>
-            {% endif %}
-            {% if estacion.puede_vale %}
-                <span class="badge" style="background: linear-gradient(135deg, #E8C5A5 0%, #D4A574 100%); color: #2c3e50;">
-                    <i class="fas fa-ticket-alt me-1"></i>Vale
-                </span>
-            {% endif %}
-        </div>
-    </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-12">
-        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
-            <i class="fas fa-sort-numeric-up me-2"></i>Correlativo de Ticket
-        </h6>
-        <div class="row">
-            <div class="col-md-6">
-                <table class="table table-sm">
-                    <tr>
-                        <td style="border: none; font-weight: 600; color: #6c757d; width: 50%;">Correlativo Actual:</td>
-                        <td style="border: none;">
-                            <span class="badge" style="background: linear-gradient(135deg, #A0826D 0%, #8B7355 100%); color: white; font-size: 1rem; padding: 8px 12px;">
-                                #{{ estacion.correlativo_ticket }}
-                            </span>
-                        </td>
-                    </tr>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
-            <i class="fas fa-list-ol me-2"></i>Límites de Items por Documento
-        </h6>
-        <div class="row">
-            <div class="col-md-6">
-                <table class="table table-sm">
-                    {% if estacion.puede_facturar %}
-                    <tr>
-                        <td style="border: none; font-weight: 600; color: #6c757d; width: 50%;">Máx. Items Factura:</td>
-                        <td style="border: none;">{{ estacion.max_items_factura }}</td>
-                    </tr>
-                    {% endif %}
-                    {% if estacion.puede_boletar %}
-                    <tr>
-                        <td style="border: none; font-weight: 600; color: #6c757d;">Máx. Items Boleta:</td>
-                        <td style="border: none;">{{ estacion.max_items_boleta }}</td>
-                    </tr>
-                    {% endif %}
-                    {% if estacion.puede_guia %}
-                    <tr>
-                        <td style="border: none; font-weight: 600; color: #6c757d;">Máx. Items Guía:</td>
-                        <td style="border: none;">{{ estacion.max_items_guia }}</td>
-                    </tr>
-                    {% endif %}
-                </table>
-            </div>
-            <div class="col-md-6">
-                <table class="table table-sm">
-                    {% if estacion.puede_cotizar %}
-                    <tr>
-                        <td style="border: none; font-weight: 600; color: #6c757d; width: 50%;">Máx. Items Cotización:</td>
-                        <td style="border: none;">{{ estacion.max_items_cotizacion }}</td>
-                    </tr>
-                    {% endif %}
-                    {% if estacion.puede_vale %}
-                    <tr>
-                        <td style="border: none; font-weight: 600; color: #6c757d;">Máx. Items Vale:</td>
-                        <td style="border: none;">{{ estacion.max_items_vale }}</td>
-                    </tr>
-                    {% endif %}
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <h6 style="color: #2c3e50; font-weight: 600; margin-bottom: 15px;">
-            <i class="fas fa-clock me-2"></i>Información de Auditoría
-        </h6>
-        <table class="table table-sm">
-            <tr>
-                <td style="border: none; font-weight: 600; color: #6c757d; width: 30%;">Fecha Creación:</td>
-                <td style="border: none;">{{ estacion.fecha_creacion|date:"d/m/Y H:i" }}</td>
-            </tr>
-            <tr>
-                <td style="border: none; font-weight: 600; color: #6c757d;">Última Modificación:</td>
-                <td style="border: none;">{{ estacion.fecha_modificacion|date:"d/m/Y H:i" }}</td>
-            </tr>
-        </table>
+    <div style="font-size:0.65rem;color:#8B7355;">
+        Creada {{ estacion.fecha_creacion|date:"d-m-Y H:i" }} · Modificada {{ estacion.fecha_modificacion|date:"d-m-Y H:i" }}
     </div>
 </div>

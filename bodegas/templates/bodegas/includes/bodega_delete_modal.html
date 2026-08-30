@@ -1,28 +1,19 @@
-<div class="alert alert-warning">
-    <i class="fas fa-exclamation-triangle me-2"></i>
+<div class="alert alert-warning py-2 px-2 mb-2" style="font-size: 0.75rem;">
+    <i class="fas fa-exclamation-triangle me-1"></i>
     <strong>¡Atención!</strong> Esta acción no se puede deshacer.
 </div>
 
-<div class="mb-3">
-    <h6>¿Está seguro de que desea eliminar la bodega:</h6>
-    <div class="card">
-        <div class="card-body">
-            <h5 class="card-title">{{ bodega.nombre }}</h5>
-            <p class="card-text">
-                <strong>Código:</strong> {{ bodega.codigo }}
-            </p>
-        </div>
-    </div>
+<div class="mb-2 px-2 py-2" style="background: #fff; border: 1px solid #E8DCC8; border-radius: 6px; font-size: 0.75rem;">
+    <div class="fw-bold" style="color: #6F5B44;">{{ bodega.nombre }}</div>
+    <div><strong>Código:</strong> {{ bodega.codigo }}</div>
 </div>
 
 <form id="deleteBodegaForm" method="post">
     {% csrf_token %}
     <div class="d-flex justify-content-end gap-2">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i>Cancelar
-        </button>
-        <button type="submit" class="btn btn-danger">
-            <i class="fas fa-trash me-2"></i>Eliminar Bodega
+        <button type="button" class="btn btn-sm" data-bs-dismiss="modal" style="color: #5D4037; font-size: 0.75rem;">Cancelar</button>
+        <button type="submit" class="btn btn-sm" style="background: #C62828; border: 1px solid #8E0000; color: #fff; font-weight: 700; font-size: 0.75rem;">
+            <i class="fas fa-trash me-1"></i>Eliminar Bodega
         </button>
     </div>
 </form>
@@ -30,32 +21,20 @@
 <script>
 document.getElementById('deleteBodegaForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    
     const formData = new FormData(this);
-    
     fetch(`/bodegas/eliminar-modal/{{ bodega.id }}/`, {
         method: 'POST',
         body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Cerrar modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalEliminarBodega'));
             modal.hide();
-            
-            // Mostrar mensaje de éxito
             showAlert('success', data.message);
-            
-            // Recargar la página para mostrar los cambios
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
+            setTimeout(() => { location.reload(); }, 1000);
         } else {
-            // Mostrar errores
             showAlert('danger', data.message);
         }
     })
@@ -68,19 +47,11 @@ document.getElementById('deleteBodegaForm').addEventListener('submit', function(
 function showAlert(type, message) {
     const alertContainer = document.createElement('div');
     alertContainer.className = `alert alert-${type} alert-dismissible fade show`;
-    alertContainer.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    
+    alertContainer.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
     const container = document.querySelector('.container-fluid');
     container.insertBefore(alertContainer, container.firstChild);
-    
-    // Auto-remove after 5 seconds
     setTimeout(() => {
-        if (alertContainer.parentNode) {
-            alertContainer.remove();
-        }
+        if (alertContainer.parentNode) alertContainer.remove();
     }, 5000);
 }
 </script>

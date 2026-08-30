@@ -1,5 +1,5 @@
 """
-Comando para enviar DTE directamente al SII (sin DTEBox).
+Comando para enviar DTE directamente al SII.
 Solo funciona en ambiente de certificación.
 """
 from django.core.management.base import BaseCommand
@@ -12,7 +12,7 @@ from django.utils import timezone
 
 
 class Command(BaseCommand):
-    help = 'Envía un DTE directamente al SII (sin DTEBox) - solo certificación'
+    help = 'Envía un DTE directamente al SII'
 
     def add_arguments(self, parser):
         parser.add_argument('folio', type=int, help='Folio del DTE a enviar')
@@ -33,7 +33,7 @@ class Command(BaseCommand):
             if ambiente not in ['certificacion', 'certificación', 'CERTIFICACION']:
                 self.stdout.write(self.style.ERROR(f'⚠️ Ambiente actual: {ambiente}'))
                 self.stdout.write(self.style.ERROR('❌ Este comando solo funciona en ambiente CERTIFICACION'))
-                self.stdout.write(self.style.WARNING('Para producción, use DTEBox'))
+                self.stdout.write(self.style.WARNING('Para producción, valide ambiente y certificado SII antes de enviar'))
                 return
             
             self.stdout.write(f'Empresa: {empresa.nombre}')

@@ -8,21 +8,18 @@ def requiere_empresa(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         from empresas.models import Empresa
+        from core.decorators import empresa_id_desde_sesion, persistir_empresa_activa
         
         if request.user.is_superuser:
-            # Para superusuarios, obtener empresa de sesión o usar Kreasoft
-            empresa_id = request.session.get('empresa_activa')
-            
-            if empresa_id:
-                try:
-                    empresa = Empresa.objects.get(id=empresa_id)
-                except Empresa.DoesNotExist:
-                    empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-                    if not empresa:
-                        empresa = Empresa.objects.exclude(nombre='').first()
-                    if not empresa:
-                        empresa = Empresa.objects.first()
-            else:
+            empresa = getattr(request, 'empresa', None)
+            if not empresa:
+                empresa_id = empresa_id_desde_sesion(request)
+                if empresa_id:
+                    try:
+                        empresa = Empresa.objects.get(id=empresa_id)
+                    except Empresa.DoesNotExist:
+                        empresa = None
+            if not empresa:
                 empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
                 if not empresa:
                     empresa = Empresa.objects.exclude(nombre='').first()
@@ -30,8 +27,7 @@ def requiere_empresa(view_func):
                     empresa = Empresa.objects.first()
             
             if empresa:
-                request.session['empresa_activa'] = empresa.id
-                request.empresa = empresa
+                persistir_empresa_activa(request, empresa)
         else:
             try:
                 empresa = request.user.perfil.empresa

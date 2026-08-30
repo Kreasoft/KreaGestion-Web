@@ -16,6 +16,20 @@ from .models import Stock, Inventario
 from .models_ajustes import AjusteStock, DetalleAjuste
 
 
+def _pk_entero(value):
+    """Normaliza un PK que a veces llega con formato chileno (1.190 → 1190)."""
+    if value is None or value == '':
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    limpio = clean_id(str(value).strip())
+    if not limpio:
+        return None
+    return int(limpio)
+
+
 @login_required
 @requiere_empresa
 def ajustes_list_simple(request):
@@ -83,7 +97,10 @@ def ajuste_create_simple(request):
             return JsonResponse({'success': False, 'message': 'Debe agregar al menos un artículo.'}, status=400)
         
         try:
-            bodega = get_object_or_404(Bodega, id=bodega_id, empresa=request.empresa)
+            bodega_pk = _pk_entero(bodega_id)
+            if not bodega_pk:
+                return JsonResponse({'success': False, 'message': 'Seleccione una bodega válida.'}, status=400)
+            bodega = get_object_or_404(Bodega, id=bodega_pk, empresa=request.empresa)
             
             # 1. Generar Número de Folio
             # Intentar obtener correlativo configurado
@@ -114,7 +131,10 @@ def ajuste_create_simple(request):
             
             # 4. Procesar Detalles y Movimientos
             for items in detalles_list:
-                articulo = get_object_or_404(Articulo, id=items['articulo_id'], empresa=request.empresa)
+                articulo_pk = _pk_entero(items.get('articulo_id'))
+                if not articulo_pk:
+                    return JsonResponse({'success': False, 'message': 'Hay un artículo con identificador inválido.'}, status=400)
+                articulo = get_object_or_404(Articulo, id=articulo_pk, empresa=request.empresa)
                 cantidad = Decimal(str(items['cantidad']))
                 comentario = items.get('comentario', '')
                 
@@ -173,6 +193,7 @@ def ajuste_edit_simple(request, pk):
         tipo_ajuste = request.POST.get('tipo_ajuste', '').lower()
         fecha_ajuste_str = request.POST.get('fecha_ajuste')
         descripcion = request.POST.get('descripcion')
+        bodega_id = request.POST.get('bodega')
         
         # Obtener detalles desde JSON
         detalles_data = request.POST.get('detalles_data', '[]')
@@ -184,6 +205,11 @@ def ajuste_edit_simple(request, pk):
             if fecha_ajuste_str:
                 ajuste.fecha_ajuste = timezone.make_aware(datetime.strptime(fecha_ajuste_str, '%Y-%m-%d'))
             ajuste.descripcion = descripcion
+            if bodega_id:
+                bodega_pk = _pk_entero(bodega_id)
+                if not bodega_pk:
+                    return JsonResponse({'success': False, 'message': 'Seleccione una bodega válida.'}, status=400)
+                ajuste.bodega = get_object_or_404(Bodega, id=bodega_pk, empresa=request.empresa)
             ajuste.save()
             
             # 2. Revertir y Eliminar Detalles/Movimientos anteriores
@@ -196,7 +222,10 @@ def ajuste_edit_simple(request, pk):
             
             # 3. Crear Nuevos Detalles y Movimientos
             for items in detalles_list:
-                articulo = get_object_or_404(Articulo, id=items['articulo_id'], empresa=request.empresa)
+                articulo_pk = _pk_entero(items.get('articulo_id'))
+                if not articulo_pk:
+                    return JsonResponse({'success': False, 'message': 'Hay un artículo con identificador inválido.'}, status=400)
+                articulo = get_object_or_404(Articulo, id=articulo_pk, empresa=request.empresa)
                 cantidad = Decimal(str(items['cantidad']))
                 comentario = items.get('comentario', '')
                 
@@ -234,18 +263,21 @@ def ajuste_edit_simple(request, pk):
 
     # Si es GET, renderizar el modal de edición
     bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
-    
-    # Preparar datos para que el template (si es que soporta mas de 1) pueda iterar
-    # El template actual es limitado, pero pasamos lo necesario
-    primer_detalle = ajuste.detalles.first()
-    cantidad_absoluta = primer_detalle.cantidad if primer_detalle else 0
-    
+    detalles_edit = []
+    for d in ajuste.detalles.select_related('articulo').all():
+        cant = abs(d.cantidad) if d.cantidad is not None else 0
+        detalles_edit.append({
+            'articulo_id': d.articulo_id,
+            'codigo': d.articulo.codigo if d.articulo else '',
+            'nombre': d.articulo.nombre if d.articulo else '',
+            'cantidad_str': str(cant).replace(',', '.'),
+            'comentario': d.comentario or '',
+        })
+
     context = {
         'ajuste': ajuste,
         'bodegas': bodegas,
-        'primer_detalle': primer_detalle,
-        'cantidad_absoluta': cantidad_absoluta,
-        'cantidad_absoluta_str': str(cantidad_absoluta).replace(',', '.'),
+        'detalles_edit': detalles_edit,
         'titulo': f'Editar Ajuste {ajuste.numero_folio}'
     }
     return render(request, 'inventario/ajuste_edit_modal.html', context)
@@ -260,9 +292,12 @@ def api_articulos_ajuste_simple(request):
         q = request.GET.get('q', '').strip()
         
         if not bodega_id_str:
-             return JsonResponse({'error': 'Bodega no especificada'}, status=400)
+             return JsonResponse({'articulos': [], 'requires_bodega': True})
              
-        bodega = get_object_or_404(Bodega, id=bodega_id_str, empresa=request.empresa)
+        bodega_pk = _pk_entero(bodega_id_str)
+        if not bodega_pk:
+            return JsonResponse({'articulos': [], 'requires_bodega': True})
+        bodega = get_object_or_404(Bodega, id=bodega_pk, empresa=request.empresa)
 
         articulos_qs = Articulo.objects.filter(empresa=request.empresa, activo=True)
         if q:
@@ -357,7 +392,7 @@ def ajuste_imprimir(request, pk):
 def ajuste_detail_simple(request, pk):
     """Ver detalles de un ajuste maestro"""
     ajuste = get_object_or_404(AjusteStock, id=pk, empresa=request.empresa)
-    detalles = ajuste.detalles.all().select_related('articulo')
+    detalles = ajuste.detalles.all().select_related('articulo', 'articulo__categoria', 'articulo__unidad_medida')
     
     context = {
         'ajuste': ajuste,

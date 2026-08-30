@@ -1,0 +1,172 @@
+{% load format_filters %}
+<div class="modal-header dte-modal-head">
+    <div class="d-flex align-items-center gap-2 min-w-0">
+        <div class="dte-modal-icon"><i class="fas fa-file-invoice"></i></div>
+        <div class="min-w-0">
+            <div class="dte-modal-title">{{ dte.get_tipo_dte_display }} Nº {{ dte.folio }}</div>
+            <div class="dte-modal-sub">{{ dte.fecha_emision|date:"d-m-Y" }}{% if dte.track_id_efectivo %} · Track {{ dte.track_id_efectivo }}{% endif %}</div>
+        </div>
+        <span class="badge dte-modal-badge" style="{{ dte.get_estado_sii_real_badge_style }}">{{ dte.get_estado_sii_real_display }}</span>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+</div>
+<div class="modal-body dte-modal-body">
+    <div class="dte-modal-actions">
+        {% if dte.tiene_track_sii %}
+            {% if dte.requiere_consulta_estado_sii %}
+        <a href="{% url 'facturacion_electronica:consultar_estado_dte' dte.pk %}?{{ detail_return_q }}" class="dte-modal-btn">
+            <i class="fas fa-sync-alt"></i> Consultar SII
+        </a>
+            {% endif %}
+            {% if dte.permite_reenvio_xml_corregido %}
+        <a href="{% url 'facturacion_electronica:enviar_dte' dte.pk %}?{{ detail_return_q }}" class="dte-modal-btn js-envio-sii-once">
+            <i class="fas fa-upload"></i> Subir XML corregido
+        </a>
+            {% endif %}
+        {% elif dte.puede_enviarse_al_sii %}
+        <a href="{% url 'facturacion_electronica:enviar_dte' dte.pk %}?{{ detail_return_q }}" class="dte-modal-btn js-envio-sii-once">
+            <i class="fas fa-paper-plane"></i> Enviar SII
+        </a>
+        {% endif %}
+        {% if dte.puede_emitir_documento_tributario %}
+        <a href="{{ url_copia }}?auto=1&{{ return_url_q }}" class="dte-modal-btn dte-modal-btn-fill" target="_blank" rel="opener">
+            <i class="fas fa-print"></i> Imprimir
+        </a>
+        {% endif %}
+        {% if dte.puede_emitir_documento_tributario %}
+        <a href="{% url 'facturacion_electronica:descargar_pdf_dte' dte.pk %}" class="dte-modal-btn">
+            <i class="fas fa-file-pdf"></i> PDF
+        </a>
+        <button type="button" class="dte-modal-btn btn-dte-correo"
+                data-url="{% url 'facturacion_electronica:enviar_dte_email' dte.pk %}"
+                data-folio="{{ dte.folio }}"
+                data-tipo="{{ dte.get_tipo_dte_display }}"
+                data-receptor="{{ dte.razon_social_receptor|default:'' }}"
+                data-email="{% firstof email_receptor dte.venta.cliente.email '' %}">
+            <i class="fas fa-envelope"></i> Correo
+        </button>
+        {% endif %}
+        {% if tiene_xml %}
+        <a href="{% url 'facturacion_electronica:descargar_xml_dte' dte.pk %}" class="dte-modal-btn">
+            <i class="fas fa-file-code"></i> XML
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="dte-modal-grid">
+        <div class="dte-modal-box">
+            <div class="dte-modal-box-h"><i class="fas fa-info-circle"></i> Documento</div>
+            <div class="dte-modal-kv"><span>Folio</span><strong>{{ dte.folio }}</strong></div>
+            <div class="dte-modal-kv"><span>Emisión</span><strong>{{ dte.fecha_emision|date:"d-m-Y" }}</strong></div>
+            <div class="dte-modal-kv"><span>Track ID</span><strong>{{ dte.track_id_efectivo|default:"Sin envío" }}</strong></div>
+            <div class="dte-modal-kv">
+                <span>Venta</span>
+                <strong>
+                    {% if dte.venta %}
+                    <a href="{% url 'ventas:venta_html' dte.venta.pk %}?{{ return_url_q }}" class="dte-modal-link">#{{ dte.venta.numero_venta }}</a>
+                    {% else %}
+                    —
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+        <div class="dte-modal-box">
+            <div class="dte-modal-box-h"><i class="fas fa-user"></i> Receptor</div>
+            <div class="dte-modal-kv"><span>Razón social</span><strong>{{ dte.razon_social_receptor }}</strong></div>
+            <div class="dte-modal-kv"><span>RUT</span><strong>{{ dte.rut_receptor }}</strong></div>
+            <div class="dte-modal-kv"><span>Giro</span><strong>{{ dte.giro_receptor|default:"—" }}</strong></div>
+            <div class="dte-modal-kv"><span>Dirección</span><strong>{{ dte.direccion_receptor }} {{ dte.comuna_receptor }} {{ dte.ciudad_receptor }}</strong></div>
+        </div>
+    </div>
+
+    <div class="dte-modal-strip">
+        <div><span>Envío</span><strong>{% if dte.fecha_envio_sii %}{{ dte.fecha_envio_sii|date:"d-m-Y H:i" }}{% else %}—{% endif %}</strong></div>
+        <div><span>Respuesta</span><strong>{% if dte.fecha_respuesta_sii %}{{ dte.fecha_respuesta_sii|date:"d-m-Y H:i" }}{% else %}—{% endif %}</strong></div>
+        <div><span>Consulta</span><strong>{% if dte.fecha_consulta_estado %}{{ dte.fecha_consulta_estado|date:"d-m-Y H:i" }}{% else %}—{% endif %}</strong></div>
+    </div>
+
+    <div class="dte-modal-items">
+        <div class="dte-modal-box-h"><i class="fas fa-list"></i> Artículos</div>
+        {% if lineas_dte %}
+        <table class="dte-modal-table">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Artículo</th>
+                    <th class="text-center">Cant.</th>
+                    <th class="text-end">P. Unitario</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for linea in lineas_dte %}
+                <tr>
+                    <td>{{ linea.codigo|default:"—" }}</td>
+                    <td title="{{ linea.descripcion }}">{{ linea.descripcion }}</td>
+                    <td class="text-center">{{ linea.cantidad|floatformat:"-3" }}</td>
+                    <td class="text-end">${{ linea.precio_unitario|format_miles }}</td>
+                    <td class="text-end">${{ linea.total|format_miles }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="dte-modal-empty">Este documento no tiene líneas de artículos.</div>
+        {% endif %}
+    </div>
+
+    <div class="dte-modal-montos">
+        <div><span>Neto</span><strong>${{ dte.monto_neto|format_miles }}</strong></div>
+        <div><span>Exento</span><strong>${{ dte.monto_exento|format_miles }}</strong></div>
+        <div><span>IVA</span><strong>${{ dte.monto_iva|format_miles }}</strong></div>
+        <div class="dte-modal-total"><span>Total</span><strong>${{ dte.monto_total|format_miles }}</strong></div>
+    </div>
+
+    {% if dte.permite_reenvio_xml_corregido %}
+    <div class="dte-modal-alert is-reparo">
+        <strong>El SII no registró este DTE (hay Track, pero el documento no quedó recibido).</strong>
+        <div>No emita otro folio. Pulse <strong>Subir XML corregido</strong> para enviar de nuevo el mismo folio {{ dte.folio }}.</div>
+    </div>
+    {% elif dte.en_espera_reintento_sii %}
+    <div class="dte-modal-alert is-reparo">
+        <strong>El SII ya recibió este envío. No es un rechazo tributario.</strong>
+        <div>El archivo se envió más de una vez. Espere unos 15 minutos y pulse <strong>Consultar SII</strong>. No reenvíe ni emita otro folio.</div>
+        {% if dte.track_id_efectivo %}
+        <div class="mt-1"><strong>Track ID:</strong> {{ dte.track_id_efectivo }}</div>
+        {% endif %}
+        <div class="mt-1">{{ dte.get_mensaje_espera_reintento }}</div>
+        {% if dte.glosa_sii or dte.error_envio %}
+        <div class="mt-1">{{ dte.glosa_sii|default:dte.error_envio }}</div>
+        {% endif %}
+    </div>
+    {% elif estado_real == 'rechazado' or estado_real == 'aceptado_reparos' %}
+    <div class="dte-modal-alert {% if estado_real == 'rechazado' %}is-rechazo{% else %}is-reparo{% endif %}">
+        <strong>{% if estado_real == 'rechazado' %}Motivo del rechazo{% else %}Motivo de los reparos{% endif %}</strong>
+        <div>{{ dte.glosa_sii|default:dte.error_envio|default:"El SII no informó una glosa." }}</div>
+        {% if dte.error_envio and dte.glosa_sii and dte.error_envio != dte.glosa_sii %}
+        <div class="mt-1"><strong>Observación de envío:</strong> {{ dte.error_envio }}</div>
+        {% endif %}
+        {% if dte.respuesta_sii and dte.respuesta_sii != dte.glosa_sii %}
+        <details class="mt-1">
+            <summary>Respuesta completa del SII</summary>
+            <pre class="mb-0 mt-1" style="white-space: pre-wrap; font-size: 0.7rem; max-height: 160px; overflow: auto;">{{ dte.respuesta_sii }}</pre>
+        </details>
+        {% endif %}
+    </div>
+    {% elif dte.es_error_envio and dte.error_envio %}
+    <div class="dte-modal-alert"><strong>Observación:</strong> {{ dte.error_envio }}</div>
+    {% endif %}
+
+    {% if not dte.puede_emitir_documento_tributario %}
+    <div class="dte-modal-alert is-rechazo"><strong>Emisión bloqueada:</strong> {{ dte.get_mensaje_no_emitible }}</div>
+    {% endif %}
+
+    {% if dte.timbre_pdf417 %}
+    <details class="dte-modal-ted">
+        <summary><i class="fas fa-qrcode"></i> Timbre electrónico SII</summary>
+        <div class="text-center pt-1">
+            <img src="{{ dte.timbre_pdf417.url }}" alt="Timbre electrónico" width="220" height="88">
+        </div>
+    </details>
+    {% endif %}
+</div>

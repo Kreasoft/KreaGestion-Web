@@ -10,11 +10,29 @@ from facturacion_electronica.models import ArchivoCAF
 from empresas.models import Sucursal
 
 
+def _build_ambiente_sections(cafs_queryset, ambiente_activo=None, historico=False):
+    sections = []
+    for key, label in ArchivoCAF.AMBIENTE_CHOICES:
+        if ambiente_activo and key != ambiente_activo:
+            continue
+        subset = cafs_queryset.filter(ambiente=key).order_by('tipo_documento', '-fecha_carga')
+        sections.append({
+            'key': key,
+            'label': label,
+            'items': subset,
+            'count': subset.count(),
+            'historico': historico,
+        })
+    return sections
+
+
 @login_required
 @requiere_empresa
 def listar_cafs(request):
     """Lista todos los CAFs de la empresa del usuario"""
     empresa = request.empresa
+    ArchivoCAF.sincronizar_cafs_vencidos(empresa.id)
+    ambiente_actual = getattr(empresa, 'ambiente_sii', 'certificacion')
     
     # Filtros
     sucursal_id = request.GET.get('sucursal')
@@ -40,7 +58,9 @@ def listar_cafs(request):
     
     # Clasificar para las pestañas
     cafs_vigentes = cafs_base.filter(estado='activo', oculto=False)
-    cafs_historico = cafs_base.filter(Q(estado__in=['agotado', 'vencido']) | Q(oculto=True))
+    cafs_historico = cafs_base.filter(Q(estado__in=['agotado', 'vencido', 'anulado']) | Q(oculto=True))
+    vigentes_por_ambiente = _build_ambiente_sections(cafs_vigentes, ambiente_activo=ambiente_actual)
+    historico_por_ambiente = _build_ambiente_sections(cafs_historico, ambiente_activo=ambiente_actual, historico=True)
     
     # Estadísticas
     stats = {
@@ -49,6 +69,14 @@ def listar_cafs(request):
         'agotados': cafs_base.filter(estado='agotado').count(),
         'vencidos': cafs_base.filter(estado='vencido').count(),
         'ocultos': ArchivoCAF.objects.filter(empresa=empresa, oculto=True).count(),
+        'produccion': {
+            'activos': cafs_base.filter(ambiente='produccion', estado='activo', oculto=False).count(),
+            'historico': cafs_base.filter(ambiente='produccion').filter(Q(estado__in=['agotado', 'vencido', 'anulado']) | Q(oculto=True)).count(),
+        },
+        'certificacion': {
+            'activos': cafs_base.filter(ambiente='certificacion', estado='activo', oculto=False).count(),
+            'historico': cafs_base.filter(ambiente='certificacion').filter(Q(estado__in=['agotado', 'vencido', 'anulado']) | Q(oculto=True)).count(),
+        },
     }
     
     # Sucursales para filtro
@@ -57,9 +85,13 @@ def listar_cafs(request):
     context = {
         'cafs_vigentes': cafs_vigentes,
         'cafs_historico': cafs_historico,
+        'vigentes_por_ambiente': vigentes_por_ambiente,
+        'historico_por_ambiente': historico_por_ambiente,
         'stats': stats,
+        'ambiente_actual_empresa': ambiente_actual,
         'sucursales': sucursales,
         'tipo_documento_choices': ArchivoCAF.TIPO_DOCUMENTO_CHOICES,
+        'ambiente_choices': ArchivoCAF.AMBIENTE_CHOICES,
         'estado_choices': ArchivoCAF.ESTADO_CHOICES,
         'filtros': {
             'sucursal': sucursal_id,
@@ -76,10 +108,13 @@ def listar_cafs(request):
 @requiere_empresa
 def ocultar_caf(request, caf_id):
     """Oculta un CAF específico"""
+    if request.method != 'POST':
+        messages.warning(request, 'La acción de mover a historial debe enviarse desde el botón de la pantalla.')
+        return redirect('facturacion_electronica:listar_cafs')
     caf = get_object_or_404(ArchivoCAF, id=caf_id, empresa=request.empresa)
     caf.oculto = True
     caf.save()
-    messages.success(request, f'CAF {caf} ocultado correctamente')
+    messages.success(request, f'CAF {caf} movido correctamente a historial')
     return redirect('facturacion_electronica:listar_cafs')
 
 
@@ -87,7 +122,13 @@ def ocultar_caf(request, caf_id):
 @requiere_empresa
 def mostrar_caf(request, caf_id):
     """Muestra un CAF oculto"""
+    if request.method != 'POST':
+        messages.warning(request, 'La acción de mover a vigentes debe enviarse desde el botón de la pantalla.')
+        return redirect('facturacion_electronica:listar_cafs')
     caf = get_object_or_404(ArchivoCAF, id=caf_id, empresa=request.empresa)
+    if caf.estado != 'activo':
+        messages.warning(request, f'El CAF {caf} no puede volver a vigentes porque está {caf.get_estado_display().lower()}')
+        return redirect('facturacion_electronica:listar_cafs')
     caf.oculto = False
     caf.save()
     messages.success(request, f'CAF {caf} visible nuevamente')
@@ -182,6 +223,7 @@ def cargar_caf(request):
     context = {
         'form': form,
         'titulo': 'Cargar Archivo CAF',
+        'ambiente_actual_empresa': getattr(request.empresa, 'ambiente_sii', 'certificacion'),
     }
     
     return render(request, 'facturacion_electronica/caf_form.html', context)

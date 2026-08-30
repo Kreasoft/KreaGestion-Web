@@ -7,9 +7,9 @@ from .models import (
 
 @admin.register(Vendedor)
 class VendedorAdmin(admin.ModelAdmin):
-    list_display = ['codigo', 'nombre', 'porcentaje_comision', 'activo', 'empresa']
-    list_filter = ['activo', 'empresa']
-    search_fields = ['codigo', 'nombre']
+    list_display = ['codigo', 'nombre', 'telefono_app', 'app_movil_activa', 'porcentaje_comision', 'activo', 'empresa']
+    list_filter = ['activo', 'app_movil_activa', 'empresa']
+    search_fields = ['codigo', 'nombre', 'telefono_app']
     ordering = ['codigo', 'nombre']
     
     fieldsets = (
@@ -47,14 +47,14 @@ class FormaPagoAdmin(admin.ModelAdmin):
 
 @admin.register(EstacionTrabajo)
 class EstacionTrabajoAdmin(admin.ModelAdmin):
-    list_display = ['numero', 'nombre', 'modo_pos', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
-    list_filter = ['modo_pos', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
+    list_display = ['numero', 'nombre', 'sucursal', 'modo_pos', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa']
+    list_filter = ['modo_pos', 'puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale', 'activo', 'empresa', 'sucursal']
     search_fields = ['numero', 'nombre']
     ordering = ['numero', 'nombre']
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('empresa', 'numero', 'nombre', 'descripcion')
+            'fields': ('empresa', 'sucursal', 'numero', 'nombre', 'descripcion')
         }),
         ('Configuración POS', {
             'fields': ('modo_pos',)

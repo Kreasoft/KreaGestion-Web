@@ -51,6 +51,27 @@ def format_moneda(value):
     return f"${formatted}"
 
 
+@register.filter(name='glosa_visible')
+def glosa_visible(value):
+    """Quita prefijos internos y deja solo la observación del usuario."""
+    texto = str(value or '').strip()
+    if not texto:
+        return ''
+    if texto.lower().startswith('ticket generado automáticamente'):
+        return ''
+    prefijos = ('[FACTURADOR_DIRECTO]', '[MOVIL]')
+    cambiado = True
+    while cambiado:
+        cambiado = False
+        for prefijo in prefijos:
+            if texto.upper().startswith(prefijo):
+                texto = texto[len(prefijo):].strip()
+                cambiado = True
+    if texto.startswith('[MOVIL-ID:') or texto.startswith('[CIERRE]'):
+        return ''
+    return texto
+
+
 
 
 

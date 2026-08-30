@@ -5,16 +5,19 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from . import views
 from usuarios.views import CustomLoginView
+from ventas import views as ventas_views
 
 def dashboard_view(request):
     """Vista del dashboard principal"""
     return views.dashboard(request)
 
+@login_required
 def opciones_principales_view(request):
-    """Vista de opciones principales del sistema"""
+    """Centro de ayuda operativo de GestionCloud."""
     return render(request, 'opciones_principales.html')
 
 def paleta_colores_view(request):
@@ -32,9 +35,12 @@ urlpatterns = [
 	path('accounts/', include('django.contrib.auth.urls')),
 	path('', dashboard_view, name='dashboard'),
 	path('dashboard/', dashboard_view, name='dashboard_alt'),
+	path('dashboard-nuevo/', dashboard_view, name='dashboard_moderno'),
+	path('dashboard-clasico/', dashboard_view, name='dashboard_clasico'),
 	path('opciones/', opciones_principales_view, name='opciones_principales'),
 	path('paleta-colores/', paleta_colores_view, name='paleta_colores'),
 	path('zenith-os/', zenith_os_view, name='zenith_os'),
+	path('ventas/facturador-directo/', ventas_views.facturar_directo, name='facturar_directo'),
 	path('empresas/', include('empresas.urls')),
 	path('articulos/', include('articulos.urls')),
 	path('inventario/', include('inventario.urls')),
@@ -50,6 +56,7 @@ urlpatterns = [
 	path('tesoreria/', include('tesoreria.urls')),
 	path('caja/', include('caja.urls')),
 	path('facturacion-electronica/', include('facturacion_electronica.urls')),
+	path('facturacion_electronica/', include('facturacion_electronica.urls')),
 	path('utilidades/', include('utilidades.urls')),
 	path('informes/', include('informes.urls')),
 	path('produccion/', include('produccion.urls')),
@@ -59,4 +66,3 @@ urlpatterns = [
 if settings.DEBUG:
 	urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 	urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-

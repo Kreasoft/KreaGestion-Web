@@ -114,6 +114,7 @@ class FolioService:
         cafs_activos = ArchivoCAF.objects.filter(
             empresa=empresa,
             tipo_documento=tipo_documento,
+            ambiente=getattr(empresa, 'ambiente_sii', 'certificacion'),
             estado='activo'
         ).order_by('folio_desde')
 
@@ -166,6 +167,7 @@ class FolioService:
         filtros = {
             'empresa': empresa,
             'tipo_documento': tipo_documento,
+            'ambiente': getattr(empresa, 'ambiente_sii', 'certificacion'),
             'estado': 'activo',
             'oculto': False  # CRÍTICO: NO contar CAFs ocultos
         }
@@ -197,6 +199,7 @@ class FolioService:
             caf = ArchivoCAF.objects.get(
                 empresa=empresa,
                 tipo_documento=tipo_documento,
+                ambiente=getattr(empresa, 'ambiente_sii', 'certificacion'),
                 folio_desde__lte=folio,
                 folio_hasta__gte=folio
             )
@@ -474,4 +477,3 @@ class DTEService:
         except Exception as e:
             print(f"Error generando imagen PDF417: {e}")
             return None
-

@@ -15,6 +15,7 @@ urlpatterns = [
     
     # Kardex de Artículo
     path('kardex/', views_kardex.kardex_articulo, name='kardex_articulo'),
+    path('kardex/excel/', views_kardex.kardex_articulo_excel, name='kardex_articulo_excel'),
     
     # Movimientos de Inventario
     path('movimientos/', views.inventario_list, name='inventario_list'),

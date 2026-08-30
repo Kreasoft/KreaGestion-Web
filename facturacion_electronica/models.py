@@ -1,8 +1,23 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
 from empresas.models import Empresa
 from decimal import Decimal
+import unicodedata
+from facturacion_electronica.ind_traslado import IND_TRASLADO_CHOICES, TIPO_DESPACHO_SII_CHOICES
+from facturacion_electronica.clasificacion_sii import (
+    contiene_codigo_estado,
+    es_dte_no_recibido_sii,
+    es_espera_reintento_sii,
+    es_falso_rechazo_sii,
+    es_glosa_envio_procesado,
+    evidencia_rechazo_tributario,
+    extraer_segundos_espera,
+    extraer_track_id,
+    mensaje_espera_reintento,
+    texto_sii_de,
+)
 
 
 class ConfiguracionAlertaFolios(models.Model):
@@ -70,6 +85,10 @@ class ArchivoCAF(models.Model):
         ('vencido', 'Vencido'),
         ('anulado', 'Anulado'),
     ]
+    AMBIENTE_CHOICES = [
+        ('certificacion', 'Certificación'),
+        ('produccion', 'Producción'),
+    ]
     
     empresa = models.ForeignKey(
         Empresa,
@@ -88,6 +107,12 @@ class ArchivoCAF(models.Model):
         max_length=10,
         choices=TIPO_DOCUMENTO_CHOICES,
         verbose_name="Tipo de Documento"
+    )
+    ambiente = models.CharField(
+        max_length=20,
+        choices=AMBIENTE_CHOICES,
+        default='certificacion',
+        verbose_name="Ambiente SII"
     )
     
     # RANGO DE FOLIOS
@@ -153,16 +178,16 @@ class ArchivoCAF(models.Model):
         verbose_name = "Archivo CAF"
         verbose_name_plural = "Archivos CAF"
         ordering = ['-fecha_carga']
-        unique_together = [['empresa', 'sucursal', 'tipo_documento', 'folio_desde', 'folio_hasta']]
+        unique_together = [['empresa', 'sucursal', 'tipo_documento', 'ambiente', 'folio_desde', 'folio_hasta']]
         indexes = [
-            models.Index(fields=['empresa', 'sucursal', 'tipo_documento', 'estado']),
+            models.Index(fields=['empresa', 'sucursal', 'tipo_documento', 'ambiente', 'estado']),
             models.Index(fields=['folio_desde', 'folio_hasta']),
             models.Index(fields=['sucursal', 'estado', 'oculto']),
         ]
     
     def __str__(self):
         sucursal_nombre = self.sucursal.nombre if self.sucursal else "Sin sucursal"
-        return f"CAF {self.get_tipo_documento_display()} ({self.folio_desde}-{self.folio_hasta}) - {sucursal_nombre}"
+        return f"CAF {self.get_tipo_documento_display()} [{self.get_ambiente_display()}] ({self.folio_desde}-{self.folio_hasta}) - {sucursal_nombre}"
     
     def validar_caf_unico(self):
         """
@@ -185,7 +210,8 @@ class ArchivoCAF(models.Model):
         # Buscar otros CAFs con el mismo contenido
         cafs_duplicados = ArchivoCAF.objects.filter(
             empresa=self.empresa,
-            tipo_documento=self.tipo_documento
+            tipo_documento=self.tipo_documento,
+            ambiente=self.ambiente,
         ).exclude(pk=self.pk)
         
         for caf_existente in cafs_duplicados:
@@ -209,6 +235,7 @@ class ArchivoCAF(models.Model):
             empresa=self.empresa,
             sucursal=self.sucursal,
             tipo_documento=self.tipo_documento,
+            ambiente=self.ambiente,
             estado__in=['activo', 'agotado']  # Solo verificar CAFs válidos
         ).exclude(pk=self.pk)
         
@@ -236,6 +263,7 @@ class ArchivoCAF(models.Model):
         cafs_otras_sucursales = ArchivoCAF.objects.filter(
             empresa=self.empresa,
             tipo_documento=self.tipo_documento,
+            ambiente=self.ambiente,
             folio_desde=self.folio_desde,
             folio_hasta=self.folio_hasta,
             estado__in=['activo', 'agotado']
@@ -255,6 +283,9 @@ class ArchivoCAF(models.Model):
         # 1. Calcular fecha de vencimiento por defecto si no existe
         if self.fecha_autorizacion and not self.fecha_vencimiento:
             self.fecha_vencimiento = self.fecha_autorizacion + timedelta(days=180)
+
+        if not self.ambiente and self.empresa_id:
+            self.ambiente = getattr(self.empresa, 'ambiente_sii', 'certificacion') or 'certificacion'
 
         # 2. Ejecutar validaciones solo si es un CAF nuevo o si cambió el contenido
         if not self.pk or 'contenido_caf' in kwargs.get('update_fields', []):
@@ -287,6 +318,23 @@ class ArchivoCAF(models.Model):
     def estado_nombre(self):
         """Nombre corto del estado para templates"""
         return self.get_estado_display()
+
+    @property
+    def observacion_historial(self):
+        """Observación visible para el historial de CAFs."""
+        if self.estado == 'vencido':
+            if self.fecha_vencimiento:
+                return f"Vencido el {self.fecha_vencimiento.strftime('%d-%m-%Y')}"
+            return "Vencido"
+        if self.estado == 'agotado':
+            if self.fecha_agotamiento:
+                return f"Agotado el {self.fecha_agotamiento.strftime('%d-%m-%Y %H:%M')}"
+            return "CAF agotado"
+        if self.oculto:
+            return "Movido manualmente a historial"
+        if self.estado == 'anulado':
+            return "CAF anulado"
+        return "-"
     
     def esta_vigente(self):
         """
@@ -398,9 +446,24 @@ class ArchivoCAF(models.Model):
             empresa=empresa,
             sucursal=sucursal,
             tipo_documento=tipo_documento,
+            ambiente=getattr(empresa, 'ambiente_sii', 'certificacion'),
             estado='activo',
             oculto=False
         ).order_by('folio_actual').first()
+
+    @classmethod
+    def sincronizar_cafs_vencidos(cls, empresa_id):
+        """
+        Marca como vencidos los CAFs activos cuya fecha de vencimiento ya expiró.
+        """
+        from datetime import date
+        hoy = date.today()
+        return cls.objects.filter(
+            empresa_id=empresa_id,
+            estado='activo',
+            fecha_vencimiento__isnull=False,
+            fecha_vencimiento__lt=hoy,
+        ).update(estado='vencido')
     
     @classmethod
     def ocultar_cafs_agotados(cls, empresa_id, sucursal_id=None):
@@ -472,22 +535,15 @@ class DocumentoTributarioElectronico(models.Model):
         ('enviando', 'Enviando al SII'),
         ('enviado', 'Enviado al SII'),
         ('aceptado', 'Aceptado por SII'),
+        ('aceptado_reparos', 'Aceptado con reparos'),
         ('rechazado', 'Rechazado por SII'),
         ('pendiente', 'Pendiente de Envío'),
+        ('error_envio', 'Pendiente de reenvío'),
         ('anulado', 'Anulado'),
     ]
     
-    # Tipos de traslado para Guías de Despacho (SII)
-    TIPO_TRASLADO_CHOICES = [
-        ('1', 'Venta'),
-        ('2', 'Venta por efectuar (anticipada)'),
-        ('3', 'Consignación'),
-        ('4', 'Devolución'),
-        ('5', 'Traslado interno'),
-        ('6', 'Transformación de productos'),
-        ('7', 'Entrega gratuita'),
-        ('8', 'Otros'),
-    ]
+    # Tipos de traslado para Guías de Despacho (IndTraslado SII)
+    TIPO_TRASLADO_CHOICES = IND_TRASLADO_CHOICES
     
     # RELACIONES
     empresa = models.ForeignKey(
@@ -617,7 +673,7 @@ class DocumentoTributarioElectronico(models.Model):
     )
     error_envio = models.TextField(
         blank=True,
-        verbose_name="Error en Envío"
+        verbose_name="Observación de envío"
     )
     fecha_consulta_estado = models.DateTimeField(
         null=True,
@@ -657,6 +713,35 @@ class DocumentoTributarioElectronico(models.Model):
         blank=True, 
         null=True,
         verbose_name="Nombre Chofer"
+    )
+    tipo_despacho_sii = models.CharField(
+        max_length=1,
+        choices=TIPO_DESPACHO_SII_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name="Tipo de Despacho SII",
+        help_text="TipoDespacho 1/2/3. Distinto de IndTraslado.",
+    )
+    patente_carro = models.CharField(
+        max_length=8,
+        blank=True,
+        null=True,
+        verbose_name="Patente carro o remolque",
+    )
+    fecha_salida = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de salida",
+    )
+    hora_salida = models.TimeField(
+        blank=True,
+        null=True,
+        verbose_name="Hora de salida",
+    )
+    fecha_llegada = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de llegada",
     )
     
     # PDF
@@ -742,6 +827,267 @@ class DocumentoTributarioElectronico(models.Model):
     
     def __str__(self):
         return f"{self.get_tipo_dte_display()} Folio {self.folio}"
+
+    @staticmethod
+    def _normalizar_estado_texto(valor):
+        texto = unicodedata.normalize('NFKD', str(valor or ''))
+        texto = ''.join(ch for ch in texto if not unicodedata.combining(ch))
+        return texto.upper().strip()
+
+    def _campo_sii_cargado(self, nombre):
+        """Lee glosa/error/respuesta sin forzar un fetch de campos deferred."""
+        try:
+            if nombre in (self.get_deferred_fields() or ()):
+                return ''
+        except Exception:
+            pass
+        try:
+            return getattr(self, nombre, '') or ''
+        except Exception:
+            return ''
+
+    def _texto_respuesta_sii(self):
+        """Clasifica con glosa + error. respuesta_sii solo si ya está cargada."""
+        return texto_sii_de(
+            self._campo_sii_cargado('glosa_sii'),
+            self._campo_sii_cargado('error_envio'),
+            self._campo_sii_cargado('respuesta_sii'),
+        )
+
+    def en_espera_reintento_sii(self):
+        return es_espera_reintento_sii(self._texto_respuesta_sii())
+
+    def segundos_restantes_espera_sii(self):
+        if not self.en_espera_reintento_sii():
+            return 0
+        segundos = extraer_segundos_espera(self._texto_respuesta_sii()) or 900
+        inicio = self.fecha_consulta_estado or self.fecha_respuesta_sii or self.fecha_envio_sii
+        if not inicio:
+            return segundos
+        restante = int((inicio + timedelta(seconds=segundos) - timezone.now()).total_seconds())
+        return max(0, restante)
+
+    @property
+    def tiene_track_sii(self):
+        if str(self.track_id or '').strip():
+            return True
+        return bool(extraer_track_id(self._texto_respuesta_sii()))
+
+    def track_id_efectivo(self):
+        return str(self.track_id or extraer_track_id(self._texto_respuesta_sii()) or '').strip()
+
+    def get_mensaje_espera_reintento(self):
+        track = self.track_id_efectivo()
+        restante = self.segundos_restantes_espera_sii() or extraer_segundos_espera(self._texto_respuesta_sii()) or 900
+        return mensaje_espera_reintento(restante, track)
+
+    def _es_falso_rechazo_persistido(self):
+        return es_falso_rechazo_sii(
+            self._texto_respuesta_sii(),
+            estado_sii=self.estado_sii,
+            track_id=self.track_id,
+        )
+
+    def corregir_falso_rechazo_espera(self):
+        """Si el SII solo pidió esperar o confirmó recepción, no es rechazo ni reenvío."""
+        if not self._es_falso_rechazo_persistido():
+            return False
+        campos = {}
+        if str(self.estado_sii or '').strip().lower() in {'rechazado', 'error_envio', 'error'}:
+            self.estado_sii = 'enviado'
+            campos['estado_sii'] = 'enviado'
+        track = extraer_track_id(self._texto_respuesta_sii())
+        if track and not str(self.track_id or '').strip():
+            self.track_id = track
+            campos['track_id'] = track
+        if not campos:
+            return False
+        if self.pk:
+            type(self).objects.filter(pk=self.pk).update(**campos)
+        return True
+
+    def get_estado_sii_real(self):
+        try:
+            return self._calcular_estado_sii_real()
+        except Exception:
+            estado = str(self.estado_sii or '').strip().lower()
+            if estado == 'rechazado' and str(self.track_id or '').strip():
+                return 'enviado'
+            return estado or 'pendiente'
+
+    def _calcular_estado_sii_real(self):
+        texto = self._texto_respuesta_sii()
+        if es_espera_reintento_sii(texto) or self._es_falso_rechazo_persistido():
+            return 'enviado'
+
+        estado_actual = str(self.estado_sii or '').strip().lower()
+        glosa = self._normalizar_estado_texto(self._campo_sii_cargado('glosa_sii'))
+        error = self._normalizar_estado_texto(self._campo_sii_cargado('error_envio'))
+        texto_sii = f'{glosa} {error}'.strip()
+
+        # Nunca Rechazada sin RCH/RSC o la palabra RECHAZADO.
+        if evidencia_rechazo_tributario(texto_sii, texto):
+            return 'rechazado'
+        if estado_actual == 'rechazado':
+            return 'enviado' if str(self.track_id or '').strip() else 'pendiente'
+
+        if estado_actual in {'aceptado', 'anulado', 'aceptado_reparos'}:
+            return estado_actual
+
+        if es_glosa_envio_procesado(texto_sii, texto):
+            return 'enviado'
+
+        if any(token in glosa for token in ['ACEPTADO CON REPAROS', 'ACEPTADA CON REPAROS']) or contiene_codigo_estado(glosa, ('RPR', 'RPC', 'RLV')):
+            return 'aceptado_reparos'
+        if any(token in glosa for token in ['ACEPTADO', 'ACEPTADA']) or contiene_codigo_estado(glosa, ('EOK', 'DOK', 'SOK')):
+            return 'aceptado'
+
+        if estado_actual in {'error', 'error_envio'}:
+            return 'error_envio'
+
+        if not str(self.track_id or '').strip():
+            return estado_actual or 'pendiente'
+
+        # El XML de recepción (RECEPCIONDTE) no implica aceptación:
+        # no inferir Aceptada por substrings tipo REC/OK/CRT.
+        return estado_actual or 'enviado'
+
+    def get_estado_sii_real_display(self):
+        estado = self.get_estado_sii_real()
+        etiquetas = {
+            'aceptado': 'Aceptada',
+            'aceptado_reparos': 'Aceptada con reparos',
+            'rechazado': 'Rechazada',
+            'error_envio': 'Pendiente de reenvío',
+            'enviado': 'Pendiente SII',
+            'enviando': 'Pendiente SII',
+            'generado': 'Pendiente SII',
+            'firmado': 'Pendiente SII',
+            'pendiente': 'Pendiente SII',
+            'anulado': 'Anulado',
+        }
+        return etiquetas.get(estado, 'Pendiente SII' if self.track_id else (self.get_estado_sii_display() or estado or '-'))
+
+    def get_estado_sii_real_badge_style(self):
+        estado = self.get_estado_sii_real()
+        estilos = {
+            'aceptado': 'background: rgba(72, 187, 120, 0.15); color: #2F855A; border: 1px solid rgba(72, 187, 120, 0.28);',
+            'aceptado_reparos': 'background: rgba(236, 201, 75, 0.22); color: #744210; border: 1px solid rgba(236, 201, 75, 0.32);',
+            'rechazado': 'background: rgba(229, 62, 62, 0.15); color: #C53030; border: 1px solid rgba(229, 62, 62, 0.26);',
+            'error_envio': 'background: rgba(196, 154, 82, 0.18); color: #6F5B44; border: 1px solid rgba(196, 154, 82, 0.35);',
+            'enviado': 'background: rgba(236, 201, 75, 0.22); color: #744210; border: 1px solid rgba(236, 201, 75, 0.32);',
+            'enviando': 'background: rgba(236, 201, 75, 0.22); color: #744210; border: 1px solid rgba(236, 201, 75, 0.32);',
+            'pendiente': 'background: rgba(236, 201, 75, 0.22); color: #744210; border: 1px solid rgba(236, 201, 75, 0.32);',
+            'generado': 'background: rgba(236, 201, 75, 0.22); color: #744210; border: 1px solid rgba(236, 201, 75, 0.32);',
+            'firmado': 'background: rgba(236, 201, 75, 0.22); color: #744210; border: 1px solid rgba(236, 201, 75, 0.32);',
+            'anulado': 'background: #E2E8F0; color: #4A5568; border: 1px solid #CBD5E0;',
+        }
+        return estilos.get(estado, 'background: #E2E8F0; color: #4A5568; border: 1px solid #CBD5E0;')
+
+    @property
+    def get_estado_sii_real_es_final(self):
+        return self.get_estado_sii_real() in {'aceptado', 'aceptado_reparos', 'rechazado', 'anulado'}
+
+    @property
+    def puede_enviarse_al_sii(self):
+        if self.tiene_track_sii:
+            return False
+        if self.en_espera_reintento_sii() or self._es_falso_rechazo_persistido():
+            return False
+        estado = str(self.estado_sii or '').strip().lower()
+        if estado in {'aceptado', 'aceptado_reparos', 'rechazado', 'anulado'}:
+            return False
+        return True
+
+    @classmethod
+    def corregir_falsos_rechazos_masivo(cls, empresa=None):
+        """Pasa a enviado los DTE con falso rechazo (espera 900s / Envio Procesado / glosa vacía + track)."""
+        qs = cls.objects.filter(estado_sii__in=['rechazado', 'error_envio', 'error'])
+        if empresa is not None:
+            qs = qs.filter(empresa=empresa)
+        qs = qs.only('id', 'estado_sii', 'glosa_sii', 'error_envio', 'track_id', 'respuesta_sii')
+        corregidos = []
+        for documento in qs.iterator():
+            if documento.corregir_falso_rechazo_espera():
+                corregidos.append(documento.pk)
+        return corregidos
+
+    @property
+    def puede_emitir_documento_tributario(self):
+        return self.get_estado_sii_real() not in {'rechazado', 'anulado'}
+
+    @property
+    def es_error_envio(self):
+        return self.get_estado_sii_real() == 'error_envio'
+
+    @property
+    def esta_rechazado_por_sii(self):
+        return self.get_estado_sii_real() == 'rechazado'
+
+    def get_mensaje_no_emitible(self):
+        estado = self.get_estado_sii_real()
+        if estado == 'rechazado':
+            return (
+                'Este documento fue rechazado por el SII y no puede emitirse '
+                'ni imprimirse como documento tributario valido. Corrige el '
+                'documento origen y emite uno nuevo.'
+            )
+        if estado == 'anulado':
+            return (
+                'Este documento esta anulado y no puede emitirse ni imprimirse '
+                'como documento tributario valido.'
+            )
+        return 'Este documento no puede emitirse ni imprimirse como documento tributario valido.'
+
+    def requiere_consulta_estado_sii(self):
+        if not self.tiene_track_sii:
+            return False
+        return self.get_estado_sii_real() != 'anulado'
+
+    @property
+    def permite_reenvio_xml_corregido(self):
+        """Excepción: hay Track pero el SII no registró el DTE. Mismo folio, XML nuevo."""
+        if not self.tiene_track_sii:
+            return False
+        if self.get_estado_sii_real() in {'aceptado', 'aceptado_reparos', 'anulado'}:
+            return False
+        from facturacion_electronica.validacion_envio import xml_tiene_acteco_invalido
+        if es_dte_no_recibido_sii(self._texto_respuesta_sii()):
+            return True
+        xml = (self.xml_firmado or '') or (getattr(self, 'xml_dte', None) or '')
+        return xml_tiene_acteco_invalido(xml)
+
+    def requiere_refresco_estado_sii(self):
+        if not self.tiene_track_sii:
+            return False
+        return self.get_estado_sii_real() not in {'aceptado', 'aceptado_reparos', 'anulado'}
+
+    @classmethod
+    def refrescar_estados_visibles(cls, documentos, limit=50):
+        pendientes = []
+        for documento in documentos:
+            if isinstance(documento, cls) and documento.requiere_refresco_estado_sii():
+                pendientes.append(documento)
+                if len(pendientes) >= limit:
+                    break
+
+        if not pendientes:
+            return documentos
+
+        from facturacion_electronica.dte_service import DTEService
+
+        servicios = {}
+        for documento in pendientes:
+            try:
+                servicio = servicios.get(documento.empresa_id)
+                if servicio is None:
+                    servicio = DTEService(documento.empresa)
+                    servicios[documento.empresa_id] = servicio
+                servicio.consultar_estado_dte(documento)
+            except Exception:
+                continue
+
+        return documentos
 
     def get_tipo_slug(self):
         """Retorna un slug simplificado (factura, boleta, guia, etc.)"""

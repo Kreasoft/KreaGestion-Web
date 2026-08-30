@@ -32,7 +32,12 @@ urlpatterns = [
     # Movimientos Manuales
     path('aperturas/<int:apertura_id>/movimiento/', views.movimiento_create, name='movimiento_create'),
 
+    path('impresora/', views_impresion.conectar_impresora, name='conectar_impresora'),
+    path('impresora/descargar-agente/', views_impresion.descargar_agente, name='descargar_agente'),
+
     # API Agente Impresión Local
+    path('api/impresion/vincular/', views_impresion.vincular_agente, name='api_impresion_vincular'),
+    path('api/impresion/destinos/', views_impresion.listar_destinos, name='api_impresion_destinos'),
     path('api/impresion/pendientes/', views_impresion.obtener_pendientes, name='api_impresion_pendientes'),
     path('api/impresion/marcar-impreso/', views_impresion.marcar_impreso, name='api_impresion_marcar_base'),
     path('api/impresion/marcar-impreso/<int:trabajo_id>/', views_impresion.marcar_impreso, name='api_impresion_marcar'),

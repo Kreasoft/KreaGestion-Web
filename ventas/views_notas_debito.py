@@ -74,10 +74,17 @@ def notadebito_create(request):
         print(f"DEBUG ND: cliente_hidden: {post_data.get('cliente_hidden')}")
         print(f"DEBUG ND: numero_doc_afectado: {post_data.get('numero_doc_afectado')}")
 
+        # El formulario incluye empresa como HiddenInput, pero este flujo no lo renderiza.
+        # Se fuerza desde el contexto autenticado para evitar que el POST falle por un dato conocido.
+        post_data['empresa'] = str(request.empresa.id)
+
         # Si vienen datos del documento afectado desde AJAX, actualizar los campos correspondientes
         fecha_doc_hidden = post_data.get('fecha_doc_afectado_hidden')
         cliente_hidden = post_data.get('cliente_hidden')
         rut_cliente_hidden = post_data.get('rut_cliente_hidden')
+        cliente_id_hidden = post_data.get('cliente_id_hidden')
+        bodega_id_hidden = post_data.get('bodega_id_hidden')
+        vendedor_id_hidden = post_data.get('vendedor_id_hidden')
 
         print(f"DEBUG ND: Datos del documento afectado - fecha: {fecha_doc_hidden}, cliente: {cliente_hidden}, rut: {rut_cliente_hidden}")
 
@@ -85,15 +92,26 @@ def notadebito_create(request):
             # Actualizar campos que vienen del AJAX
             post_data['fecha_doc_afectado'] = fecha_doc_hidden
 
+            if cliente_id_hidden and not post_data.get('cliente'):
+                post_data['cliente'] = cliente_id_hidden
+
+            if bodega_id_hidden and not post_data.get('bodega'):
+                post_data['bodega'] = bodega_id_hidden
+
+            if vendedor_id_hidden and not post_data.get('vendedor'):
+                post_data['vendedor'] = vendedor_id_hidden
+
             # Intentar encontrar el cliente por nombre o RUT
             from django.db.models import Q
-            cliente_query = Q(nombre__icontains=cliente_hidden) | Q(rut=cliente_hidden)
-            cliente = Cliente.objects.filter(cliente_query, empresa=request.empresa).first()
+            cliente = None
+            if not post_data.get('cliente'):
+                cliente_query = Q(nombre__icontains=cliente_hidden) | Q(rut=rut_cliente_hidden) | Q(rut=cliente_hidden)
+                cliente = Cliente.objects.filter(cliente_query, empresa=request.empresa).first()
 
-            print(f"DEBUG ND: Cliente encontrado: {cliente}")
-            if cliente:
-                post_data['cliente'] = str(cliente.id)
-                print(f"DEBUG ND: Cliente ID asignado: {cliente.id}")
+                print(f"DEBUG ND: Cliente encontrado: {cliente}")
+                if cliente:
+                    post_data['cliente'] = str(cliente.id)
+                    print(f"DEBUG ND: Cliente ID asignado: {cliente.id}")
 
         form = NotaDebitoForm(post_data)
         formset = NotaDebitoDetalleFormSet(post_data)

@@ -7,34 +7,33 @@
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
     <div class="row justify-content-center">
         <div class="col-12 col-xl-10">
-            <div class="card" style="border: none; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(139, 115, 85, 0.15);">
+            <div class="card" style="border: none; border-radius: 8px; overflow: visible; box-shadow: 0 10px 30px rgba(139, 115, 85, 0.15);">
                 <!-- Header Estilo Piedra Premium -->
-                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 20px 25px;">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-file-invoice me-3" style="font-size: 2.5rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <i class="fas fa-file-invoice me-2" style="font-size: 1.25rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                             <div>
-                                <h3 class="mb-0 fw-normal" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px;">
-                                    COTIZACIÓN <span class="fw-bold">#{{ cotizacion.numero_venta }}</span>
-                                </h3>
-                                <div class="d-flex align-items-center mt-1">
-                                    <span class="badge me-2" style="background: rgba(255,255,255,0.3); color: #5D4037; font-size: 0.75rem;">
-                                        {{ cotizacion.fecha|date:"d F, Y" }}
-                                    </span>
-                                    <span class="badge" style="background: {% if cotizacion.estado_cotizacion == 'pendiente' %}#D4C4A8{% elif cotizacion.estado_cotizacion == 'enviada' %}#A8C6D4{% elif cotizacion.estado_cotizacion == 'aceptada' %}#C4D4A8{% elif cotizacion.estado_cotizacion == 'rechazada' %}#D4A8A8{% elif cotizacion.estado_cotizacion == 'vencida' %}#BDBDBD{% elif cotizacion.estado_cotizacion == 'convertida' %}#A8A8D4{% else %}#D4C4A8{% endif %}; color: #5D4037; font-size: 0.75rem; padding: 5px 12px; border-radius: 6px;">
-                                        {{ cotizacion.get_estado_cotizacion_display|default:'Pendiente'|upper }}
-                                    </span>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Cotización</span>
+                                </h2>
+                                <div class="d-flex align-items-center" style="font-size: 0.75rem; color: #5D4037;">
+                                    {{ cotizacion.fecha|date:"d-m-Y" }}
+                                    · {{ cotizacion.get_estado_cotizacion_display|default:'Pendiente'|upper }}
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex gap-2">
-                            <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600;" target="_blank">
+                            <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}?{{ return_url_q }}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-weight: 600; font-size: 0.75rem;" target="_blank" rel="opener">
                                 <i class="fas fa-print me-1"></i> Imprimir
                             </a>
-                            <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: white;">
+                            <button type="button" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-weight: 600; font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalEnviarMail">
+                                <i class="fas fa-envelope me-1"></i> Enviar por mail
+                            </button>
+                            <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-weight: 600; font-size: 0.75rem;">
                                 <i class="fas fa-arrow-left me-1"></i> Volver
                             </a>
                         </div>
@@ -42,27 +41,27 @@
                 </div>
                 
                 <!-- Body -->
-                <div class="card-body" style="background: white; padding: 25px;">
+                <div class="card-body" style="background: white; padding: 10px 12px;">
                     <!-- Información general en cards compactas premium -->
-                    <div class="row g-4 mb-5">
+                    <div class="row g-2 mb-2">
                         <!-- Empresa -->
                         <div class="col-md-4">
-                            <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; background: #FDFCFB;">
-                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 15px 20px;">
-                                    <h6 class="mb-0" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                                        <i class="fas fa-building me-2 opacity-50"></i> Emisor
+                            <div class="card h-100 border-0" style="border-radius: 6px; background: #FDFCFB;">
+                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 4px 8px;">
+                                    <h6 class="mb-0" style="font-size: 0.7rem; color: #8B7355; font-weight: 700; text-transform: uppercase;">
+                                        <i class="fas fa-building me-1 opacity-50"></i> Emisor
                                     </h6>
                                 </div>
-                                <div class="card-body" style="padding: 15px 20px; font-size: 0.85rem; color: #4A5568;">
-                                    <div class="mb-2"><strong style="color: #2D3748; font-size: 1rem;">{{ cotizacion.empresa.razon_social }}</strong></div>
-                                    <div class="mb-1"><i class="fas fa-id-card me-2 opacity-50"></i> {{ cotizacion.empresa.rut }}</div>
-                                    <div class="mb-1"><i class="fas fa-map-marker-alt me-2 opacity-50"></i> {{ cotizacion.empresa.direccion }}</div>
-                                    <div class="mb-1"><i class="fas fa-city me-2 opacity-50"></i> {{ cotizacion.empresa.comuna }}, {{ cotizacion.empresa.ciudad }}</div>
+                                <div class="card-body" style="padding: 2px 8px 6px; font-size: 0.75rem; color: #4A5568; line-height: 1.35;">
+                                    <div class="text-truncate"><strong style="color: #2D3748;">{{ cotizacion.empresa.razon_social }}</strong></div>
+                                    <div class="text-truncate"><i class="fas fa-id-card me-1 opacity-50"></i> {{ cotizacion.empresa.rut }}</div>
+                                    <div class="text-truncate"><i class="fas fa-map-marker-alt me-1 opacity-50"></i> {{ cotizacion.empresa.direccion }}</div>
+                                    <div class="text-truncate"><i class="fas fa-city me-1 opacity-50"></i> {{ cotizacion.empresa.comuna }}, {{ cotizacion.empresa.ciudad }}</div>
                                     {% if cotizacion.empresa.telefono %}
-                                    <div class="mb-1"><i class="fas fa-phone me-2 opacity-50"></i> {{ cotizacion.empresa.telefono }}</div>
+                                    <div class="text-truncate"><i class="fas fa-phone me-1 opacity-50"></i> {{ cotizacion.empresa.telefono }}</div>
                                     {% endif %}
                                     {% if cotizacion.empresa.email %}
-                                    <div class="mb-0"><i class="fas fa-envelope me-2 opacity-50"></i> {{ cotizacion.empresa.email }}</div>
+                                    <div class="text-truncate"><i class="fas fa-envelope me-1 opacity-50"></i> {{ cotizacion.empresa.email }}</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -70,28 +69,28 @@
                         
                         <!-- Cotización Info -->
                         <div class="col-md-4">
-                            <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; background: #FDFCFB;">
-                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 15px 20px;">
-                                    <h6 class="mb-0" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                                        <i class="fas fa-info-circle me-2 opacity-50"></i> Detalles
+                            <div class="card h-100 border-0" style="border-radius: 6px; background: #FDFCFB;">
+                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 4px 8px;">
+                                    <h6 class="mb-0" style="font-size: 0.7rem; color: #8B7355; font-weight: 700; text-transform: uppercase;">
+                                        <i class="fas fa-info-circle me-1 opacity-50"></i> Detalles
                                     </h6>
                                 </div>
-                                <div class="card-body" style="padding: 15px 20px; font-size: 0.85rem; color: #4A5568;">
-                                    <div class="d-flex justify-content-between mb-2">
+                                <div class="card-body" style="padding: 2px 8px 6px; font-size: 0.75rem; color: #4A5568; line-height: 1.45;">
+                                    <div class="d-flex justify-content-between">
                                         <span class="opacity-75">Estado:</span>
                                         <strong style="color: #8B7355;">{{ cotizacion.get_estado_cotizacion_display|default:'Pendiente'|title }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div class="d-flex justify-content-between">
                                         <span class="opacity-75">Vencimiento:</span>
-                                        <strong>{{ cotizacion.fecha|add:30|date:"d/m/Y" }}</strong>
+                                        <strong>{{ cotizacion.fecha|add:30|date:"d-m-Y" }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div class="d-flex justify-content-between">
                                         <span class="opacity-75">Vendedor:</span>
-                                        <strong>{{ cotizacion.vendedor.nombre|default:"N/A" }}</strong>
+                                        <strong class="text-truncate ms-2">{{ cotizacion.vendedor.nombre|default:"N/A" }}</strong>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-0">
+                                    <div class="d-flex justify-content-between">
                                         <span class="opacity-75">Estación:</span>
-                                        <strong>{{ cotizacion.estacion_trabajo.nombre|default:"N/A" }}</strong>
+                                        <strong class="text-truncate ms-2">{{ cotizacion.estacion_trabajo.nombre|default:"N/A" }}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -99,26 +98,23 @@
                         
                         <!-- Cliente -->
                         <div class="col-md-4">
-                            <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; background: #FDFCFB;">
-                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 15px 20px;">
-                                    <h6 class="mb-0" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                                        <i class="fas fa-user me-2 opacity-50"></i> Cliente
+                            <div class="card h-100 border-0" style="border-radius: 6px; background: #FDFCFB;">
+                                <div class="card-header border-0 pb-0" style="background: transparent; padding: 4px 8px;">
+                                    <h6 class="mb-0" style="font-size: 0.7rem; color: #8B7355; font-weight: 700; text-transform: uppercase;">
+                                        <i class="fas fa-user me-1 opacity-50"></i> Cliente
                                     </h6>
                                 </div>
-                                <div class="card-body" style="padding: 15px 20px; font-size: 0.85rem; color: #4A5568;">
+                                <div class="card-body" style="padding: 2px 8px 6px; font-size: 0.75rem; color: #4A5568; line-height: 1.35;">
                                     {% if cotizacion.cliente %}
-                                        <div class="mb-2"><strong style="color: #2D3748; font-size: 1rem;">{{ cotizacion.cliente.nombre }}</strong></div>
-                                        <div class="mb-1"><i class="fas fa-id-card me-2 opacity-50"></i> {{ cotizacion.cliente.rut }}</div>
-                                        <div class="mb-1"><i class="fas fa-map-marker-alt me-2 opacity-50"></i> {{ cotizacion.cliente.direccion }}</div>
-                                        <div class="mb-1"><i class="fas fa-city me-2 opacity-50"></i> {{ cotizacion.cliente.comuna }}, {{ cotizacion.cliente.ciudad }}</div>
+                                        <div class="text-truncate"><strong style="color: #2D3748;">{{ cotizacion.cliente.nombre }}</strong></div>
+                                        <div class="text-truncate"><i class="fas fa-id-card me-1 opacity-50"></i> {{ cotizacion.cliente.rut }}</div>
+                                        <div class="text-truncate"><i class="fas fa-map-marker-alt me-1 opacity-50"></i> {{ cotizacion.cliente.direccion }}</div>
+                                        <div class="text-truncate"><i class="fas fa-city me-1 opacity-50"></i> {{ cotizacion.cliente.comuna }}, {{ cotizacion.cliente.ciudad }}</div>
                                         {% if cotizacion.cliente.email %}
-                                        <div class="mb-0"><i class="fas fa-envelope me-2 opacity-50"></i> {{ cotizacion.cliente.email }}</div>
+                                        <div class="text-truncate"><i class="fas fa-envelope me-1 opacity-50"></i> {{ cotizacion.cliente.email }}</div>
                                         {% endif %}
                                     {% else %}
-                                        <div class="text-center py-4 opacity-50">
-                                            <i class="fas fa-user-slash fa-2x mb-2"></i>
-                                            <p class="mb-0">Sin información de cliente</p>
-                                        </div>
+                                        <div class="opacity-50 py-1">Sin información de cliente</div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -126,12 +122,12 @@
                     </div>
                     
                     <!-- tabla de Productos -->
-                    <div class="mb-4">
-                        <h6 class="mb-3 px-2" style="font-size: 0.9rem; color: #6F5B44; font-weight: 700;">
-                            <i class="fas fa-boxes me-2"></i> ÍTEMS DE LA COTIZACIÓN
+                    <div class="mb-2">
+                        <h6 class="mb-1 px-1" style="font-size: 0.75rem; color: #6F5B44; font-weight: 700;">
+                            <i class="fas fa-boxes me-1"></i> ÍTEMS DE LA COTIZACIÓN
                         </h6>
                         <div class="table-responsive">
-                            <table class="table table-piedra mb-0">
+                            <table class="table-piedra mb-0" style="table-layout:fixed;width:100%;">
                                 <thead>
                                     <tr>
                                         <th style="width: 15%;">CÓDIGO</th>
@@ -144,16 +140,11 @@
                                 <tbody>
                                     {% for detalle in detalles %}
                                     <tr>
-                                        <td class="small opacity-75">#{{ detalle.articulo.codigo|default:detalle.articulo.id }}</td>
-                                        <td>
-                                            <div class="fw-bold" style="color: #2D3748;">{{ detalle.articulo.nombre }}</div>
-                                            {% if detalle.articulo.descripcion %}
-                                                <small class="text-muted d-block mt-1">{{ detalle.articulo.descripcion }}</small>
-                                            {% endif %}
-                                        </td>
+                                        <td>#{{ detalle.articulo.codigo|default:detalle.articulo.id }}</td>
+                                        <td title="{{ detalle.articulo.nombre }}{% if detalle.articulo.descripcion %} — {{ detalle.articulo.descripcion }}{% endif %}">{{ detalle.articulo.nombre }}</td>
                                         <td class="text-center">{{ detalle.cantidad }}</td>
                                         <td class="text-end">${{ detalle.precio_unitario|format_miles }}</td>
-                                        <td class="text-end fw-bold" style="color: #6F5B44;">${{ detalle.precio_total|format_miles }}</td>
+                                        <td class="text-end" style="color: #6F5B44; font-weight: 700;">${{ detalle.precio_total|format_miles }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -162,38 +153,38 @@
                     </div>
                     
                     <!-- Totales -->
-                    <div class="row mt-4">
-                        <div class="col-md-6 offset-md-6">
-                            <div class="card border-0 shadow-sm" style="border-radius: 15px; background: #FDFCFB;">
-                                <div class="card-body p-4">
-                                    <div class="d-flex justify-content-between mb-2">
+                    <div class="row mt-2">
+                        <div class="col-md-5 offset-md-7">
+                            <div class="card border-0" style="border-radius: 6px; background: #FDFCFB;">
+                                <div class="card-body py-2 px-3" style="font-size: 0.8rem;">
+                                    <div class="d-flex justify-content-between mb-1">
                                         <span class="text-muted">Subtotal</span>
                                         <span class="fw-bold">${{ cotizacion.subtotal|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div class="d-flex justify-content-between mb-1">
                                         <span class="text-muted">Descuento</span>
                                         <span class="text-danger">-${{ cotizacion.descuento|format_miles }}</span>
                                     </div>
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div class="d-flex justify-content-between mb-1">
                                         <span class="text-muted">Neto</span>
                                         <span class="fw-bold">${{ cotizacion.neto|format_miles }}</span>
                                     </div>
                                     {% if cotizacion.iva > 0 %}
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div class="d-flex justify-content-between mb-1">
                                         <span class="text-muted">IVA (19%)</span>
                                         <span class="fw-bold">${{ cotizacion.iva|format_miles }}</span>
                                     </div>
                                     {% endif %}
                                     {% if cotizacion.impuesto_especifico > 0 %}
-                                    <div class="d-flex justify-content-between mb-2">
+                                    <div class="d-flex justify-content-between mb-1">
                                         <span class="text-muted">Imp. Específico</span>
                                         <span class="fw-bold">${{ cotizacion.impuesto_especifico|format_miles }}</span>
                                     </div>
                                     {% endif %}
-                                    <hr class="my-3 opacity-10">
+                                    <hr class="my-1 opacity-10">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <span class="h5 mb-0" style="color: #6F5B44; font-weight: 700;">TOTAL</span>
-                                        <span class="h3 mb-0" style="color: #8B7355; font-weight: 800;">${{ cotizacion.total|format_miles }}</span>
+                                        <span class="mb-0" style="color: #6F5B44; font-weight: 700;">TOTAL</span>
+                                        <span class="mb-0" style="color: #8B7355; font-weight: 800; font-size: 1.15rem;">${{ cotizacion.total|format_miles }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -202,38 +193,54 @@
                     
                     <!-- Observaciones -->
                     {% if cotizacion.observaciones %}
-                    <div class="mt-5 px-2">
-                        <h6 style="font-size: 0.8rem; color: #8B7355; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
-                            <i class="fas fa-sticky-note me-2 opacity-50"></i> Observaciones
+                    <div class="mt-2 px-1">
+                        <h6 class="mb-1" style="font-size: 0.75rem; color: #8B7355; font-weight: 700; text-transform: uppercase;">
+                            <i class="fas fa-sticky-note me-1 opacity-50"></i> Observaciones
                         </h6>
-                        <div class="p-3 mt-2" style="background: #FDFCFB; border-radius: 10px; border-left: 4px solid #D4C4A8; font-size: 0.9rem; color: #4A5568;">
+                        <div class="px-2 py-1" style="background: #FDFCFB; border-radius: 6px; border-left: 3px solid #D4C4A8; font-size: 0.8rem; color: #4A5568;">
                             {{ cotizacion.observaciones }}
                         </div>
                     </div>
                     {% endif %}
                     
                     <!-- Acciones Finales -->
-                    <div class="d-flex gap-3 justify-content-center mt-5 flex-wrap">
-                        <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}" class="btn btn-piedra-lg px-5 py-2 shadow-sm" target="_blank">
-                            <i class="fas fa-print me-2"></i> IMPRIMIR COTIZACIÓN
+                    <div class="d-flex gap-2 justify-content-center mt-2 flex-wrap">
+                        <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}?{{ return_url_q }}" class="btn btn-sm btn-piedra-lg px-3" target="_blank" rel="opener">
+                            <i class="fas fa-print me-1"></i> Imprimir
                         </a>
+                        <button type="button" class="btn btn-sm btn-outline-piedra-lg px-3" data-bs-toggle="modal" data-bs-target="#modalEnviarMail">
+                            <i class="fas fa-envelope me-1"></i> Enviar por mail
+                        </button>
                         
                         {% if cotizacion.estado_cotizacion != 'convertida' %}
                         <div class="dropdown">
-                            <button class="btn btn-outline-piedra-lg px-4 py-2 dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-cog me-2"></i> GESTIONAR
+                            <button class="btn btn-sm btn-outline-piedra-lg px-3 dropdown-toggle" type="button" id="cotizacionGestionarBtn" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false">
+                                <i class="fas fa-cog me-1"></i> Gestionar
                             </button>
-                            <ul class="dropdown-menu shadow border-0" style="border-radius: 12px; font-size: 0.9rem; padding: 10px;">
-                                <li><a class="dropdown-item py-2" href="{% url 'ventas:cotizacion_cambiar_estado' cotizacion.pk %}"><i class="fas fa-edit me-2 text-muted"></i>Cambiar Estado</a></li>
+                            <ul class="dropdown-menu shadow border-0" aria-labelledby="cotizacionGestionarBtn" style="border-radius: 6px; font-size: 0.8rem; padding: 4px; z-index: 1080;">
+                                <li>
+                                    <button type="button" class="dropdown-item py-1" data-bs-toggle="modal" data-bs-target="#modalEnviarMail">
+                                        <i class="fas fa-envelope me-2" style="color:#8B7355;"></i>Enviar por mail
+                                    </button>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item py-1" data-bs-toggle="modal" data-bs-target="#modalCambiarEstado">
+                                        <i class="fas fa-edit me-2" style="color:#8B7355;"></i>Cambiar Estado
+                                    </button>
+                                </li>
                                 {% if cotizacion.estado_cotizacion == 'aceptada' %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item py-2 text-primary fw-bold" href="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}"><i class="fas fa-exchange-alt me-2"></i>CONVERTIR A VENTA</a></li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <button type="button" class="dropdown-item py-1 fw-bold" data-bs-toggle="modal" data-bs-target="#modalConvertirVenta" style="color:#C76F43;">
+                                        <i class="fas fa-exchange-alt me-2"></i>Convertir a venta
+                                    </button>
+                                </li>
                                 {% endif %}
                             </ul>
                         </div>
                         {% endif %}
                         
-                        <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm btn-link text-decoration-none mt-2" style="color: #8B7355; font-weight: 600;">
+                        <a href="{% url 'ventas:cotizacion_list' %}" class="btn btn-sm btn-link text-decoration-none" style="color: #8B7355; font-weight: 600;">
                             <i class="fas fa-arrow-left me-1"></i> Volver al listado
                         </a>
                     </div>
@@ -242,6 +249,170 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalEnviarMail" tabindex="-1" aria-labelledby="modalEnviarMailLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content cotiz-modal-content">
+            <div class="modal-header cotiz-modal-header">
+                <div>
+                    <h5 class="modal-title mb-0" id="modalEnviarMailLabel">Enviar por mail</h5>
+                    <div class="cotiz-modal-sub">Cotización #{{ cotizacion.numero_venta }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'ventas:cotizacion_enviar_email' cotizacion.pk %}">
+                {% csrf_token %}
+                <div class="modal-body cotiz-modal-body">
+                    <div class="cotiz-modal-meta">
+                        <div class="cotiz-modal-meta-title">Resumen</div>
+                        <div class="row-line"><span class="text-muted">Número</span><strong>#{{ cotizacion.numero_venta }}</strong></div>
+                        <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:36 }}</strong></div>
+                        <div class="row-line"><span class="text-muted">Total</span><strong style="color:#C76F43;">${{ cotizacion.total|format_miles }}</strong></div>
+                    </div>
+                    <label for="emailCotizacionModal" class="cotiz-modal-label">Correo destino</label>
+                    <input type="email" name="email" id="emailCotizacionModal" class="form-control cotiz-modal-select" required
+                           value="{{ cotizacion.cliente.email|default:'' }}" placeholder="cliente@correo.cl" autocomplete="email">
+                    <label for="mensajeCotizacionModal" class="cotiz-modal-label mt-2">Mensaje (opcional)</label>
+                    <textarea name="mensaje" id="mensajeCotizacionModal" class="form-control" rows="3" maxlength="800"
+                              placeholder="Texto adicional para el cliente" style="font-size:0.75rem;border:1px solid #D4C4A8;border-radius:6px;"></textarea>
+                    <div class="cotiz-modal-info"><i class="fas fa-paperclip me-1"></i>Se adjuntará el PDF de la cotización.</div>
+                </div>
+                <div class="modal-footer cotiz-modal-footer">
+                    <button type="button" class="btn-est-cancel" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Cancelar</button>
+                    <button type="submit" class="btn-est-ok"><i class="fas fa-paper-plane me-1"></i> Enviar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if cotizacion.estado_cotizacion != 'convertida' %}
+<div class="modal fade" id="modalCambiarEstado" tabindex="-1" aria-labelledby="modalCambiarEstadoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+        <div class="modal-content cotiz-modal-content">
+            <div class="modal-header cotiz-modal-header">
+                <div>
+                    <h5 class="modal-title mb-0" id="modalCambiarEstadoLabel">Gestión de estado</h5>
+                    <div class="cotiz-modal-sub">Cotización #{{ cotizacion.numero_venta }}</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'ventas:cotizacion_cambiar_estado' cotizacion.pk %}">
+                {% csrf_token %}
+                <div class="modal-body cotiz-modal-body">
+                    <div class="cotiz-modal-meta">
+                        <div class="cotiz-modal-meta-title">Resumen</div>
+                        <div class="row-line"><span class="text-muted">Número</span><strong>#{{ cotizacion.numero_venta }}</strong></div>
+                        <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:36 }}</strong></div>
+                        <div class="row-line"><span class="text-muted">Total</span><strong style="color:#C76F43;">${{ cotizacion.total|format_miles }}</strong></div>
+                        <div class="row-line">
+                            <span class="text-muted">Estado actual</span>
+                            <span class="est-badge {{ cotizacion.estado_cotizacion|default:'pendiente' }}">{{ cotizacion.get_estado_cotizacion_display|default:"Pendiente"|upper }}</span>
+                        </div>
+                    </div>
+                    <label for="estadoCotizacionModal" class="cotiz-modal-label">Nuevo estado</label>
+                    <select name="estado" id="estadoCotizacionModal" class="form-select cotiz-modal-select" required>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if cotizacion.estado_cotizacion == value %}selected{% endif %}>{{ label|upper }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="cotiz-modal-info"><i class="fas fa-info-circle me-1"></i>El cambio se verá de inmediato en el listado.</div>
+                </div>
+                <div class="modal-footer cotiz-modal-footer">
+                    <button type="button" class="btn-est-cancel" data-bs-dismiss="modal"><i class="fas fa-times me-1"></i> Cancelar</button>
+                    <button type="submit" class="btn-est-ok"><i class="fas fa-check me-1"></i> Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if cotizacion.estado_cotizacion == 'aceptada' %}
+<div class="modal fade" id="modalConvertirVenta" tabindex="-1" aria-labelledby="modalConvertirVentaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 620px;">
+        <div class="modal-content cotiz-modal-content">
+            <div class="modal-header cotiz-modal-header">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exchange-alt me-2" style="color:#5D4037;"></i>
+                    <div>
+                        <h5 class="modal-title mb-0" id="modalConvertirVentaLabel">Convertir cotización</h5>
+                        <div class="cotiz-modal-sub">#{{ cotizacion.numero_venta }} · Convertir en venta</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}">
+                {% csrf_token %}
+                <div class="modal-body cotiz-modal-body">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5">
+                            <div class="cotiz-modal-meta mb-0">
+                                <div class="cotiz-modal-meta-title">Documento de origen</div>
+                                <div class="row-line"><span class="text-muted">Número</span><strong>#{{ cotizacion.numero_venta }}</strong></div>
+                                <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:32 }}</strong></div>
+                                <div class="row-line"><span class="text-muted">Vendedor</span><strong class="text-end">{{ cotizacion.vendedor.nombre|default:"Sin vendedor" }}</strong></div>
+                                <div class="row-line total"><span class="text-muted">Total</span><strong style="color:#C76F43;">${{ cotizacion.total|format_miles }}</strong></div>
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <div class="cotiz-modal-meta-title">Ítems ({{ detalles.count }})</div>
+                            <div class="cvt-items">
+                                <table class="w-100">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th class="text-center">Cant.</th>
+                                            <th class="text-end">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for detalle in detalles %}
+                                        <tr>
+                                            <td title="{{ detalle.articulo.nombre }}">{{ detalle.articulo.nombre|truncatechars:28 }}</td>
+                                            <td class="text-center">{{ detalle.cantidad }}</td>
+                                            <td class="text-end">${{ detalle.precio_total|format_miles }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="3" class="text-muted">Sin ítems</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-center mb-1 cotiz-modal-label">Tipo de documento a generar</div>
+                        <div class="row g-2">
+                            {% for value, label in tipos_venta %}
+                            <div class="col-4">
+                                <label class="w-100 mb-0">
+                                    <input type="radio" name="tipo_venta" class="card-input-element d-none" value="{{ value }}" required>
+                                    <div class="cvt-tile">
+                                        {% if value == 'factura' %}<i class="fas fa-file-invoice"></i>
+                                        {% elif value == 'boleta' %}<i class="fas fa-receipt"></i>
+                                        {% else %}<i class="fas fa-truck"></i>{% endif %}
+                                        <span>{{ label }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="cvt-info">
+                        <i class="fas fa-info-circle me-1" style="color:#8B7355;"></i>
+                        Al confirmar se genera el documento con los mismos artículos y valores. La cotización pasa a estado <strong>Convertida</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer cotiz-modal-footer">
+                    <button type="button" class="btn-est-cancel" data-bs-dismiss="modal"><i class="fas fa-arrow-left me-1"></i> Cancelar</button>
+                    <button type="submit" class="btn-est-ok"><i class="fas fa-check me-1"></i> Confirmar conversión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <style>
 /* Reutilizando estilos de la tabla Piedra */
@@ -256,15 +427,17 @@
     color: #8B7355;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 1px;
-    padding: 10px 15px;
+    font-size: 0.68rem;
+    letter-spacing: 0.5px;
+    padding: 0 8px;
+    height: 32px;
+    line-height: 32px;
 }
 
 .table-piedra tbody tr {
     background-color: white;
     border-bottom: 1px solid #F5F1E8;
-    transition: all 0.2s ease;
+    height: 32px;
 }
 
 .table-piedra tbody tr:hover {
@@ -272,36 +445,37 @@
 }
 
 .table-piedra tbody td {
-    padding: 5px 15px;
+    padding: 0 8px;
+    height: 32px;
+    line-height: 30px;
     vertical-align: middle;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .btn-piedra-lg {
     background: var(--color-piedra-boton);
     color: white;
     border: none;
-    font-weight: 700;
-    border-radius: 10px;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    font-size: 0.75rem;
 }
 
 .btn-piedra-lg:hover {
     background: #6F5B44;
     color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(111, 91, 68, 0.3);
 }
 
 .btn-outline-piedra-lg {
     background: transparent;
     color: #8B7355;
-    border: 2px solid #D4C4A8;
-    font-weight: 700;
-    border-radius: 10px;
-    transition: all 0.3s ease;
+    border: 1px solid #D4C4A8;
+    font-weight: 600;
+    border-radius: 6px;
+    font-size: 0.75rem;
 }
 
 .btn-outline-piedra-lg:hover {
@@ -309,5 +483,76 @@
     color: #6F5B44;
     border-color: #8B7355;
 }
+
+button.dropdown-item {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+}
+.cotiz-modal-content { border: none; border-radius: 10px; overflow: hidden; }
+.cotiz-modal-header {
+    background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+    border-bottom: 2px solid #C76F43;
+    padding: 8px 14px;
+}
+.cotiz-modal-header .modal-title { font-size: 0.95rem; color: #5D4037; font-weight: 700; }
+.cotiz-modal-sub { font-size: 0.68rem; color: #6F5B44; }
+.cotiz-modal-body { padding: 10px 14px; background: #FAFAF8; }
+.cotiz-modal-footer { padding: 8px 14px; background: #fff; border-top: 1px solid #E8DCC8; }
+.cotiz-modal-meta {
+    background: #FDFCFB;
+    border: 1px solid #E8DCC8;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.72rem;
+    margin-bottom: 10px;
+}
+.cotiz-modal-meta-title { font-size: 0.62rem; font-weight: 700; color: #8B7355; text-transform: uppercase; margin-bottom: 4px; }
+.cotiz-modal-meta .row-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.cotiz-modal-meta .row-line:last-child,
+.cotiz-modal-meta .row-line.total { margin-bottom: 0; }
+.cotiz-modal-meta .row-line.total { padding-top: 4px; border-top: 1px solid #E8DCC8; }
+.cotiz-modal-label { font-size: 0.68rem; font-weight: 700; color: #8B7355; text-transform: uppercase; }
+.cotiz-modal-select { height: 28px !important; min-height: 28px !important; padding: 2px 8px !important; font-size: 0.75rem !important; border: 1px solid #D4C4A8 !important; border-radius: 6px !important; }
+.cotiz-modal-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+.cotiz-modal-info { margin-top: 6px; font-size: 0.68rem; color: #6F5B44; }
+.est-badge { display: inline-block; font-size: 0.62rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #5D4037; background: #E8DCC8; }
+.est-badge.enviada { background: #C49A52; color: #FAFAF8; }
+.est-badge.aceptada { background: #C4D4A8; }
+.est-badge.rechazada { background: #E8C4B8; }
+.est-badge.vencida { background: #D4C4A8; }
+.est-badge.convertida { background: #6F5B44; color: #FAFAF8; }
+.btn-est-ok { background: #6F5B44; color: #FAFAF8; border: none; font-weight: 700; font-size: 0.72rem; padding: 5px 12px; border-radius: 6px; }
+.btn-est-ok:hover { background: #5D4037; color: #FAFAF8; }
+.btn-est-cancel { background: transparent; color: #6F5B44; border: 1px solid #D4C4A8; font-weight: 600; font-size: 0.72rem; padding: 5px 12px; border-radius: 6px; }
+.btn-est-cancel:hover { background: #F1E9DD; color: #5D4037; }
+.cvt-items { max-height: 112px; overflow-y: auto; border: 1px solid #E8DCC8; border-radius: 8px; background: #fff; }
+.cvt-items table { margin: 0; }
+.cvt-items thead th { background: #FDFCFB; color: #8B7355; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; padding: 4px 8px; border-bottom: 1px solid #E8DCC8; position: sticky; top: 0; }
+.cvt-items tbody td { padding: 3px 8px; font-size: 0.72rem; height: 24px; border-bottom: 1px solid #F5F1E8; white-space: nowrap; }
+.cvt-tile { cursor: pointer; border: 1px solid #E8DCC8; border-radius: 8px; background: #fff; padding: 8px 6px; text-align: center; height: 100%; }
+.cvt-tile i { color: #8B7355; font-size: 1rem; }
+.cvt-tile span { display: block; margin-top: 4px; font-size: 0.68rem; font-weight: 700; color: #5D4037; text-transform: uppercase; }
+.cvt-tile:hover { border-color: #C49A52; background: #FAFAF8; }
+.card-input-element:checked + .cvt-tile { border-color: #C76F43; background: #FDFCFB; box-shadow: 0 0 0 2px rgba(199,111,67,0.22); }
+.card-input-element:checked + .cvt-tile i,
+.card-input-element:checked + .cvt-tile span { color: #C76F43; }
+.cvt-info { background: #E8DCC8; border-left: 3px solid #C49A52; border-radius: 6px; padding: 6px 10px; font-size: 0.7rem; color: #5D4037; }
+#modalCambiarEstado, #modalConvertirVenta, #modalEnviarMail { z-index: 2100; }
+.modal-backdrop { z-index: 2090; }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var abrir = '{{ abrir_modal|default:""|escapejs }}';
+        var id = abrir === 'estado' ? 'modalCambiarEstado' : (abrir === 'convertir' ? 'modalConvertirVenta' : (abrir === 'email' ? 'modalEnviarMail' : ''));
+        var el = id ? document.getElementById(id) : null;
+        if (el && typeof bootstrap !== 'undefined') {
+            bootstrap.Modal.getOrCreateInstance(el).show();
+        }
+    });
+</script>
 {% endblock %}

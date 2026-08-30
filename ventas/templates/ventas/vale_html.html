@@ -214,6 +214,7 @@
     </style>
 </head>
 <body>
+    {% include "includes/visor_acciones.html" %}
     <div class="vale-container">
         <!-- Header -->
         <div class="vale-header">
@@ -247,7 +248,7 @@
             </div>
             <div class="info-row">
                 <span class="info-label">Fecha:</span>
-                <span>{{ venta.fecha|date:"d/m/Y" }}</span>
+                <span>{{ venta.fecha|date:"d-m-Y" }}</span>
             </div>
             {% if tipo_documento_final %}
             <div class="info-row" style="background: #d4edda; padding: 5px; border: 1px solid #28a745; border-radius: 3px; margin-top: 5px;">
@@ -293,13 +294,13 @@
             <table style="width: 100%; border-collapse: collapse; font-size: 10px; table-layout: fixed;">
                 {% for detalle in detalles %}
                 <tr style="border-bottom: 1px dotted #ccc;">
-                    <td style="width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 2px 2px 0; vertical-align: bottom;">
+                    <td style="width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 2px 3px 0; vertical-align: bottom;">
                         {{ detalle.articulo.nombre }}
                     </td>
-                    <td style="width: 15%; text-align: center; white-space: nowrap; padding: 2px 0; vertical-align: bottom;">
+                    <td style="width: 15%; text-align: center; white-space: nowrap; padding: 3px 0; vertical-align: bottom;">
                         {{ detalle.cantidad }}
                     </td>
-                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 2px 0; vertical-align: bottom;">
+                    <td style="width: 25%; text-align: right; font-weight: bold; white-space: nowrap; padding: 3px 0; vertical-align: bottom;">
                         ${{ detalle.precio_total|format_price }}
                     </td>
                 </tr>
@@ -375,46 +376,14 @@
             {% if venta.observaciones %}
             <p style="font-size: 8px; margin-top: 5px;">{{ venta.observaciones }}</p>
             {% endif %}
-            <p>Ticket generado el {{ venta.fecha_creacion|date:"d/m/Y H:i" }}</p>
+            <p>Ticket generado el {{ venta.fecha_creacion|date:"d-m-Y H:i" }}</p>
         </div>
     </div>
     
-    <!-- Botón de impresión (solo visible en pantalla) -->
-    <div class="no-print" style="text-align: center; margin-top: 20px;">
-        <button onclick="window.print()" class="btn btn-primary">
-            <i class="fas fa-print me-2"></i>Imprimir Ticket Facturable
-        </button>
-        <button id="btnCerrar" class="btn btn-secondary ms-2">
-            <i class="fas fa-times me-2"></i>Cerrar
-        </button>
-    </div>
-    
+    {% include "includes/cerrar_visor.html" with fallback_url='/' %}
     <script>
-        // Función para cerrar/volver - MÁXIMA ROBUSTEZ
         function cerrarVentana() {
-            const posUrl = "{% url 'ventas:pos_view' %}";
-            const params = new URLSearchParams(window.location.search);
-            const returnUrlParam = params.get('return_url');
-            const targetUrl = returnUrlParam ? decodeURIComponent(returnUrlParam) : posUrl;
-            
-            console.log('Cerrando ventana. Destino:', targetUrl);
-            
-            // Intento 1: window.close()
-            // Solo funciona si la ventana fue abierta por JS (window.open)
-            if (window.opener) {
-                try {
-                    window.close();
-                    // Si llegamos aquí y no se cerró (pasa en algunos navegadores), procedemos al redirect
-                } catch(e) {
-                    console.log('Error al intentar window.close():', e);
-                }
-            }
-            
-            // Intento 2: Redirección inmediata
-            // Esto asegura que la pestaña vuelva al sistema si no se pudo cerrar
-            setTimeout(() => {
-                window.location.replace(targetUrl);
-            }, 100);
+            cerrarVisor({ fallbackUrl: '/' });
         }
         
         // Configuraciones iniciales

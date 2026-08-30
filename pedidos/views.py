@@ -1,7 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count
+from django.db.models import Q, Sum, Count, Value, DecimalField
+from django.db.models.functions import Coalesce
+from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -13,6 +15,33 @@ from .forms import OrdenPedidoForm, ItemOrdenPedidoFormSet, BusquedaPedidoForm #
 from empresas.models import Empresa
 from articulos.models import Articulo
 from core.decorators import requiere_empresa
+
+
+def articulos_con_stock(empresa):
+    """Artículos de la empresa con stock total anotado."""
+    return Articulo.objects.filter(empresa=empresa).annotate(
+        stock_total=Coalesce(
+            Sum('stocks__cantidad', filter=Q(stocks__empresa=empresa)),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).order_by('nombre')
+
+
+def total_saldo_por_despachar(qs):
+    """Suma el monto de unidades aún no despachadas (no el total del pedido)."""
+    total = 0
+    for pedido in qs.prefetch_related('items__despachos__orden_despacho'):
+        for item in pedido.items.all():
+            pendiente = item.cantidad_pendiente
+            if pendiente <= 0:
+                continue
+            subtotal = int(Decimal(str(pendiente)) * Decimal(str(item.precio_unitario)))
+            descuento = int(subtotal * Decimal(str(item.descuento_porcentaje or 0)) / Decimal('100'))
+            base = subtotal - descuento
+            impuesto = int(base * Decimal(str(item.impuesto_porcentaje or 0)) / Decimal('100'))
+            total += base + impuesto
+    return total
 
 
 @login_required
@@ -36,21 +65,13 @@ def orden_pedido_list(request):
             messages.error(request, 'Usuario no tiene empresa asociada.')
             return redirect('/')
     
-    # Obtener pedidos
-    from django.db.models import Sum, F, Q
+    # Alinear estado con despacho real (completo / en proceso) antes de listar.
+    OrdenPedido.sincronizar_estados_por_despacho(empresa=empresa)
+
     pedidos = OrdenPedido.objects.filter(empresa=empresa).select_related(
         'cliente', 'bodega', 'creado_por'
-    ).annotate(
-        cant_total=Sum('items__cantidad'),
-        cant_asignada=Sum('items__despachos__cantidad')
     )
 
-    # Si no hay filtros específicos, mostrar solo lo que tiene saldo pendiente real
-    if not any(k in request.GET and request.GET[k] for k in ['search', 'estado', 'cliente', 'fecha_desde', 'fecha_hasta']):
-        pedidos = pedidos.filter(
-            Q(cant_asignada__isnull=True) | Q(cant_asignada__lt=F('cant_total'))
-        ).exclude(estado__in=['completada', 'cancelada'])
-    
     pedidos = pedidos.order_by('-fecha_pedido', '-numero_pedido')
     
     # Aplicar filtros
@@ -68,7 +89,9 @@ def orden_pedido_list(request):
                 Q(cliente__nombre__icontains=search) |
                 Q(numero_oc_cliente__icontains=search)
             )
-        if estado:
+        if estado == 'confirmada':
+            pedidos = pedidos.exclude(estado__in=['completada', 'cancelada'])
+        elif estado:
             pedidos = pedidos.filter(estado=estado)
         if cliente:
             pedidos = pedidos.filter(cliente=cliente)
@@ -80,11 +103,11 @@ def orden_pedido_list(request):
     # Estadísticas
     stats = {
         'total_pedidos': pedidos.count(),
-        'pedidos_borrador': pedidos.filter(estado='borrador').count(),
-        'pedidos_confirmados': pedidos.filter(estado='confirmada').count(),
-        'pedidos_en_proceso': pedidos.filter(estado='en_proceso').count(),
+        'pedidos_pendientes': pedidos.exclude(estado__in=['completada', 'cancelada']).count(),
         'pedidos_completados': pedidos.filter(estado='completada').count(),
-        'monto_total': pedidos.aggregate(total=Sum('total_pedido'))['total'] or 0,
+        'monto_total': total_saldo_por_despachar(
+            pedidos.exclude(estado__in=['completada', 'cancelada'])
+        ),
     }
     
     # Paginación
@@ -131,7 +154,7 @@ def orden_pedido_create(request):
         formset = ItemOrdenPedidoFormSet(request.POST, empresa=empresa)
         
         if not form.is_valid() or not formset.is_valid():
-            with open(r'C:\PROJECTOS-WEB\GestionCloud\debug_errors.log', 'w') as f:
+            with open(r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\debug_errors.log', 'w') as f:
                 f.write(f"Form errors: {form.errors}\n")
                 f.write(f"Formset errors: {formset.errors}\n")
                 f.write(f"Formset non_form_errors: {formset.non_form_errors()}\n")
@@ -139,24 +162,25 @@ def orden_pedido_create(request):
         
         if form.is_valid() and formset.is_valid():
             try:
-                pedido = form.save(commit=False)
-                pedido.empresa = empresa
-                pedido.creado_por = request.user
-                
-                # Generar número de pedido
-                pedido.generar_numero_pedido()
-                print(f"Numero de pedido generado: {pedido.numero_pedido}")
-                pedido.save()
-                print(f"Pedido guardado con ID: {pedido.id}")
-                
-                # Guardar items
-                formset.instance = pedido
-                items = formset.save()
-                print(f"Items guardados: {len(items)}")
-                
-                # Calcular totales
-                pedido.calcular_totales()
-                print(f"Totales calculados - Total: {pedido.total_pedido}")
+                with transaction.atomic():
+                    # El bloqueo es por empresa: cada tenant conserva su propio correlativo.
+                    Empresa.objects.select_for_update().get(pk=empresa.pk)
+                    pedido = form.save(commit=False)
+                    pedido.empresa = empresa
+                    pedido.creado_por = request.user
+                    pedido.estado = 'confirmada'
+
+                    pedido.generar_numero_pedido()
+                    print(f"Numero de pedido generado: {pedido.numero_pedido}")
+                    pedido.save()
+                    print(f"Pedido guardado con ID: {pedido.id}")
+
+                    formset.instance = pedido
+                    items = formset.save()
+                    print(f"Items guardados: {len(items)}")
+
+                    pedido.calcular_totales()
+                    print(f"Totales calculados - Total: {pedido.total_pedido}")
                 
                 messages.success(request, f'Orden de pedido {pedido.numero_pedido} creada exitosamente.')
                 return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
@@ -184,8 +208,7 @@ def orden_pedido_create(request):
         form = OrdenPedidoForm()
         formset = ItemOrdenPedidoFormSet(empresa=empresa)
     
-    # Obtener artículos de la empresa
-    articulos_empresa = Articulo.objects.filter(empresa=empresa).order_by('nombre')
+    articulos_empresa = articulos_con_stock(empresa)
     
     context = {
         'form': form,
@@ -268,7 +291,7 @@ def orden_pedido_update(request, pk):
             return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
         else:
             # Registrar errores para depuración
-            with open(r'C:\PROJECTOS-WEB\GestionCloud\debug_errors.log', 'w') as f:
+            with open(r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\debug_errors.log', 'w') as f:
                 f.write(f"UPDATE Form errors: {form.errors}\n")
                 f.write(f"UPDATE Formset errors: {formset.errors}\n")
                 f.write(f"UPDATE Formset non_form_errors: {formset.non_form_errors()}\n")
@@ -288,8 +311,7 @@ def orden_pedido_update(request, pk):
         form = OrdenPedidoForm(instance=pedido)
         formset = ItemOrdenPedidoFormSet(instance=pedido, empresa=pedido.empresa)
     
-    # Obtener artículos de la empresa
-    articulos_empresa = Articulo.objects.filter(empresa=pedido.empresa).order_by('nombre')
+    articulos_empresa = articulos_con_stock(pedido.empresa)
     
     context = {
         'form': form,

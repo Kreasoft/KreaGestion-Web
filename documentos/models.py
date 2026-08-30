@@ -99,6 +99,16 @@ class DocumentoCompra(models.Model):
     
     def __str__(self):
         return f"{self.get_tipo_documento_display()} {self.numero_documento} - {self.proveedor.nombre}"
+
+    def save(self, *args, **kwargs):
+        if not self.fecha_vencimiento and self.fecha_emision:
+            from core.fechas import calcular_fecha_vencimiento
+            dias = getattr(self.proveedor, 'plazo_pago', 0) if self.proveedor_id else 0
+            self.fecha_vencimiento = calcular_fecha_vencimiento(self.fecha_emision, dias)
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = list(update_fields) + ['fecha_vencimiento']
+        super().save(*args, **kwargs)
     
     def calcular_totales(self):
         """Calcula los totales del documento basado en sus items y descuentos escalonados"""
@@ -240,7 +250,7 @@ class HistorialPagoDocumento(models.Model):
         ordering = ['-fecha_pago']
     
     def __str__(self):
-        return f"Pago {self.monto_total_pagado} - {self.fecha_pago.strftime('%d/%m/%Y')}"
+        return f"Pago {self.monto_total_pagado} - {self.fecha_pago.strftime('%d-%m-%Y')}"
 
 
 class FormaPagoPago(models.Model):

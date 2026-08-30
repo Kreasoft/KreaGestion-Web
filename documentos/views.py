@@ -2,7 +2,8 @@ from utilidades.utils import clean_id
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
-from django.db.models import Q, Sum, Count, F
+from django.db.models import Q, Sum, Count, F, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -21,6 +22,18 @@ from .forms import (
 from empresas.models import Empresa
 from articulos.models import Articulo
 from core.decorators import requiere_empresa
+
+
+def articulos_compra_qs(empresa):
+    if not empresa:
+        return Articulo.objects.none()
+    return Articulo.objects.filter(empresa=empresa).annotate(
+        stock_total=Coalesce(
+            Sum('stocks__cantidad', filter=Q(stocks__empresa=empresa)),
+            Value(0),
+            output_field=DecimalField(max_digits=12, decimal_places=2),
+        )
+    ).order_by('codigo')
 
 
 @login_required
@@ -253,7 +266,7 @@ def documento_compra_create(request):
         formset = ItemDocumentoCompraFormSet()
         
         # Configurar el queryset de artículos para cada formulario del formset
-        articulos_empresa = Articulo.objects.filter(empresa=empresa) if empresa else Articulo.objects.none()
+        articulos_empresa = articulos_compra_qs(empresa)
         for form_item in formset.forms:
             form_item.fields['articulo'].queryset = articulos_empresa
     
@@ -262,7 +275,7 @@ def documento_compra_create(request):
         'formset': formset,
         'empresa': empresa,
         'titulo': 'Crear Documento de Compra',
-        'articulos_empresa': Articulo.objects.filter(empresa=empresa) if empresa else Articulo.objects.none(),
+        'articulos_empresa': articulos_compra_qs(empresa),
     }
     
     return render(request, 'documentos/documento_compra_form.html', context)
@@ -420,7 +433,7 @@ def documento_compra_update(request, pk):
         'documento': documento,
         'empresa': documento.empresa,
         'titulo': 'Editar Documento de Compra',
-        'articulos_empresa': Articulo.objects.filter(empresa=documento.empresa),
+        'articulos_empresa': articulos_compra_qs(documento.empresa),
     }
     
     return render(request, 'documentos/documento_compra_form.html', context)
@@ -645,7 +658,7 @@ def ordenes_compra_disponibles(request):
         ordenes_data.append({
             'id': oc.id,
             'numero_orden': oc.numero_orden,
-            'fecha_orden': oc.fecha_orden.strftime('%d/%m/%Y'),
+            'fecha_orden': oc.fecha_orden.strftime('%d-%m-%Y'),
             'total_orden': oc.total_orden,
             'items_count': oc.items.count(),
             'estado': oc.get_estado_orden_display(),
@@ -701,7 +714,7 @@ def orden_compra_detalle_json(request, pk):
                 'proveedor_nombre': orden.proveedor.nombre,
                 'bodega_id': orden.bodega_id if orden.bodega else None,
                 'bodega_nombre': orden.bodega.nombre if orden.bodega else '',
-                'fecha_orden': orden.fecha_orden.strftime('%d/%m/%Y'),
+                'fecha_orden': orden.fecha_orden.strftime('%d-%m-%Y'),
                 'subtotal': orden.subtotal,
                 'descuentos_totales': orden.descuentos_totales,
                 'impuestos_totales': orden.impuestos_totales,
@@ -793,7 +806,7 @@ def documento_compra_export_excel(request):
     # Fecha de generación
     ws.merge_cells('A2:K2')
     date_cell = ws['A2']
-    date_cell.value = f"Generado el: {timezone.now().strftime('%d/%m/%Y %H:%M')}"
+    date_cell.value = f"Generado el: {timezone.now().strftime('%d-%m-%Y %H:%M')}"
     date_cell.alignment = Alignment(horizontal='center')
     date_cell.font = Font(size=10, italic=True)
     
@@ -820,8 +833,8 @@ def documento_compra_export_excel(request):
     for doc in documentos:
         ws.cell(row=row_num, column=1, value=doc.get_tipo_documento_display()).border = border
         ws.cell(row=row_num, column=2, value=doc.numero_documento).border = border
-        ws.cell(row=row_num, column=3, value=doc.fecha_emision.strftime('%d/%m/%Y')).border = border
-        ws.cell(row=row_num, column=4, value=doc.fecha_vencimiento.strftime('%d/%m/%Y') if doc.fecha_vencimiento else '').border = border
+        ws.cell(row=row_num, column=3, value=doc.fecha_emision.strftime('%d-%m-%Y')).border = border
+        ws.cell(row=row_num, column=4, value=doc.fecha_vencimiento.strftime('%d-%m-%Y') if doc.fecha_vencimiento else '').border = border
         ws.cell(row=row_num, column=5, value=doc.proveedor.nombre).border = border
         ws.cell(row=row_num, column=6, value=doc.proveedor.rut).border = border
         ws.cell(row=row_num, column=7, value=doc.bodega.nombre if doc.bodega else '').border = border

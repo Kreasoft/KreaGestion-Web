@@ -1,107 +1,94 @@
 {% load format_filters %}
 
-<div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
-    <!-- HEADER -->
-    <div class="stone-header-premium" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%); padding: 1.5rem 2rem; border-bottom: 2px solid #E8DCC8;">
-        <div class="d-flex align-items-center justify-content-between w-100">
-            <div class="d-flex align-items-center gap-3">
-                <div class="header-icon-box" style="width: 54px; height: 54px; background: white; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15); color: #8B7355; font-size: 1.5rem;">
-                    <i class="fas fa-file-invoice"></i>
-                </div>
-                <div>
-                    <h4 class="modal-title fw-bold m-0" style="color: #5D4037; font-family: 'Poppins', sans-serif; letter-spacing: -0.5px;">
-                        Detalle de Ajuste <span style="color: #8B7355;">#{{ ajuste.numero_folio }}</span>
-                    </h4>
-                    <p class="m-0 text-muted small" style="font-weight: 500;">
-                        <i class="fas fa-calendar-alt me-1"></i> Registrado el {{ ajuste.fecha_ajuste|date:"d/m/Y H:i" }}
-                    </p>
-                </div>
+<style>
+    #detalleModal .modal-dialog { max-width: 860px; }
+    .ajuste-gc-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
+    .ajuste-gc-table thead th {
+        height: 28px; padding: 0 8px; line-height: 16px; font-size: 12px;
+        font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+        color: #8B7355; background: #FDFCFB; border-bottom: 1px solid #E8DCC8;
+        white-space: nowrap; vertical-align: middle;
+    }
+    .ajuste-gc-table tbody tr { height: 28px; }
+    .ajuste-gc-table tbody td {
+        height: 28px; padding: 0 8px; line-height: 18px; font-size: 13.5px;
+        color: #5D4037; border-bottom: 1px solid #F5F1E8; vertical-align: middle;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        box-sizing: border-box;
+    }
+    .ajuste-gc-table tbody tr:nth-of-type(odd) { background: rgba(245, 241, 232, 0.35); }
+    .ajuste-gc-code {
+        display: inline-block; padding: 0 6px; font-size: 11px; font-weight: 600;
+        line-height: 18px; color: #6F5B44; background: #F5F1E8; border: 1px solid #E8DCC8;
+        border-radius: 3px;
+    }
+    .ajuste-gc-qty-out { color: #C76F43; font-weight: 700; }
+    .ajuste-gc-qty-in { color: #5F8D62; font-weight: 700; }
+    .ajuste-gc-fam { color: #8B7355; font-weight: 400; font-size: 12px; }
+</style>
+
+<div class="modal-content border-0" style="border-radius: 6px; overflow: hidden; border: 1px solid #D4C4A8;">
+    <div class="modal-header" style="background: var(--gradient-piedra, linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%)); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-sliders-h" style="color: #5D4037; opacity: 0.8;"></i>
+            <div>
+                <h5 class="modal-title mb-0" style="color: #5D4037; font-family: 'Poppins', sans-serif; font-size: 1.05rem; font-weight: 300; letter-spacing: -0.3px;">
+                    Detalle de <span class="fw-bold">ajuste</span> #{{ ajuste.numero_folio }}
+                </h5>
+                <div style="font-size: 0.72rem; color: #8B7355; line-height: 1.2;">{{ ajuste.fecha_ajuste|date:"d-m-Y H:i" }}</div>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
     </div>
 
-    <!-- BODY -->
-    <div class="modal-body p-4" style="background: #FAFAF8;">
-        <!-- INFO CARDS -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-4">
-                <div class="p-3 bg-white border rounded-3 h-100 shadow-sm" style="border-color: #E8DCC8 !important;">
-                    <small class="text-uppercase fw-bold text-muted d-block mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">Tipo de Ajuste</small>
-                    {% if ajuste.tipo_ajuste == 'entrada' %}
-                        <span class="badge bg-success bg-opacity-10 text-success border border-success px-3 py-2 rounded-pill fw-bold" style="font-size: 0.8rem;">
-                            <i class="fas fa-plus-circle me-1"></i> ENTRADA DE STOCK
-                        </span>
-                    {% else %}
-                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger px-3 py-2 rounded-pill fw-bold" style="font-size: 0.8rem;">
-                            <i class="fas fa-minus-circle me-1"></i> SALIDA DE STOCK
-                        </span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 bg-white border rounded-3 h-100 shadow-sm" style="border-color: #E8DCC8 !important;">
-                    <small class="text-uppercase fw-bold text-muted d-block mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">Bodega</small>
-                    <div class="d-flex align-items-center mt-1">
-                        <i class="fas fa-warehouse me-2 text-muted"></i>
-                        <span class="fw-bold" style="color: #5D4037;">{{ ajuste.bodega.nombre }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-3 bg-white border rounded-3 h-100 shadow-sm" style="border-color: #E8DCC8 !important;">
-                    <small class="text-uppercase fw-bold text-muted d-block mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">Responsable</small>
-                    <div class="d-flex align-items-center mt-1">
-                        <i class="fas fa-user-circle me-2 text-muted"></i>
-                        <span class="fw-bold" style="color: #5D4037;">{{ ajuste.creado_por.get_full_name|default:ajuste.creado_por.username }}</span>
-                    </div>
-                </div>
-            </div>
+    <div class="modal-body" style="background: #FAFAF8; padding: 8px 12px !important;">
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-2" style="font-size: 0.78rem; color: #5D4037;">
+            {% if ajuste.tipo_ajuste == 'entrada' %}
+            <span style="display:inline-block; background:#5F8D62; color:#fff; font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:10px; line-height:1.4;">Entrada</span>
+            {% else %}
+            <span style="display:inline-block; background:#C76F43; color:#fff; font-size:0.65rem; font-weight:700; padding:2px 8px; border-radius:10px; line-height:1.4;">Salida</span>
+            {% endif %}
+            <span><strong>Bodega</strong> {{ ajuste.bodega.nombre }}</span>
+            <span style="color:#D4C4A8;">·</span>
+            <span><strong>Responsable</strong> {{ ajuste.creado_por.get_full_name|default:ajuste.creado_por.username }}</span>
         </div>
 
-        <!-- MOTIVO -->
         {% if ajuste.descripcion %}
-        <div class="mb-4">
-            <div class="p-3 bg-white border rounded-3 shadow-sm" style="border-left: 4px solid #8B7355 !important; border-color: #E8DCC8 !important;">
-                <small class="text-uppercase fw-bold text-muted d-block mb-1" style="font-size: 0.65rem; letter-spacing: 1px;">Observaciones / Motivo</small>
-                <p class="m-0 text-secondary" style="font-size: 0.95rem;">{{ ajuste.descripcion }}</p>
-            </div>
+        <div class="mb-2" style="background:#fff; border:1px solid #E8DCC8; border-radius:4px; padding:6px 10px;">
+            <div style="font-size:0.65rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#8B7355;">Observaciones / Motivo</div>
+            <div style="font-size:0.8rem; color:#5D4037; line-height:1.3;">{{ ajuste.descripcion }}</div>
         </div>
         {% endif %}
 
-        <!-- TABLA DE ARTÍCULOS -->
-        <div class="bg-white border rounded-3 overflow-hidden shadow-sm" style="border-color: #E8DCC8 !important;">
-            <div class="px-3 py-2 bg-light border-bottom d-flex align-items-center justify-content-between" style="border-color: #E8DCC8 !important;">
-                <h6 class="m-0 fw-bold text-muted small text-uppercase" style="letter-spacing: 0.5px;">Artículos Ajustados</h6>
-                <span class="badge bg-secondary rounded-pill px-3">{{ detalles.count }} ítems</span>
+        <div style="background:#fff; border:1px solid #E8DCC8; border-radius:4px; overflow:hidden;">
+            <div class="d-flex align-items-center justify-content-between" style="height:28px; padding:0 10px; background:#FDFCFB; border-bottom:1px solid #E8DCC8;">
+                <span style="font-size:0.68rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:#8B7355;">Artículos ajustados</span>
+                <span style="display:inline-block; background:#8B7355; color:#fff; font-size:0.62rem; font-weight:700; padding:1px 7px; border-radius:10px; line-height:1.4;">{{ detalles.count }} ítems</span>
             </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light" style="font-size: 0.75rem; color: #8B7355; text-transform: uppercase;">
+            <div class="table-responsive" style="max-height: 52vh;">
+                <table class="ajuste-gc-table">
+                    <thead>
                         <tr>
-                            <th class="ps-3 py-3">Código</th>
-                            <th class="py-3">Descripción del Producto</th>
-                            <th class="text-end py-3">Cantidad</th>
-                            <th class="ps-4 py-3">Comentario</th>
+                            <th style="width:18%;">Código</th>
+                            <th style="width:48%;">Descripción del producto</th>
+                            <th class="text-end" style="width:16%;">Cantidad</th>
+                            <th style="width:18%;">Comentario</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for detalle in detalles %}
                         <tr>
-                            <td class="ps-3"><span class="badge bg-light text-dark border px-2 py-1">{{ detalle.articulo.codigo }}</span></td>
-                            <td>
-                                <div class="fw-bold text-dark">{{ detalle.articulo.nombre }}</div>
-                                <small class="text-muted">{{ detalle.articulo.categoria.nombre|default:"Sin Categoría" }}</small>
+                            <td><span class="ajuste-gc-code">{{ detalle.articulo.codigo }}</span></td>
+                            <td title="{{ detalle.articulo.nombre }}">
+                                {{ detalle.articulo.nombre }}{% if detalle.articulo.categoria %} <span class="ajuste-gc-fam">· {{ detalle.articulo.categoria.nombre }}</span>{% endif %}
                             </td>
                             <td class="text-end">
-                                <span class="fs-6 fw-bold {% if ajuste.tipo_ajuste == 'entrada' %}text-success{% else %}text-danger{% endif %}">
-                                    {% if ajuste.tipo_ajuste == 'entrada' %}+{% else %}-{% endif %}{{ detalle.cantidad|format_miles }}
+                                <span class="{% if ajuste.tipo_ajuste == 'entrada' %}ajuste-gc-qty-in{% else %}ajuste-gc-qty-out{% endif %}">
+                                    {% if ajuste.tipo_ajuste == 'entrada' %}+{% else %}−{% endif %}{{ detalle.cantidad|format_miles }}
                                 </span>
-                                <small class="text-muted ms-1">{{ detalle.articulo.unidad_medida|default:"UN" }}</small>
+                                <span style="color:#8B7355; font-size:12px;">{{ detalle.articulo.unidad_medida|default:"UN" }}</span>
                             </td>
-                            <td class="ps-4">
-                                <small class="text-muted fst-italic">{{ detalle.comentario|default:"-" }}</small>
-                            </td>
+                            <td style="color:#8B7355;">{{ detalle.comentario|default:"—" }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -110,13 +97,10 @@
         </div>
     </div>
 
-    <!-- FOOTER -->
-    <div class="modal-footer border-0 p-4" style="background: #FAFAF8;">
-        <button type="button" class="btn btn-light border text-secondary fw-bold px-4 rounded-pill" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i> Cerrar Vista
-        </button>
-        <button type="button" class="btn text-white fw-bold px-4 rounded-pill shadow-sm" onclick="window.print()" style="background: var(--stone-secondary); border: none;">
-            <i class="fas fa-print me-2"></i> Imprimir Comprobante
+    <div class="modal-footer" style="background: #FDFCFB; padding: 6px 12px; border-top: 1px solid #E8DCC8;">
+        <button type="button" class="btn btn-sm js-no-compact" data-bs-dismiss="modal" style="height:28px; color:#5D4037; font-size:0.75rem; border:1px solid #D4C4A8; background:#fff;">Cerrar</button>
+        <button type="button" class="btn btn-sm js-no-compact" onclick="window.print()" style="height:28px; background:#5D4037; color:#fff; font-size:0.75rem; font-weight:600; border:1px solid #4A342E;">
+            <i class="fas fa-print me-1"></i> Imprimir
         </button>
     </div>
 </div>

@@ -8,95 +8,97 @@
 
 
 {% block extra_head %}
-<!-- Estilos cargados globalmente en static/css/stone-premium.css -->
+<style>
+    .form-control, .form-select, .table-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus, .table-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
 {% endblock %}
 
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
     
     <div class="row">
         <div class="col-12">
-            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
-                <!-- Header con Estilo Piedra Premium (Claro) -->
-                <div class="card-header" style="background: linear-gradient(135deg, #Fdfbf7 0%, #F5F1E8 100%); border-bottom: 3px solid #E8DCC8; padding: 15px 20px;">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde, #D4C4A8); padding: 8px 16px;">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-users-cog me-3" style="font-size: 2.2rem; color: #6F5B44; opacity: 0.8;"></i>
+                            <i class="fas fa-users-cog me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                             <div>
-                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #6F5B44; letter-spacing: -1px; font-size: 1.8rem;">
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
                                     Gestión de <span class="fw-bold">Usuarios</span>
                                 </h2>
-                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: #6F5B44; opacity: 0.8; margin-top: 2px;">
+                                <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
                                     Administración de roles, permisos y accesos del sistema.
                                 </div>
                             </div>
                         </div>
                         <div class="d-flex gap-2">
-                            <button class="btn btn-sm" onclick="window.print()" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: #6F5B44; font-size: 0.75rem;">
+                            <button class="btn btn-sm" onclick="window.print()" style="background: transparent; border: 1px solid #D4C4A8; color: #5D4037; font-size: 0.75rem;">
                                 <i class="fas fa-print me-1"></i> Imprimir
                             </button>
-                            <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-sm" style="background: rgba(245, 241, 232, 0.2); border: 1px solid rgba(245, 241, 232, 0.3); color: #6F5B44; font-size: 0.75rem;">
+                            <a href="{% url 'usuarios:grupo_list' %}" class="btn btn-sm" style="background: transparent; border: 1px solid #D4C4A8; color: #5D4037; font-size: 0.75rem;">
                                 <i class="fas fa-user-tag me-1"></i> Grupos y Roles
                             </a>
-                            <button type="button" class="btn btn-sm" id="btnNuevoUsuario" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                            <button type="button" class="btn btn-sm" id="btnNuevoUsuario" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
                                 <i class="fas fa-plus me-1"></i> Nuevo Usuario
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="card-body" style="background: #FAFAF8; padding: 15px;">
-                    <!-- Estadísticas Premium Soft UI -->
-                    <div class="row g-3 mb-4">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-3">
-                            <div class="card card-stats-soft-ui" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: none;">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; color: #1565c0;">Total Usuarios</div>
-                                    <h3 class="mb-0 fw-bold" style="color: #0d47a1;">{{ stats.total_usuarios|default:0|format_miles }}</h3>
-                                </div>
-                                <div class="stat-icon-bg" style="color: #1976d2;">
-                                    <i class="fas fa-users"></i>
+                            <div class="card border-0 stat-card-compact" style="border: 1px solid #E8DCC8 !important; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body d-flex align-items-center justify-content-between py-1 px-2">
+                                    <div>
+                                        <div class="stat-label" style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Total Usuarios</div>
+                                        <div class="stat-value" style="font-size: 1.05rem; color: #8B7355; font-weight: 700; line-height: 1.1;">{{ stats.total_usuarios|default:0|format_miles }}</div>
+                                    </div>
+                                    <i class="fas fa-users" style="color: rgba(139, 115, 85, 0.35);"></i>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card card-stats-soft-ui" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: none;">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; color: #2e7d32;">Activos</div>
-                                    <h3 class="mb-0 fw-bold" style="color: #1b5e20;">{{ stats.usuarios_activos|default:0|format_miles }}</h3>
-                                </div>
-                                <div class="stat-icon-bg" style="color: #388e3c;">
-                                    <i class="fas fa-user-check"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card card-stats-soft-ui" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); border: none;">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; color: #c62828;">Inactivos</div>
-                                    <h3 class="mb-0 fw-bold" style="color: #b71c1c;">{{ stats.usuarios_inactivos|default:0|format_miles }}</h3>
-                                </div>
-                                <div class="stat-icon-bg" style="color: #d32f2f;">
-                                    <i class="fas fa-user-times"></i>
+                            <div class="card border-0 stat-card-compact" style="border: 1px solid #E8DCC8 !important; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body d-flex align-items-center justify-content-between py-1 px-2">
+                                    <div>
+                                        <div class="stat-label" style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Activos</div>
+                                        <div class="stat-value" style="font-size: 1.05rem; color: #8B7355; font-weight: 700; line-height: 1.1;">{{ stats.usuarios_activos|default:0|format_miles }}</div>
+                                    </div>
+                                    <i class="fas fa-user-check" style="color: rgba(46, 125, 50, 0.45);"></i>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3">
-                            <div class="card card-stats-soft-ui" style="background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%); border: none;">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; color: #6a1b9a;">Superusuarios</div>
-                                    <h3 class="mb-0 fw-bold" style="color: #4a148c;">{{ stats.superusuarios|default:0|format_miles }}</h3>
+                            <div class="card border-0 stat-card-compact" style="border: 1px solid #E8DCC8 !important; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body d-flex align-items-center justify-content-between py-1 px-2">
+                                    <div>
+                                        <div class="stat-label" style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Inactivos</div>
+                                        <div class="stat-value" style="font-size: 1.05rem; color: #8B7355; font-weight: 700; line-height: 1.1;">{{ stats.usuarios_inactivos|default:0|format_miles }}</div>
+                                    </div>
+                                    <i class="fas fa-user-times" style="color: rgba(194, 24, 91, 0.4);"></i>
                                 </div>
-                                <div class="stat-icon-bg" style="color: #7b1fa2;">
-                                    <i class="fas fa-crown"></i>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-0 stat-card-compact" style="border: 1px solid #E8DCC8 !important; background: linear-gradient(135deg, #F5F1E8 0%, #E8DCC8 100%);">
+                                <div class="card-body d-flex align-items-center justify-content-between py-1 px-2">
+                                    <div>
+                                        <div class="stat-label" style="font-size: 0.7rem; color: #6F5B44; font-weight: 600;">Superusuarios</div>
+                                        <div class="stat-value" style="font-size: 1.05rem; color: #8B7355; font-weight: 700; line-height: 1.1;">{{ stats.superusuarios|default:0|format_miles }}</div>
+                                    </div>
+                                    <i class="fas fa-crown" style="color: rgba(139, 115, 85, 0.35);"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Filtros Compactos -->
-                    <div class="card-body bg-stone-light p-3 mb-3 border rounded-3">
+                    <div class="card-body bg-stone-light p-2 mb-2 border rounded-3">
                         <form method="get" action="{% url 'usuarios:usuario_list' %}">
                             <div class="row g-2 align-items-center">
                                 <div class="col-md-4">
@@ -156,7 +158,7 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            <div class="me-2 d-none d-md-block" style="width: 28px; height: 28px; background: #F5F1E8; border-radius: 50%; color: #8B7355; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">
+                                            <div class="me-2 d-none d-md-block" style="width: 22px; height: 22px; background: #F5F1E8; border-radius: 50%; color: #8B7355; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.75rem;">
                                                 {{ usuario.username|first|upper }}
                                             </div>
                                             <div class="d-flex flex-column" style="line-height: 1.1;">
@@ -177,53 +179,44 @@
                                         </select>
                                     </td>
                                     <td class="text-center">
-                                        {% if usuario.is_active and usuario.perfil.es_activo %}
-                                            <span class="badge badge-piedra badge-piedra-success">ACTIVO</span>
-                                        {% else %}
-                                            <span class="badge badge-piedra badge-piedra-danger">INACTIVO</span>
-                                        {% endif %}
+                                        <span class="estado-dot {% if usuario.is_active and usuario.perfil.es_activo %}estado-dot-activo{% else %}estado-dot-inactivo{% endif %}" title="{% if usuario.is_active and usuario.perfil.es_activo %}Activo{% else %}Inactivo{% endif %}"></span>
                                     </td>
                                     <td class="text-muted" style="font-size: 0.75rem;">
                                         {% if usuario.last_login %}
-                                            <i class="far fa-clock me-1 text-muted"></i>{{ usuario.last_login|date:"d/m/Y H:i" }}
+                                            <i class="far fa-clock me-1 text-muted"></i>{{ usuario.last_login|date:"d-m-Y H:i" }}
                                         {% else %}
                                             <span class="text-muted fst-italic">Nunca</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <button class="btn-action-piedra toggle-estado"
+                                    <td class="td-acciones text-center">
+                                        <button class="ico-32 toggle-estado"
+                                                data-user-id="{{ usuario.id }}"
+                                                data-currentState="{% if usuario.is_active %}active{% else %}inactive{% endif %}"
+                                                title="{% if usuario.is_active %}Desactivar{% else %}Activar{% endif %}">
+                                            <i class="fas fa-power-off"></i>
+                                        </button>
+                                        {% if not usuario.is_superuser %}
+                                            <button type="button"
+                                                    class="ico-32 btn-editar-usuario"
                                                     data-user-id="{{ usuario.id }}"
-                                                    data-currentState="{% if usuario.is_active %}active{% else %}inactive{% endif %}"
-                                                    title="{% if usuario.is_active %}Desactivar{% else %}Activar{% endif %}">
-                                                <i class="fas fa-power-off {% if usuario.is_active %}text-success{% else %}text-muted{% endif %}"></i>
+                                                    title="Editar">
+                                                <i class="fas fa-edit"></i>
                                             </button>
-                                            
-                                            {% if not usuario.is_superuser %}
-                                                <button type="button" 
-                                                        class="btn-action-piedra btn-editar-usuario"
-                                                        data-user-id="{{ usuario.id }}"
-                                                        title="Editar">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <button class="btn-action-piedra delete-usuario text-danger"
-                                                        data-user-id="{{ usuario.id }}"
-                                                        data-user-name="{{ usuario.get_full_name|default:usuario.username }}"
-                                                        title="Eliminar">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            {% else %}
-                                                <span class="btn-action-piedra disabled" style="opacity: 0.5; cursor: not-allowed;" title="Superusuario protegido"><i class="fas fa-lock"></i></span>
-                                            {% endif %}
-                                        </div>
+                                            <button class="ico-32 delete-usuario"
+                                                    data-user-id="{{ usuario.id }}"
+                                                    data-user-name="{{ usuario.get_full_name|default:usuario.username }}"
+                                                    title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        {% else %}
+                                            <span class="ico-32" style="opacity: 0.5; cursor: not-allowed;" title="Superusuario protegido"><i class="fas fa-lock"></i></span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-5">
-                                        <i class="fas fa-users-slash fa-3x mb-3 opacity-25" style="color: #8B7355;"></i>
-                                        <h6 class="fw-bold" style="color: #8B7355;">No se encontraron usuarios</h6>
-                                        <p class="text-muted small">Intenta ajustar los filtros de búsqueda</p>
+                                    <td colspan="5" class="text-center" style="height: 40px; font-size: 0.75rem; color: #8D6E63;">
+                                        No se encontraron usuarios
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -233,7 +226,7 @@
                 </div>
                 
                 {% if page_obj.has_other_pages %}
-                <div class="card-footer bg-white border-top-0 py-3">
+                <div class="card-footer bg-white border-top-0 py-2">
                     <nav>
                         <ul class="pagination pagination-sm justify-content-center mb-0">
                             {% if page_obj.has_previous %}
@@ -410,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Listeners para abrir modal (Create)
     document.getElementById('btnNuevoUsuario')?.addEventListener('click', function() {
         usuarioModalTitle.textContent = 'Crear Nuevo Usuario';
-        usuarioModalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-secondary" role="status"></div></div>';
+        usuarioModalBody.innerHTML = '<div class="text-center" style="height: 40px; font-size: 0.75rem; color: #8D6E63;"><div class="spinner-border text-secondary" role="status"></div></div>';
         usuarioModal.show();
         
         fetch('{% url "usuarios:usuario_create" %}', {
@@ -429,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
             usuarioModalTitle.textContent = 'Editar Usuario';
-            usuarioModalBody.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-secondary" role="status"></div></div>';
+            usuarioModalBody.innerHTML = '<div class="text-center" style="height: 40px; font-size: 0.75rem; color: #8D6E63;"><div class="spinner-border text-secondary" role="status"></div></div>';
             usuarioModal.show();
             
             fetch(`/usuarios/${userId}/editar/`, {
@@ -495,14 +488,14 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Modal PlaceHolder -->
 <div class="modal fade" id="usuarioModal" tabindex="-1" aria-labelledby="usuarioModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <div class="modal-header modal-header-stone">
-                <h5 class="modal-title fw-bold" id="usuarioModalTitle">
+        <div class="modal-content" style="border-radius: 8px; border: 1px solid #D4C4A8; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 1px solid #D4C4A8; padding: 8px 16px;">
+                <h5 class="modal-title fw-bold" id="usuarioModalTitle" style="color: var(--color-piedra-texto); font-size: 1rem;">
                     <i class="fas fa-user-circle me-2"></i>Gestión de Usuario
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-4" id="usuarioModalBody" style="background: #fafaf9;">
+            <div class="modal-body" id="usuarioModalBody" style="background: #fafaf9; padding: 8px 12px !important;">
                 <!-- Content loaded via AJAX -->
             </div>
         </div>

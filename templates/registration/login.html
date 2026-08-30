@@ -36,73 +36,122 @@
             /* Background fallback */
         }
 
-        /* Layout 60/40 */
+        /* Layout fondo completo */
         .login-wrapper {
-            display: flex;
+            position: relative;
             width: 100%;
             height: 100vh;
+            overflow: hidden;
         }
 
-        /* LADO IZQUIERDO (60%) */
+        /* Fondo completo */
         .login-image-side {
-            width: 60%;
+            width: 100%;
             height: 100%;
-            background-image: url("{% static 'image/FondoCloud.png' %}");
-            background-size: cover;
-            background-position: center;
+            background-image: url("{% static 'image/fondo GestionCloud.png' %}");
+            background-size: 100% auto;
+            background-position: center 14%;
             background-repeat: no-repeat;
-            position: relative;
+            background-color: #f4efea;
+            position: absolute;
+            inset: 0;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
-            align-items: center;
+            align-items: flex-start;
             padding-bottom: 4rem;
-            z-index: 10;
-            /* Ensure it stays above if needed, though side-by-side */
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.5);
-            /* Shadow separator */
+            z-index: 0;
         }
 
         .login-image-side::after {
             content: '';
             position: absolute;
-            bottom: 0;
-            left: 0;
+            inset: 0;
             width: 100%;
-            height: 60%;
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0) 100%);
+            height: 100%;
+            background: transparent;
             z-index: 1;
         }
 
         .slogan-container {
             z-index: 2;
-            text-align: center;
-            color: white;
-            margin-bottom: 2rem;
-            width: 100%;
-            padding: 0 2rem;
+            text-align: left;
+            color: #4e372f;
+            margin: 0 0 2rem 0;
+            width: min(640px, 100%);
+            padding: 0 0 0 clamp(2rem, 7vw, 6.5rem);
         }
 
         .slogan-text {
             font-size: 2.5rem;
             font-weight: 700;
             line-height: 1.2;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-            margin-bottom: 2.5rem;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.25);
+            margin-bottom: 1rem;
+        }
+
+        .slogan-rotator {
+            min-height: 198px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+
+        .slogan-line-main,
+        .slogan-line-support {
+            transition: opacity 0.38s ease, transform 0.38s ease, filter 0.38s ease;
+            will-change: opacity, transform, filter;
+        }
+
+        .slogan-line-main {
+            font-size: clamp(2.25rem, 4vw, 3.35rem);
+            letter-spacing: -0.03em;
+        }
+
+        .slogan-line-support {
+            font-size: 1rem;
+            font-weight: 500;
+            color: rgba(78, 55, 47, 0.84);
+            max-width: 520px;
+            margin-top: 0.75rem;
+        }
+
+        .slogan-rotator.is-leaving .slogan-line-main,
+        .slogan-rotator.is-leaving .slogan-line-support {
+            opacity: 0;
+            transform: translateY(-12px) scale(0.985);
+            filter: blur(8px);
+        }
+
+        .slogan-rotator.is-entering .slogan-line-main,
+        .slogan-rotator.is-entering .slogan-line-support {
+            animation: phraseReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .headline-dark {
+            color: #1f1715;
+        }
+
+        .headline-accent {
+            color: #d86d16;
+        }
+
+        .headline-accent.soft {
+            color: #c95d0d;
         }
 
         .icons-row {
             display: flex;
-            justify-content: center;
-            gap: 3.5rem;
-            margin-top: 1rem;
+            justify-content: flex-start;
+            gap: 2.4rem;
+            margin-top: 1.75rem;
         }
 
         .icon-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            color: rgba(255, 255, 255, 0.95);
+            color: #5a4036;
             gap: 0.8rem;
             transition: transform 0.3s ease;
         }
@@ -113,30 +162,28 @@
 
         .icon-item i {
             font-size: 2rem;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+            filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.2));
         }
 
         .icon-item span {
             font-size: 0.95rem;
             font-weight: 500;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.2);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        /* LADO DERECHO (40%) */
         .login-form-side {
-            width: 40%;
+            width: 100%;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
-            background-color: #2b1d1a;
-            /* Café oscuro base */
+            align-items: flex-end;
             overflow: hidden;
-            /* Importante para los elementos decorativos */
             position: relative;
+            padding: 2rem 18vw 2rem 2rem;
+            z-index: 2;
         }
 
         /* Elementos decorativos de fondo ("Imágenes opacas") */
@@ -204,19 +251,33 @@
             }
         }
 
+        @keyframes phraseReveal {
+            0% {
+                opacity: 0;
+                transform: translateY(18px) scale(0.98);
+                filter: blur(10px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                filter: blur(0);
+            }
+        }
+
         /* Tarjeta Glassmorphism */
         .login-card {
             width: 100%;
             max-width: 420px;
 
             /* Efecto Vidrio Transparente */
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.28);
             /* Muy transparente */
             backdrop-filter: blur(20px);
             /* Desenfoque fuerte */
             -webkit-backdrop-filter: blur(20px);
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(96, 71, 57, 0.18);
 
             padding: 3rem 2.5rem;
             border-radius: 20px;
@@ -226,11 +287,17 @@
 
         @media (max-width: 992px) {
             .login-image-side {
-                width: 50%;
+                background-size: cover;
+                background-position: center center;
             }
 
             .login-form-side {
-                width: 50%;
+                padding-right: 10vw;
+            }
+
+            .slogan-container {
+                width: min(560px, 100%);
+                padding-left: clamp(1.75rem, 5vw, 3.5rem);
             }
 
             .slogan-text {
@@ -243,24 +310,41 @@
         }
 
         @media (max-width: 768px) {
-            .login-image-side {
-                display: none;
-            }
-
             .login-form-side {
                 width: 100%;
+                padding: 1.5rem;
+                align-items: center;
+            }
+
+            .slogan-container {
+                width: 100%;
+                padding: 0 1.25rem;
+            }
+
+            .slogan-text {
+                font-size: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .icons-row {
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .slogan-line-support {
+                max-width: 100%;
             }
         }
 
         /* Text Styles - Ahora Blanco/Claro por el fondo oscuro */
         .brand-title {
-            color: #ffffff;
+            color: #4a332b;
             font-weight: 600;
             letter-spacing: 0.5px;
         }
 
         .text-muted-glass {
-            color: rgba(255, 255, 255, 0.6) !important;
+            color: rgba(74, 51, 43, 0.78) !important;
         }
 
         /* Inputs Glass Style */
@@ -268,37 +352,35 @@
             height: 3.2rem;
             padding: 0.8rem 1rem;
             border-radius: 0.5rem;
-            background: rgba(0, 0, 0, 0.2);
-            /* Fondo oscuro transparente */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
-            /* Texto blanco */
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(96, 71, 57, 0.16);
+            color: #3f2d26;
             transition: all 0.3s ease;
         }
 
         .form-control:focus {
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.9);
             border-color: #D2691E;
             box-shadow: 0 0 0 0.2rem rgba(210, 105, 30, 0.25);
-            color: #fff;
+            color: #3f2d26;
             outline: none;
         }
 
         .form-control::placeholder {
-            color: rgba(255, 255, 255, 0.4);
+            color: rgba(95, 74, 65, 0.58);
         }
 
         .form-label {
-            color: rgba(255, 255, 255, 0.9);
+            color: rgba(74, 51, 43, 0.92);
             font-weight: 500;
             font-size: 0.9rem;
             margin-left: 0.2rem;
         }
 
         .input-group-text {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(96, 71, 57, 0.16);
+            color: rgba(74, 51, 43, 0.7);
             border-right: none;
         }
 
@@ -325,7 +407,7 @@
         }
 
         .link-glass {
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(74, 51, 43, 0.75);
             text-decoration: none;
             transition: color 0.3s;
         }
@@ -336,14 +418,13 @@
 
         /* Logo inside glass */
         .glass-logo {
-            filter: brightness(0) invert(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.9));
-            /* Filtro blanco + Sombra blanca intensa */
+            filter: brightness(0.28) sepia(0.35) saturate(1.1) drop-shadow(0 1px 6px rgba(255, 255, 255, 0.2));
             transition: transform 0.3s ease;
         }
 
         .glass-logo:hover {
             transform: scale(1.05);
-            filter: brightness(0) invert(1) drop-shadow(0 0 15px rgba(255, 255, 255, 1));
+            filter: brightness(0.28) sepia(0.35) saturate(1.15) drop-shadow(0 1px 8px rgba(255, 255, 255, 0.22));
         }
 
         /* Custom Checkbox */
@@ -368,9 +449,14 @@
         <!-- Lado Izquierdo: 60% Imagen -->
         <div class="login-image-side">
             <div class="slogan-container">
-                <div class="slogan-text">
-                    <div>Control total de tu negocio</div>
-                    <div>desde una sola plataforma</div>
+                <div class="slogan-text slogan-rotator is-entering" id="sloganRotator">
+                    <div class="slogan-line-main" id="sloganMain">
+                        <span class="headline-dark">Control total</span>
+                        <span class="headline-accent"> para cada venta</span>
+                    </div>
+                    <div class="slogan-line-support" id="sloganSupport">
+                        Facturacion, inventario y documentos electronicos trabajando como un solo sistema.
+                    </div>
                 </div>
 
                 <div class="icons-row">
@@ -441,7 +527,7 @@
                         <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
                         <div class="input-group">
                             {{ form.password|add_class:"form-control border-end-0"|attr:"placeholder:Ingresa tu contraseña" }}
-                            <button class="input-group-text bg-transparent border-start-0" type="button" id="togglePassword" style="border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); cursor: pointer;">
+                            <button class="input-group-text bg-transparent border-start-0" type="button" id="togglePassword" style="border: 1px solid rgba(96, 71, 57, 0.16); color: rgba(74, 51, 43, 0.7); cursor: pointer;">
                                 <i class="fas fa-eye" id="eyeIcon"></i>
                             </button>
                         </div>
@@ -513,6 +599,67 @@
                     eyeIcon.classList.toggle('fa-eye');
                     eyeIcon.classList.toggle('fa-eye-slash');
                 });
+            }
+
+            const sloganRotator = document.getElementById('sloganRotator');
+            const sloganMain = document.getElementById('sloganMain');
+            const sloganSupport = document.getElementById('sloganSupport');
+
+            const frases = [
+                {
+                    dark: 'Control total',
+                    accent: ' para cada venta',
+                    accentClass: 'headline-accent',
+                    support: 'Facturacion, inventario y documentos electronicos trabajando como un solo sistema.'
+                },
+                {
+                    dark: 'Gestion clara',
+                    accent: ' para crecer con orden',
+                    accentClass: 'headline-accent soft',
+                    support: 'Centraliza clientes, stock y movimientos diarios sin perder velocidad operativa.'
+                },
+                {
+                    dark: 'Tu operacion',
+                    accent: ' siempre conectada',
+                    accentClass: 'headline-accent',
+                    support: 'Desde caja hasta administracion, todo queda sincronizado y listo para decidir.'
+                },
+                {
+                    dark: 'Menos caos',
+                    accent: ' mas control real',
+                    accentClass: 'headline-accent soft',
+                    support: 'Un sistema pensado para vender, emitir, revisar y administrar desde un solo lugar.'
+                }
+            ];
+
+            let fraseIndex = 0;
+
+            function renderFrase(index) {
+                const frase = frases[index];
+                sloganMain.innerHTML =
+                    `<span class="headline-dark">${frase.dark}</span><span class="${frase.accentClass}">${frase.accent}</span>`;
+                sloganSupport.textContent = frase.support;
+            }
+
+            if (sloganRotator && sloganMain && sloganSupport) {
+                setTimeout(() => {
+                    sloganRotator.classList.remove('is-entering');
+                }, 700);
+
+                setInterval(() => {
+                    sloganRotator.classList.add('is-leaving');
+
+                    setTimeout(() => {
+                        fraseIndex = (fraseIndex + 1) % frases.length;
+                        renderFrase(fraseIndex);
+                        sloganRotator.classList.remove('is-leaving');
+                        sloganRotator.classList.add('is-entering');
+
+                        setTimeout(() => {
+                            sloganRotator.classList.remove('is-entering');
+                        }, 700);
+                    }, 380);
+                }, 4200);
             }
         });
     </script>

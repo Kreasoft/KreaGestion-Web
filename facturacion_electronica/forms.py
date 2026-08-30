@@ -13,10 +13,11 @@ class CargarCAFForm(forms.ModelForm):
     
     class Meta:
         model = ArchivoCAF
-        fields = ['sucursal', 'tipo_documento', 'archivo_xml', 'fecha_autorizacion', 'fecha_vencimiento']
+        fields = ['sucursal', 'tipo_documento', 'ambiente', 'archivo_xml', 'fecha_autorizacion', 'fecha_vencimiento']
         widgets = {
             'sucursal': forms.Select(attrs={'class': 'form-select'}),
             'tipo_documento': forms.Select(attrs={'class': 'form-select'}),
+            'ambiente': forms.Select(attrs={'class': 'form-select'}),
             'archivo_xml': forms.FileInput(attrs={'class': 'form-control', 'accept': '.xml'}),
             'fecha_autorizacion': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'fecha_vencimiento': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -36,7 +37,9 @@ class CargarCAFForm(forms.ModelForm):
         # Labels personalizados
         self.fields['sucursal'].label = 'Sucursal'
         self.fields['tipo_documento'].label = 'Tipo de Documento'
+        self.fields['ambiente'].label = 'Ambiente'
         self.fields['archivo_xml'].label = 'Archivo XML del CAF'
+        self.fields['ambiente'].required = False
         
         # Hacer las fechas opcionales para que se tomen del XML si no se ingresan
         self.fields['fecha_autorizacion'].required = False
@@ -46,7 +49,13 @@ class CargarCAFForm(forms.ModelForm):
         
         # Help texts
         self.fields['sucursal'].help_text = 'Sucursal a la que pertenecerá este CAF'
+        self.fields['ambiente'].help_text = 'Separar CAFs de certificación y producción evita cruces de folios'
         self.fields['archivo_xml'].help_text = 'Archivo XML con extensión .xml descargado del SII'
+
+        if empresa:
+            ambiente_empresa = getattr(empresa, 'ambiente_sii', 'certificacion') or 'certificacion'
+            self.fields['ambiente'].initial = ambiente_empresa
+            self.fields['ambiente'].widget = forms.HiddenInput()
     
     def clean_archivo_xml(self):
         """Valida y procesa el archivo XML del CAF"""
@@ -143,12 +152,15 @@ class CargarCAFForm(forms.ModelForm):
         
         if hasattr(self, 'caf_data') and self.empresa:
             tipo_documento = cleaned_data.get('tipo_documento')
+            ambiente = getattr(self.empresa, 'ambiente_sii', 'certificacion') or 'certificacion'
+            cleaned_data['ambiente'] = ambiente
             
             # Verificar si ya existe un CAF con este rango
-            if tipo_documento:
+            if tipo_documento and ambiente:
                 existe = ArchivoCAF.objects.filter(
                     empresa=self.empresa,
                     tipo_documento=tipo_documento,
+                    ambiente=ambiente,
                     folio_desde=self.caf_data['folio_desde'],
                     folio_hasta=self.caf_data['folio_hasta']
                 ).exists()
@@ -156,6 +168,7 @@ class CargarCAFForm(forms.ModelForm):
                 if existe:
                     raise forms.ValidationError(
                         f'Ya existe un CAF para {dict(ArchivoCAF.TIPO_DOCUMENTO_CHOICES).get(tipo_documento, tipo_documento)} '
+                        f'en ambiente {dict(ArchivoCAF.AMBIENTE_CHOICES).get(ambiente, ambiente)} '
                         f'con el rango de folios {self.caf_data["folio_desde"]}-{self.caf_data["folio_hasta"]}. '
                         f'Por favor, verifique los CAFs existentes.'
                     )
@@ -165,6 +178,8 @@ class CargarCAFForm(forms.ModelForm):
     def save(self, commit=True):
         """Guarda el CAF con los datos extraídos del XML"""
         instance = super().save(commit=False)
+        if self.empresa:
+            instance.ambiente = getattr(self.empresa, 'ambiente_sii', 'certificacion') or 'certificacion'
         
         # Asignar datos extraídos del XML (solo si no se ingresaron manualmente)
         if hasattr(self, 'caf_data'):

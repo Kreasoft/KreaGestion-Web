@@ -3,10 +3,17 @@
 {% load articulo_filters %}
 {% load l10n %}
 
-{% block title %}Lista de Clientes - GestionCloud<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
-{% endblock %}
+{% block title %}Lista de Clientes - GestionCloud{% endblock %}
 
-{% block body_class %}hide-top-bar<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
 {% endblock %}
 
 {% block extra_css %}
@@ -29,7 +36,7 @@
 
     .card-piedra {
         border: 2px solid #E8DCC8; 
-        border-radius: 15px; 
+        border-radius: 8px; 
         overflow: hidden; 
         box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);
         background: white;
@@ -49,7 +56,7 @@
         text-transform: uppercase;
         font-size: 0.7rem;
         letter-spacing: 1px;
-        padding: 12px 15px;
+        padding: 5px 10px;
     }
 
     .table-piedra thead th a {
@@ -81,16 +88,18 @@
     }
 
     .table-piedra tbody td {
-        padding: 5px 15px;
+        padding: 0 8px;
         border-bottom: 1px solid #F5F1E8;
         vertical-align: middle;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         color: #4A5568;
+        height: 32px;
+        white-space: nowrap;
     }
 
     .btn-action-piedra {
-        width: 28px;
-        height: 28px;
+        width: 22px;
+        height: 22px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -169,26 +178,26 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
     <div class="card card-piedra">
         <!-- Header con Estilo Piedra Premium -->
-        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 15px 20px;">
+        <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
             <div class="row align-items-center">
                 <div class="col-md-8">
                     <div class="d-flex align-items-center">
-                        <i class="fas fa-users me-3" style="font-size: 2.2rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                        <i class="fas fa-users me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                         <div>
-                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.8rem;">
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
                                 Gestión de <span class="fw-bold">Clientes</span>
                             </h2>
-                            <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.8; margin-top: 2px;">
+                            <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
                                 Administra la información de tus clientes y contactos
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4 text-end">
-                    <button type="button" class="btn btn-sm" onclick="abrirModalNuevoCliente()" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
+                    <button type="button" class="btn btn-sm" onclick="abrirModalNuevoCliente()" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
                         <i class="fas fa-plus me-1"></i> Nuevo Cliente
                     </button>
                 </div>
@@ -196,60 +205,56 @@
         </div>
 
         <!-- Estadísticas Soft UI Pastel -->
-        <div class="card-body" style="background: #FAFAF8; padding: 15px;">
-            <div class="row g-3 mb-4 justify-content-center">
+        <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+            <div class="row g-2 mb-2">
                 <div class="col-md-3">
-                    <div class="card card-stats-pastel-terracota card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
-                        <div class="card-body p-3" style="position: relative; z-index: 2;">
-                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Total Clientes</div>
-                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ total_clientes }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">Registrados</small>
-                        </div>
-                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #e39d7e; pointer-events: none; z-index: 1;">
-                            <i class="fas fa-users"></i>
+                    <div class="card card-stats-pastel-terracota stat-card-compact border-0">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="stat-label">Total Clientes</div>
+                                <div class="stat-value">{{ total_clientes }}</div>
+                            </div>
+                            <i class="fas fa-users stat-icon"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card card-stats-pastel-azul card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
-                        <div class="card-body p-3" style="position: relative; z-index: 2;">
-                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Activos</div>
-                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ clientes_activos }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">En sistema</small>
-                        </div>
-                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #1e3c72; pointer-events: none; z-index: 1;">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card card-stats-pastel-rosa card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
-                        <div class="card-body p-3" style="position: relative; z-index: 2;">
-                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Contribuyentes</div>
-                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ clientes_contribuyentes }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">Con RUT</small>
-                        </div>
-                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #d63384; pointer-events: none; z-index: 1;">
-                            <i class="fas fa-building"></i>
+                    <div class="card card-stats-pastel-azul stat-card-compact border-0">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="stat-label">Activos</div>
+                                <div class="stat-value">{{ clientes_activos }}</div>
+                            </div>
+                            <i class="fas fa-check-circle stat-icon"></i>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-3">
-                    <div class="card card-stats-pastel-terracota card-stats-pastel-text shadow-sm border-0" style="border-radius: 12px; position: relative; overflow: hidden; min-height: 100px;">
-                        <div class="card-body p-3" style="position: relative; z-index: 2;">
-                            <div class="card-title text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 1px; font-weight: 700; opacity: 0.8;">Consumidor Final</div>
-                            <h3 class="mb-0 fw-bold" style="color: #2D3748;">{{ clientes_consumidor_final }}</h3>
-                            <small class="text-muted" style="font-size: 0.75rem;">Particulares</small>
+                    <div class="card card-stats-pastel-rosa stat-card-compact border-0">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="stat-label">Contribuyentes</div>
+                                <div class="stat-value">{{ clientes_contribuyentes }}</div>
+                            </div>
+                            <i class="fas fa-building stat-icon"></i>
                         </div>
-                        <div style="position: absolute; right: -5px; top: 0; bottom: 0; display: flex; align-items: center; font-size: 110px; opacity: 0.1; color: #e39d7e; pointer-events: none; z-index: 1;">
-                            <i class="fas fa-user"></i>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card card-stats-pastel-terracota stat-card-compact border-0">
+                        <div class="card-body d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="stat-label">Consumidor Final</div>
+                                <div class="stat-value">{{ clientes_consumidor_final }}</div>
+                            </div>
+                            <i class="fas fa-user stat-icon"></i>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Filtros -->
-            <form method="get" class="row g-2 mb-3 align-items-end" style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #E8DCC8;">
+            <form method="get" class="row g-2 mb-2 align-items-end" style="background: white; padding: 8px 10px; border-radius: 8px; border: 1px solid #E8DCC8;">
                 <input type="hidden" name="sort" value="{{ sort }}">
                 <input type="hidden" name="direction" value="{{ direction }}">
                 <div class="col-md-4">
@@ -301,98 +306,66 @@
 
             <!-- Lista de clientes -->
             <div class="table-responsive rounded-bottom" style="background: white;">
-                <table class="table-piedra mb-0">
+                <table class="table-piedra tabla-nombre-completo mb-0">
                     <thead>
                         <tr>
-                            <th style="width: 20%;">
+                            <th>
                                 <a href="?{% url_replace_sort 'nombre' %}" style="text-decoration: none; color: inherit;">
                                     Cliente {% get_sort_icon 'nombre' %}
                                 </a>
                             </th>
-                            <th style="width: 15%;">
+                            <th style="width: 120px;">
                                 <a href="?{% url_replace_sort 'rut' %}" style="text-decoration: none; color: inherit;">
                                     RUT {% get_sort_icon 'rut' %}
                                 </a>
                             </th>
-                            <th style="width: 12%;">
+                            <th style="width: 130px;">
                                 <a href="?{% url_replace_sort 'tipo_cliente' %}" style="text-decoration: none; color: inherit;">
                                     Tipo {% get_sort_icon 'tipo_cliente' %}
                                 </a>
                             </th>
-                            <th style="width: 10%;">
+                            <th style="width: 56px; text-align: center;">
                                 <a href="?{% url_replace_sort 'estado' %}" style="text-decoration: none; color: inherit;">
-                                    Estado {% get_sort_icon 'estado' %}
+                                    Est. {% get_sort_icon 'estado' %}
                                 </a>
                             </th>
-                            <th style="width: 15%;">
+                            <th style="width: 160px;">
                                 <a href="?{% url_replace_sort 'vendedor' %}" style="text-decoration: none; color: inherit;">
                                     Vendedor {% get_sort_icon 'vendedor' %}
                                 </a>
                             </th>
-                            <th style="width: 13%;">
-                                <a href="?{% url_replace_sort 'limite_credito' %}" style="text-decoration: none; color: inherit;">
-                                    Límite Crédito {% get_sort_icon 'limite_credito' %}
-                                </a>
-                            </th>
-                            <th style="width: 5%; text-align: center;">Contactos</th>
-                            <th style="width: 10%; text-align: center;">Acciones</th>
+                            <th style="width: 70px; text-align: center;">Cont.</th>
+                            <th style="width: 104px; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% if page_obj %}
                             {% for cliente in page_obj %}
                                 <tr>
-                                    <td>
-                                        <div class="fw-bold" style="color: #2c3e50;">{{ cliente.nombre }}</div>
-                                    </td>
-                                    <td class="small opacity-75">{{ cliente.get_rut_formateado }}</td>
-                                    <td>
-                                        <span class="badge" style="background-color: #e3f2fd; color: #1976d2; font-size: 0.7rem;">
-                                            {{ cliente.get_tipo_cliente_display }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                         <span class="badge bg-{{ cliente.get_estado_display_color }}" style="font-size: 0.7rem;">
-                                             {{ cliente.get_estado_display }}
-                                         </span>
-                                     </td>
-                                     <td class="small opacity-75">
-                                         {% if cliente.vendedor %}
-                                             {{ cliente.vendedor.nombre }}
-                                         {% else %}
-                                             <span class="text-muted italic">S/V</span>
-                                         {% endif %}
-                                     </td>
-                                     <td class="fw-bold" style="color: #6F5B44;">${{ cliente.limite_credito|format_price }}</td>
+                                    <td class="td-nombre" style="color:#2c3e50;font-weight:700;">{{ cliente.nombre }}</td>
+                                    <td>{{ cliente.get_rut_formateado }}</td>
+                                    <td>{{ cliente.get_tipo_cliente_display }}</td>
                                     <td class="text-center">
-                                        <span class="badge bg-secondary" style="font-size: 0.7rem;">{{ cliente.contactos.count }}</span>
+                                        <span class="estado-dot estado-dot-{{ cliente.estado }}" title="{{ cliente.get_estado_display }}"></span>
                                     </td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <button type="button" onclick="abrirModalDetalleCliente({{ cliente.pk|unlocalize }})" class="btn-action-piedra" title="Ver detalles">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button type="button" onclick="abrirModalEditarCliente({{ cliente.pk|unlocalize }})" class="btn-action-piedra" title="Editar">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <a href="#" class="btn-action-piedra btn-toggle-estado" 
-                                               title="{% if cliente.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}"
-                                               data-cliente-id="{{ cliente.pk|unlocalize }}"
-                                               data-cliente-nombre="{{ cliente.nombre }}"
-                                               data-estado-actual="{{ cliente.estado }}">
-                                                <i class="fas fa-{% if cliente.estado == 'activo' %}toggle-on{% else %}toggle-off{% endif %}"></i>
-                                            </a>
-                                            <a href="{% url 'clientes:cliente_delete' cliente.pk|unlocalize %}" class="btn-action-piedra" title="Eliminar">
-                                                <i class="fas fa-trash"></i>
-                                            </a>
-                                        </div>
+                                    <td>{% if cliente.vendedor %}{{ cliente.vendedor.nombre }}{% else %}S/V{% endif %}</td>
+                                    <td class="text-center">{{ cliente.contactos.count }}</td>
+                                    <td class="td-acciones text-center">
+                                        <a href="#" onclick="abrirModalDetalleCliente({{ cliente.pk|unlocalize }});return false;" class="ico-32" title="Ver detalles"><i class="fas fa-eye"></i></a>
+                                        <a href="#" onclick="abrirModalEditarCliente({{ cliente.pk|unlocalize }});return false;" class="ico-32" title="Editar"><i class="fas fa-edit"></i></a>
+                                        <a href="#" class="ico-32 btn-toggle-estado"
+                                           title="{% if cliente.estado == 'activo' %}Desactivar{% else %}Activar{% endif %}"
+                                           data-cliente-id="{{ cliente.pk|unlocalize }}"
+                                           data-cliente-nombre="{{ cliente.nombre }}"
+                                           data-estado-actual="{{ cliente.estado }}"><i class="fas fa-{% if cliente.estado == 'activo' %}toggle-on{% else %}toggle-off{% endif %}"></i></a>
+                                        <a href="{% url 'clientes:cliente_delete' cliente.pk|unlocalize %}" class="ico-32" title="Eliminar"><i class="fas fa-trash"></i></a>
                                     </td>
                                 </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="8" class="text-center py-5">
-                                    <i class="fas fa-users fa-3x mb-3" style="color: #D4C4A8;"></i>
+                                <td colspan="7" class="text-center py-3">
+                                    <i class="fas fa-users fa-2x mb-3" style="color: #D4C4A8;"></i>
                                     <h6 style="color: #8B7355;">No se encontraron clientes</h6>
                                     <p style="color: #6c757d; font-size: 0.85rem;">Comienza agregando tu primer cliente al sistema.</p>
                                     <a href="{% url 'clientes:cliente_create' %}" class="btn btn-sm mt-2" style="background: #8B7355; color: white;">
@@ -544,5 +517,57 @@ document.addEventListener('DOMContentLoaded', function() {
     </script>
     
 <script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
+<style>
+    .tabla-nombre-completo {
+        table-layout: auto !important;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tabla-nombre-completo thead th,
+    .tabla-nombre-completo tbody td {
+        height: 32px !important;
+        max-height: 32px !important;
+        padding: 0 8px !important;
+        line-height: 30px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        vertical-align: middle !important;
+        box-sizing: border-box !important;
+    }
+    .tabla-nombre-completo tbody td.td-nombre {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    .tabla-nombre-completo tbody td.td-acciones {
+        overflow: visible !important;
+        white-space: nowrap !important;
+        min-width: 104px;
+    }
+    .tabla-nombre-completo tbody td.td-acciones .ico-32 {
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        max-height: 18px !important;
+        line-height: 16px !important;
+        font-size: 10px !important;
+        padding: 0 !important;
+        margin: 0 1px;
+        display: inline-block;
+        vertical-align: middle;
+    }
+    .estado-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        vertical-align: middle;
+    }
+    .estado-dot-activo { background: #2E7D32; }
+    .estado-dot-inactivo { background: #C2185B; }
+    .estado-dot-moroso { background: #7B1FA2; }
+    .estado-dot-suspendido { background: #9E9E9E; }
+</style>
 {% endblock %}
 

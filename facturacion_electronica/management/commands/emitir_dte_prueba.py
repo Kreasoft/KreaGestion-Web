@@ -24,7 +24,7 @@ class Command(BaseCommand):
         import datetime
         empresa.resolucion_numero = 80  # Número de resolución oficial para ambiente de pruebas SII
         empresa.resolucion_fecha = datetime.date(2014, 8, 22)
-        empresa.rut = '77117239-3' # RUT valido para pruebas DTEBox/GDExpress (usualmente KreaSoft)
+        empresa.rut = '77117239-3'
         empresa.save()
         
         self.stdout.write(f"Empresa seleccionada: {empresa.nombre} (RUT: {empresa.rut})")
@@ -153,7 +153,7 @@ class Command(BaseCommand):
             self.stdout.write(f"XML guardado en ultimo_dte_prueba.xml para inspección")
             
             # 11. Enviar al SII
-            self.stdout.write("Enviando al SII (GDExpress)...")
+            self.stdout.write("Enviando directo al SII...")
             resultado = service.enviar_dte_al_sii(dte)
             
             if resultado['success']:

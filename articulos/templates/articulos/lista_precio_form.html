@@ -5,6 +5,16 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
+{% block extra_head %}
+<style>
+    .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+    .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+    textarea.form-control { height: auto !important; min-height: 48px !important; }
+    .form-check-input:checked { background-color: #8D6E63 !important; border-color: #6F5B44 !important; }
+    .form-check-input:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+</style>
+{% endblock %}
+
 {% block extra_css %}
 <style>
     body {
@@ -13,7 +23,7 @@
 
     /* Ocultar top-bar si existe y ajustar layout */
     .top-bar { display: none !important; }
-    .main-content { margin-top: 0 !important; padding-top: 2rem !important; }
+    .main-content { margin-top: 0 !important; padding-top: 0.5rem !important; }
 
     /* Estilo Piedra - Variables Locales */
     :root {
@@ -27,7 +37,7 @@
     .card-header-piedra {
         background: var(--gradient-piedra);
         border-bottom: 2px solid var(--color-piedra-borde);
-        padding: 1.5rem 2rem;
+        padding: 8px 16px;
     }
 
     .btn-piedra {
@@ -35,7 +45,7 @@
         border: 1px solid var(--color-piedra-borde);
         color: var(--color-piedra-texto) !important;
         font-weight: 600;
-        padding: 0.6rem 1.5rem;
+        padding: 4px 14px;
         border-radius: 10px;
         box-shadow: var(--shadow-piedra);
         transition: all 0.3s ease;
@@ -53,23 +63,25 @@
         font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.2rem;
     }
 
     .form-control, .form-select {
-        border-radius: 10px;
-        border: 1px solid var(--color-piedra-borde);
-        padding: 0.7rem 1rem;
+        border-radius: 6px;
+        border: 1px solid #D4C4A8;
+        padding: 2px 8px;
+        font-size: 0.72rem;
+        height: 26px;
         transition: all 0.2s ease;
     }
 
     .form-control:focus, .form-select:focus {
-        border-color: var(--color-piedra-boton);
-        box-shadow: 0 0 0 0.2rem rgba(141, 110, 99, 0.1);
+        border-color: #6F5B44;
+        box-shadow: 0 0 0 2px rgba(111,91,68,0.15);
     }
 
     .card-premium {
-        border-radius: 20px;
+        border-radius: 12px;
         overflow: hidden;
         border: 1px solid var(--color-piedra-borde) !important;
         background: white;
@@ -78,36 +90,36 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="container" style="padding: 8px 12px;">
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <div class="card card-premium shadow-sm">
                 <div class="card-header-piedra">
                     <div class="d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center">
-                            <div class="p-3 bg-white bg-opacity-50 rounded-circle me-3 shadow-sm">
-                                <i class="fas fa-list-alt fa-lg" style="color: var(--color-piedra-texto);"></i>
+                            <div class="me-2">
+                                <i class="fas fa-list-alt " style="color: var(--color-piedra-texto);"></i>
                             </div>
                             <div>
-                                <h4 class="mb-0 fw-bold" style="color: var(--color-piedra-texto);">
-                                    {{ titulo }}
-                                </h4>
-                                <p class="mb-0 small opacity-75" style="color: var(--color-piedra-texto);">
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Lista de Precios</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.75;">
                                     {% if form.instance.pk %}Modificación de preferencias de lista{% else %}Configuración de nueva segmentación{% endif %}
-                                </p>
+                                </div>
                             </div>
                         </div>
-                        <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-sm" style="color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 8px;">
+                        <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
                             <i class="fas fa-times me-1"></i> Cancelar
                         </a>
                     </div>
                 </div>
                 
-                <div class="card-body p-4">
+                <div class="card-body" style="padding: 8px 10px;">
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="mb-4">
+                        <div class="mb-2">
                             <label for="{{ form.nombre.id_for_label }}" class="form-label-premium">
                                 <i class="fas fa-tag me-1"></i>Nombre de la Lista
                             </label>
@@ -117,7 +129,7 @@
                             {% endif %}
                         </div>
                         
-                        <div class="mb-4">
+                        <div class="mb-2">
                             <label for="{{ form.descripcion.id_for_label }}" class="form-label-premium">
                                 <i class="fas fa-align-left me-1"></i>Descripción (Opcional)
                             </label>
@@ -127,9 +139,9 @@
                             {% endif %}
                         </div>
                         
-                        <div class="row mb-4">
+                        <div class="row g-1 mb-2">
                             <div class="col-md-6">
-                                <div class="p-3 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed var(--color-piedra-borde);">
+                                <div class="p-2 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed var(--color-piedra-borde);">
                                     <div class="form-check form-switch m-0">
                                         {{ form.activa|add_class:"form-check-input" }}
                                         <label class="form-check-label fw-bold" for="{{ form.activa.id_for_label }}" style="color: var(--color-piedra-texto);">
@@ -140,7 +152,7 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="p-3 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed var(--color-piedra-borde);">
+                                <div class="p-2 rounded-3" style="background: rgba(141, 110, 99, 0.03); border: 1px dashed var(--color-piedra-borde);">
                                     <div class="form-check form-switch m-0">
                                         {{ form.es_predeterminada|add_class:"form-check-input" }}
                                         <label class="form-check-label fw-bold" for="{{ form.es_predeterminada.id_for_label }}" style="color: var(--color-piedra-texto);">
@@ -152,12 +164,12 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-end gap-3 mt-5">
-                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn px-4" style="background: rgba(93, 64, 55, 0.05); color: var(--color-piedra-texto); border: 1px solid var(--color-piedra-borde); border-radius: 10px; font-weight: 500;">
+                        <div class="d-flex justify-content-end gap-2 mt-2">
+                            <a href="{% url 'articulos:lista_precio_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
                                 Cancelar
                             </a>
-                            <button type="submit" class="btn btn-piedra px-5">
-                                <i class="fas fa-save me-2"></i>Guardar Lista
+                            <button type="submit" class="btn btn-sm" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                                <i class="fas fa-save me-1"></i>Guardar Lista
                             </button>
                         </div>
                     </form>

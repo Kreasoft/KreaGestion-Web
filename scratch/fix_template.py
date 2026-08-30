@@ -2,7 +2,7 @@
 import sys
 import os
 
-path = r'c:\PROJECTOS-WEB\GestionCloud\compras\templates\compras\orden_compra_form.html'
+path = r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\compras\templates\compras\orden_compra_form.html'
 if not os.path.exists(path):
     print(f'Error: {path} not found')
     sys.exit(1)

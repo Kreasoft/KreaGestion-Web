@@ -6,11 +6,34 @@
 
 {% block body_class %}hide-top-bar{% endblock %}
 
-{% block extra_css %}
-<!-- Select2 CSS -->
+{% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
-    /* VARIABLES ESTILO PIEDRA */
+    body { background: #FAFAF8 !important; }
+    .form-control, .form-select, .form-control-stone, .form-select-stone, .search-input-stone {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 4px !important;
+        accent-color: #6F5B44 !important;
+    }
+    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+    .select2-container--default .select2-selection--single {
+        height: 28px !important; min-height: 28px !important; border-color: #D4C4A8 !important;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 26px !important; font-size: 0.75rem !important; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow { height: 26px !important; }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single { border-color: #6F5B44 !important; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+    .modal-footer { padding: 6px 12px !important; }
+    .stat-card { min-height: 52px !important; padding: 8px 12px !important; border-radius: 8px !important; }
+    .stat-icon { font-size: 42px !important; opacity: 0.12 !important; }
+    .stat-value { font-size: 1.2rem !important; }
     :root {
         --stone-primary: #8B7355;
         --stone-secondary: #6F5B44;
@@ -18,12 +41,6 @@
         --stone-bg: #FAFAF8;
         --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
         --stone-text: #5D4037;
-    }
-
-    body {
-        background-color: var(--stone-bg) !important;
-        color: var(--stone-text);
-        font-family: 'Poppins', sans-serif;
     }
 
     /* CARD PRINCIPAL UNIFICADA */
@@ -200,40 +217,35 @@
 
 {% block content %}
 
-<div class="container-fluid">
-    <div class="row justify-content-center">
-        <div class="col-12">
-            
-            <div class="single-card-container">
-                
-                <!-- HEADER STONE PREMIUM -->
-                <div class="stone-header-premium">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="header-icon-box">
-                            <i class="fas fa-exchange-alt"></i>
+<div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
+    <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
+                <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exchange-alt me-2" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
+                            <div>
+                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
+                                    Gestión de <span class="fw-bold">Movimientos</span>
+                                </h2>
+                                <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75;">Registro de entradas y salidas</div>
+                            </div>
                         </div>
-                        <div class="header-text">
-                            <h1>Movimientos de <span class="fw-bold">Inventario</span></h1>
-                            <p>Registro y control de entradas y salidas.</p>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm" onclick="window.print()" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-print me-1"></i> Imprimir
+                            </button>
+                            <a href="{% url 'inventario:stock_list' %}" class="btn btn-sm" style="background: rgba(93, 64, 55, 0.12); border: 1px solid rgba(93, 64, 55, 0.28); color: #5D4037; font-size: 0.75rem; font-weight: 600;">
+                                <i class="fas fa-boxes me-1"></i> Control Stock
+                            </a>
+                            <button type="button" class="btn btn-sm btn-nuevo-movimiento" data-url="{% url 'inventario:inventario_form_modal_create' %}" style="background: var(--color-verde-oliva, #8B8B3A); border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem;">
+                                <i class="fas fa-plus me-1"></i> Nuevo Movimiento
+                            </button>
                         </div>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="header-btn" onclick="window.print()">
-                            <i class="fas fa-print me-2"></i> Imprimir
-                        </button>
-                        <a href="{% url 'inventario:stock_list' %}" class="header-btn">
-                            <i class="fas fa-boxes me-2"></i> Control Stock
-                        </a>
-                        <button type="button" class="header-btn btn-action-primary btn-nuevo-movimiento" data-url="{% url 'inventario:inventario_form_modal_create' %}">
-                            <i class="fas fa-plus me-2"></i> Nuevo Movimiento
-                        </button>
                     </div>
                 </div>
 
-                <div class="card-body p-4">
-                    
-                    <!-- STATS CARDS (PRESERVADAS) -->
-                    <div class="row g-3 mb-4">
+                <div class="card-body" style="background: #FAFAF8; padding: 8px 10px;">
+                    <div class="row g-2 mb-2">
                         <div class="col-md-3">
                             <div class="stat-card stat-card-1 p-3 position-relative">
                                 <div class="stat-value">{{ total_entradas|default:0|format_miles }}</div>
@@ -264,9 +276,8 @@
                         </div>
                     </div>
 
-                    <!-- FILTROS -->
-                    <div class="p-3 mb-4" style="background: #FAFAF8; border-radius: 12px; border: 1px solid #E8DCC8;">
-                         <form method="get" action="{% url 'inventario:inventario_list' %}" class="row g-3 align-items-end">
+                    <div class="py-2 px-2 mb-2" style="background: #FAFAF8; border-radius: 6px; border: 1px solid #E8DCC8;">
+                         <form method="get" action="{% url 'inventario:inventario_list' %}" class="row g-2 align-items-end">
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold text-muted mb-1">Bodega</label>
                                 <select name="bodega_destino" class="form-select-stone w-100">
@@ -291,11 +302,11 @@
                                 <input type="text" name="search" class="form-control-stone search-input-stone"
                                        placeholder="Folio, artículo..." value="{{ filter_form.search.value|default:'' }}">
                             </div>
-                            <div class="col-md-3 d-flex gap-2">
-                                <button type="submit" class="header-btn btn-action-primary w-100 justify-content-center">
-                                    <i class="fas fa-filter me-2"></i> Filtrar
+                            <div class="col-md-3 d-flex gap-1">
+                                <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white; font-size: 0.75rem; border: none;">
+                                    <i class="fas fa-filter me-1"></i> Filtrar
                                 </button>
-                                <a href="{% url 'inventario:inventario_list' %}" class="header-btn px-3" title="Limpiar">
+                                <a href="{% url 'inventario:inventario_list' %}" class="btn btn-sm" title="Limpiar" style="border: 1px solid #D4C4A8; color: #5D4037; font-size: 0.75rem;">
                                     <i class="fas fa-times"></i>
                                 </a>
                             </div>
@@ -304,7 +315,7 @@
 
                     <!-- TABLA -->
                     <div class="table-responsive">
-                        <table class="table-piedra">
+                        <table class="table-piedra tabla-nombre-completo mb-0">
                             <thead>
                                 <tr>
                                     <th>Folio</th>
@@ -330,8 +341,8 @@
                                             <span class="badge-stone bg-stone-danger"><i class="fas fa-arrow-down me-1"></i>Salida</span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-muted">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
-                                    <td>{{ movimiento.articulo.nombre|truncatechars:25 }}</td>
+                                    <td class="text-muted">{{ movimiento.fecha_movimiento|date:"d-m-Y H:i" }}</td>
+                                    <td class="td-nombre">{{ movimiento.articulo.nombre }}</td>
                                     <td class="text-end">{{ movimiento.cantidad|format_miles }}</td>
                                     <td class="text-end text-muted">${{ movimiento.precio_unitario|format_miles }}</td>
                                     <td class="text-end fw-bold" style="color: var(--stone-text);">${{ movimiento.total|format_miles }}</td>
@@ -346,22 +357,20 @@
                                             {{ movimiento.bodega_destino.nombre|default:'-'|truncatechars:18 }}
                                         {% endif %}
                                     </td>
-                                    <td>
+                                    <td class="text-center">
                                         {% if movimiento.estado == 'pendiente' %}
-                                            <span class="badge-stone bg-stone-warning">Pendiente</span>
+                                            <span class="estado-dot estado-dot-suspendido" title="Pendiente"></span>
                                         {% else %}
-                                            <span class="badge-stone bg-stone-secondary">Procesado</span>
+                                            <span class="estado-dot estado-dot-activo" title="Procesado"></span>
                                         {% endif %}
                                     </td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <button type="button" class="btn-icon-stone btn-ver-detalle" data-url="{% url 'inventario:inventario_detail_modal' movimiento.pk %}" title="Ver Detalle">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button type="button" class="btn-icon-stone btn-editar-movimiento" data-url="{% url 'inventario:inventario_form_modal_edit' movimiento.pk %}" title="Editar">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                        </div>
+                                    <td class="td-acciones text-center">
+                                        <button type="button" class="ico-32 btn-ver-detalle" data-url="{% url 'inventario:inventario_detail_modal' movimiento.pk %}" title="Ver Detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button type="button" class="ico-32 btn-editar-movimiento" data-url="{% url 'inventario:inventario_form_modal_edit' movimiento.pk %}" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% empty %}
@@ -398,42 +407,35 @@
                     {% endif %}
                     
                 </div>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Modal Formulario Movimiento -->
 <div class="modal fade" id="modalInventarioForm" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
-            <div class="modal-header border-bottom-0 py-3 px-4" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);">
-                <div class="d-flex align-items-center gap-3">
-                     <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.8); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #6F5B44;">
-                        <i class="fas fa-exchange-alt"></i>
-                    </div>
-                    <h5 class="modal-title fw-bold text-dark m-0" id="modalInventarioFormTitle">Movimiento de Inventario</h5>
-                </div>
+        <div class="modal-content" style="border-radius: 8px; overflow: hidden; border: none;">
+            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 2px solid #D4C4A8; padding: 8px 16px;">
+                <h5 class="modal-title" id="modalInventarioFormTitle" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: var(--color-piedra-texto); font-size: 1.1rem;">
+                    <i class="fas fa-exchange-alt me-2"></i>Movimiento de Inventario
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body p-0" id="modalInventarioFormBody">
-                <div class="p-5 text-center text-muted">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-                    <p>Cargando formulario...</p>
+            <div class="modal-body" id="modalInventarioFormBody" style="padding: 8px 12px !important; background: #FAFAF8;">
+                <div class="py-3 text-center text-muted">
+                    <i class="fas fa-spinner fa-spin mb-2"></i>
+                    <p class="mb-0 small">Cargando formulario...</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Detalle Movimiento -->
 <div class="modal fade" id="modalInventarioDetalle" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden; background: transparent;">
+        <div class="modal-content" style="border-radius: 8px; overflow: hidden; border: none;">
             <div class="modal-body p-0" id="modalInventarioDetalleBody">
-                <div class="p-5 text-center text-muted" style="background: white; border-radius: 16px;">
-                    <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-                    <p>Cargando detalle...</p>
+                <div class="py-3 text-center text-muted" style="background: white;">
+                    <i class="fas fa-spinner fa-spin mb-2"></i>
+                    <p class="mb-0 small">Cargando detalle...</p>
                 </div>
             </div>
         </div>

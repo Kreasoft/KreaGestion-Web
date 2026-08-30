@@ -13,12 +13,11 @@ class OrdenPedido(models.Model):
     """Modelo para gestionar órdenes de pedido de clientes"""
     
     ESTADO_CHOICES = [
-        ('borrador', 'Borrador'),
-        ('confirmada', 'Confirmada'),
-        ('en_proceso', 'En Proceso'),
+        ('confirmada', 'Pendiente'),
         ('completada', 'Completada'),
         ('cancelada', 'Cancelada'),
     ]
+    ESTADOS_PENDIENTES = ('borrador', 'confirmada', 'en_proceso', 'preparando_despacho')
     
     # Relaciones
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
@@ -36,7 +35,7 @@ class OrdenPedido(models.Model):
     # )
     
     # Información del pedido
-    numero_pedido = models.CharField(max_length=20, unique=True, verbose_name="Número de Pedido")
+    numero_pedido = models.CharField(max_length=20, verbose_name="Número de Pedido")
     fecha_pedido = models.DateField(default=timezone.now, verbose_name="Fecha de Pedido")
     fecha_entrega_estimada = models.DateField(blank=True, null=True, verbose_name="Fecha de Entrega Estimada")
     
@@ -45,7 +44,7 @@ class OrdenPedido(models.Model):
     fecha_oc_cliente = models.DateField(blank=True, null=True, verbose_name="Fecha OC Cliente")
     
     # Estado
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='borrador', verbose_name="Estado")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='confirmada', verbose_name="Estado")
     
     # Totales
     subtotal = models.IntegerField(default=0, verbose_name="Subtotal")
@@ -66,6 +65,12 @@ class OrdenPedido(models.Model):
         verbose_name = "Orden de Pedido"
         verbose_name_plural = "Órdenes de Pedido"
         ordering = ['-fecha_pedido', '-numero_pedido']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empresa', 'numero_pedido'],
+                name='pedido_numero_unico_por_empresa',
+            ),
+        ]
     
     def __str__(self):
         return f"Pedido {self.numero_pedido} - {self.cliente.nombre}"
@@ -82,7 +87,7 @@ class OrdenPedido(models.Model):
         self.save()
     
     def generar_numero_pedido(self):
-        """Genera el número de pedido automático y correlativo"""
+        """Genera el correlativo independiente de la empresa activa."""
         ultimo_pedido = OrdenPedido.objects.filter(
             empresa=self.empresa
         ).order_by('-numero_pedido').first()
@@ -99,21 +104,78 @@ class OrdenPedido(models.Model):
         self.numero_pedido = f"PED-{nuevo_numero:06d}"
         return self.numero_pedido
 
+    @classmethod
+    def con_saldo_pendiente(cls, empresa=None):
+        """Pedidos con al menos un ítem cuya cantidad aún no está despachada."""
+        from django.db.models import Sum, F, Q, DecimalField, Value
+        from django.db.models.functions import Coalesce
+
+        items_pendientes = ItemOrdenPedido.objects.annotate(
+            despachado=Coalesce(
+                Sum(
+                    'despachos__cantidad',
+                    filter=~Q(despachos__orden_despacho__estado='cancelado'),
+                ),
+                Value(0),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        ).filter(despachado__lt=F('cantidad'))
+        qs = cls.objects.filter(
+            pk__in=items_pendientes.values('orden_pedido_id')
+        ).exclude(estado__in=['completada', 'cancelada'])
+        if empresa is not None:
+            qs = qs.filter(empresa=empresa)
+        return qs
+
+    def estado_por_despacho(self):
+        """Ingresado = pendiente (listo para despachar). Completada solo si ya no queda saldo."""
+        if self.estado == 'cancelada':
+            return 'cancelada'
+        items = list(self.items.all())
+        if items and all(item.cantidad_pendiente <= 0 for item in items) and any(item.cantidad_despachada > 0 for item in items):
+            return 'completada'
+        return 'confirmada'
+
+    def etiqueta_estado(self):
+        if self.estado == 'cancelada':
+            return 'Cancelada'
+        if self.estado == 'completada':
+            return 'Completada'
+        return 'Pendiente'
+
+    def puede_despachar(self):
+        return self.estado != 'cancelada' and self.tiene_saldo_pendiente()
+
+    def tiene_saldo_pendiente(self):
+        return any(item.cantidad_pendiente > 0 for item in self.items.all())
+
+    def monto_saldo_pendiente(self):
+        return sum(item.get_total_pendiente() for item in self.items.all())
+
+    @classmethod
+    def total_saldo_por_despachar(cls, qs):
+        total = 0
+        for pedido in qs.prefetch_related('items__despachos__orden_despacho'):
+            total += pedido.monto_saldo_pendiente()
+        return total
+
     def actualizar_estado_segun_despachos(self):
-        """Verifica si todos los items están despachados y actualiza el estado."""
-        if self.estado in ['cancelada', 'completada']:
+        """Alinea el estado del pedido con el avance real del despacho."""
+        if self.estado == 'cancelada':
             return
-
-        items = self.items.all()
-        if not items:
-            return
-
-        # Comprueba si todos los items tienen cantidad pendiente cero o menos
-        completada = all(item.cantidad_pendiente <= 0 for item in items)
-
-        if completada:
-            self.estado = 'completada'
+        nuevo = self.estado_por_despacho()
+        if nuevo != self.estado:
+            self.estado = nuevo
             self.save(update_fields=['estado', 'fecha_modificacion'])
+
+    @classmethod
+    def sincronizar_estados_por_despacho(cls, empresa=None):
+        qs = cls.objects.exclude(estado='cancelada')
+        if empresa is not None:
+            qs = qs.filter(empresa=empresa)
+        qs = qs.prefetch_related('items__despachos__orden_despacho')
+        for pedido in qs:
+            pedido.actualizar_estado_segun_despachos()
 
 
 class ItemOrdenPedido(models.Model):
@@ -168,11 +230,22 @@ class ItemOrdenPedido(models.Model):
         """Calcula el total del item"""
         return self.get_base_imponible() + self.get_impuesto_monto()
 
+    def get_total_pendiente(self):
+        """Total del saldo aún no despachado (misma lógica de precio/IVA del ítem)."""
+        pendiente = self.cantidad_pendiente
+        if pendiente <= 0:
+            return 0
+        subtotal = int(Decimal(str(pendiente)) * Decimal(str(self.precio_unitario)))
+        descuento = int(subtotal * Decimal(str(self.descuento_porcentaje or 0)) / Decimal('100'))
+        base = subtotal - descuento
+        impuesto = int(base * Decimal(str(self.impuesto_porcentaje or 0)) / Decimal('100'))
+        return base + impuesto
+
     @property
     def cantidad_despachada(self):
-        """Calcula la cantidad total despachada para este item."""
-        total_despachado = self.despachos.filter(
-            orden_despacho__estado__in=['en_preparacion', 'despachado', 'en_transito', 'entregado']
+        """Cantidad ya asignada a despachos vigentes (no cancelados)."""
+        total_despachado = self.despachos.exclude(
+            orden_despacho__estado='cancelado'
         ).aggregate(total=models.Sum('cantidad'))['total'] or Decimal('0')
         return total_despachado
 

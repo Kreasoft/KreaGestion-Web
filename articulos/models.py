@@ -579,7 +579,7 @@ class HistorialCambioPrecio(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.articulo_codigo} - {self.porcentaje}% ({self.fecha_creacion:%d/%m/%Y %H:%M})"
+        return f"{self.articulo_codigo} - {self.porcentaje}% ({self.fecha_creacion:%d-%m-%Y %H:%M})"
 
 
 class StockArticulo(models.Model):

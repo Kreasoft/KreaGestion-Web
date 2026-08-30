@@ -11,9 +11,6 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Agregar directorio de librerías personalizadas al path
-import sys
-sys.path.append(str(BASE_DIR / 'libreria_dte_gdexpress'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
@@ -41,30 +38,12 @@ THIRD_PARTY_APPS = [
 	'crispy_bootstrap5',
 	'django_tables2',
 	'widget_tweaks',
-    'dte_gdexpress',  # GDExpress integration
+	'axes',
 	# 'ckeditor',  # Temporalmente comentado - instalar con: pip install django-ckeditor
 	# 'django_bootstrap5',  # Comentado temporalmente
 	# 'simple_history',  # Comentado temporalmente
 ]
 
-# Configuración DTE GDExpress
-DTE_GDEXPRESS = {
-    # Credenciales GDExpress/DTEBox
-    'API_KEY': config('GDEXPRESS_API_KEY', default=''),
-    
-    # Ambiente: 'CERTIFICACION' o 'PRODUCCION'
-    'AMBIENTE': config('DTE_AMBIENTE', default='CERTIFICACION'),
-    
-    # URL del servicio
-    'URL_SERVICIO': 'http://200.6.118.43/api/Core.svc/Core',
-    
-    # Certificado Digital
-    'CERTIFICADO_PATH': os.path.join(BASE_DIR, 'certificados', 'certificado.pfx'),
-    'CERTIFICADO_PASSWORD': config('CERT_PASSWORD', default=''),
-    
-    # Configuración de Folios
-    'CAF_DIRECTORY': os.path.join(BASE_DIR, 'folios'),
-}
 
 LOCAL_APPS = [
 	'empresas.apps.EmpresasConfig',
@@ -103,6 +82,7 @@ MIDDLEWARE = [
 	'usuarios.middleware.AccesoEmpresaMiddleware',
 	'empresas.middleware.EmpresaEstadoMiddleware', # Bloqueo por mora
 	'empresas.middleware.SucursalMiddleware',  # Middleware de sucursal
+	'axes.middleware.AxesMiddleware',
 ]
 
 ROOT_URLCONF = 'gestioncloud.urls'
@@ -183,6 +163,10 @@ USE_TZ = True
 USE_THOUSAND_SEPARATOR = True
 THOUSAND_SEPARATOR = '.'
 NUMBER_GROUPING = 3
+DATE_FORMAT = 'd-m-Y'
+DATETIME_FORMAT = 'd-m-Y H:i'
+SHORT_DATE_FORMAT = 'd-m-Y'
+SHORT_DATETIME_FORMAT = 'd-m-Y H:i'
 FORMAT_MODULE_PATH = [
     'gestioncloud.formats',
 ]
@@ -252,6 +236,17 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 LOGIN_URL = '/accounts/login/'
 
+AUTHENTICATION_BACKENDS = [
+	'axes.backends.AxesStandaloneBackend',
+	'django.contrib.auth.backends.ModelBackend',
+]
+
+# django-axes: bloqueo por intentos fallidos de login
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1  # horas
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_RESET_ON_SUCCESS = True
+
 # MPTT
 MPTT_ADMIN_LEVEL_INDENT = 20
 
@@ -302,7 +297,26 @@ SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
 if not DEBUG:
 	STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
-# Email settings for password reset (Console backend for testing)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'no-reply@gestioncloud.cl'
+# Correo: SMTP real solo si hay HOST + USER + PASSWORD; si no, consola (no llega a ningún buzón).
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=20, cast=int)
+DEFAULT_FROM_EMAIL = config(
+	'DEFAULT_FROM_EMAIL',
+	default=EMAIL_HOST_USER or 'no-reply@gestioncloud.cl',
+)
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+_SMTP_LISTO = bool(EMAIL_HOST and EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
+EMAIL_BACKEND = config(
+	'EMAIL_BACKEND',
+	default=(
+		'django.core.mail.backends.smtp.EmailBackend'
+		if _SMTP_LISTO
+		else 'django.core.mail.backends.console.EmailBackend'
+	),
+)
 

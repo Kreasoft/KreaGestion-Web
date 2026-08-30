@@ -12,7 +12,7 @@ class ProveedorForm(forms.ModelForm):
         fields = [
             'rut', 'nombre', 'razon_social', 'giro', 'tipo_proveedor', 'categoria_principal',
             'direccion', 'comuna', 'ciudad', 'region', 'telefono', 'email', 'sitio_web',
-            'plazo_entrega', 'condiciones_pago', 'descuento_porcentaje', 'calificacion',
+            'plazo_entrega', 'plazo_pago', 'condiciones_pago', 'descuento_porcentaje', 'calificacion',
             'observaciones_calidad', 'estado', 'observaciones'
         ]
         widgets = {
@@ -22,7 +22,7 @@ class ProveedorForm(forms.ModelForm):
             'giro': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Giro comercial'}),
             'tipo_proveedor': forms.Select(attrs={'class': 'form-control'}),
             'categoria_principal': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Categoría principal'}),
-            'direccion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Dirección completa'}),
+            'direccion': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Dirección completa'}),
             'comuna': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Comuna'}),
             'ciudad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ciudad'}),
             'region': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Región'}),
@@ -30,12 +30,13 @@ class ProveedorForm(forms.ModelForm):
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'correo@ejemplo.com'}),
             'sitio_web': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'www.ejemplo.cl o https://www.ejemplo.cl'}),
             'plazo_entrega': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 15 días hábiles'}),
+            'plazo_pago': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'placeholder': '0'}),
             'condiciones_pago': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 30 días'}),
             'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
             'calificacion': forms.Select(attrs={'class': 'form-control'}),
-            'observaciones_calidad': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observaciones sobre la calidad'}),
+            'observaciones_calidad': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Observaciones sobre la calidad'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
-            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observaciones generales'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Observaciones generales'}),
         }
     
     def __init__(self, *args, **kwargs):

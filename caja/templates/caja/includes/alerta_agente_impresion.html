@@ -1,0 +1,32 @@
+{% if alerta_agente_impresion %}
+<div class="d-flex align-items-center gap-2 mb-2 px-3 py-2" style="background:#F5E6D8; border:1px solid #C76F43; border-radius:8px; color:#5D4037;">
+    <i class="fas fa-print" style="color:#C76F43;"></i>
+    <div class="flex-grow-1" style="font-size:0.8rem; line-height:1.3;">
+        <strong>Agente de impresión no detectado.</strong>
+        Ábralo en el PC de la caja; si no, las boletas no se imprimirán.
+    </div>
+    <a href="{% url 'caja:conectar_impresora' %}" class="btn btn-sm" style="background:#C76F43; color:#fff; font-weight:600; border:none; white-space:nowrap;">
+        Conectar
+    </a>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof Swal === 'undefined') return;
+    Swal.fire({
+        icon: 'warning',
+        iconColor: '#C76F43',
+        title: 'Agente de impresión no detectado',
+        html: 'No está en ejecución en esta sucursal. Las boletas no se imprimirán hasta que abra el agente en el PC de la caja.',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#C76F43',
+        showCancelButton: true,
+        cancelButtonText: 'Conectar impresora',
+        cancelButtonColor: '#6F5B44'
+    }).then(function (result) {
+        if (result.dismiss === Swal.DismissReason.cancel) {
+            window.location.href = '{% url "caja:conectar_impresora" %}';
+        }
+    });
+});
+</script>
+{% endif %}

@@ -1,80 +1,72 @@
 """
 Vistas para el Kardex (Cartola) de Artículos
 """
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import Q, Sum, F
+from django.db.models import Q
 from django.utils import timezone
+from django.http import HttpResponse
 from datetime import datetime, timedelta
 from core.decorators import requiere_empresa
+from core.excel_utils import (
+    build_excel_response,
+    format_excel_date,
+    get_excel_branding_styles,
+    set_column_widths,
+    setup_corporate_sheet,
+    style_data_row,
+    write_table_headers,
+)
 from articulos.models import Articulo
 from bodegas.models import Bodega
 from .models import Inventario, Stock
-from ventas.models import Venta, VentaDetalle
-from inventario.models import TransferenciaInventario
+from openpyxl import Workbook
+from openpyxl.styles import Font
 
 
-@login_required
-@requiere_empresa
-@permission_required('inventario.view_movimientoinventario', raise_exception=True)
-def kardex_articulo(request):
-    """
-    Kardex (Cartola) de movimientos de un artículo
-    Muestra todas las entradas, salidas, transferencias y ajustes
-    """
-    # Obtener parámetros
+def _obtener_datos_kardex(request):
+    """Construye el contexto de datos del Kardex para vista y exportacion."""
     articulo_id = request.GET.get('articulo', '').strip()
     bodega_id = request.GET.get('bodega', '').strip()
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
-    
-    # Limpiar IDs (remover espacios no rompibles y otros caracteres)
+
     if articulo_id:
         articulo_id = articulo_id.replace('\xa0', '').replace(' ', '').replace(',', '').replace('.', '')
     if bodega_id:
         bodega_id = bodega_id.replace('\xa0', '').replace(' ', '').replace(',', '').replace('.', '')
-    
-    # Valores por defecto de fechas (último mes)
+
     if not fecha_desde:
         fecha_desde = (timezone.now() - timedelta(days=30)).strftime('%Y-%m-%d')
     if not fecha_hasta:
         fecha_hasta = timezone.now().strftime('%Y-%m-%d')
-    
-    # Obtener artículo seleccionado
+
     articulo = None
     if articulo_id:
         try:
             articulo = Articulo.objects.get(id=int(articulo_id), empresa=request.empresa)
         except (Articulo.DoesNotExist, ValueError):
-            pass
-    
-    # Obtener bodega seleccionada - MOSTRAR TODAS LAS BODEGAS DE LA EMPRESA
+            articulo = None
+
     bodega = None
     bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).select_related('sucursal')
-    
-    # NO filtrar por sucursal - el kardex debe mostrar TODAS las bodegas de la empresa
-    # para permitir consultas completas de movimientos entre sucursales
-    
     if bodega_id:
         try:
             bodega = bodegas.get(id=int(bodega_id))
         except (Bodega.DoesNotExist, ValueError):
-            pass
-    
-    # Lista de movimientos
+            bodega = None
+
     movimientos = []
     saldo_actual = 0
-    
+
     if articulo:
-        # Convertir fechas
         try:
             fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
             fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-        except:
+        except Exception:
             fecha_desde_obj = (timezone.now() - timedelta(days=30)).date()
             fecha_hasta_obj = timezone.now().date()
-        
-        # Calcular saldo inicial (antes de la fecha desde)
+
         saldo_inicial = 0
         inventarios_iniciales = Inventario.objects.filter(
             empresa=request.empresa,
@@ -82,12 +74,12 @@ def kardex_articulo(request):
             fecha_movimiento__date__lt=fecha_desde_obj,
             estado='confirmado'
         )
-        
+
         if bodega:
             inventarios_iniciales = inventarios_iniciales.filter(
                 Q(bodega_origen=bodega) | Q(bodega_destino=bodega)
             )
-        
+
         for inv in inventarios_iniciales:
             tipo_mov = inv.tipo_movimiento.lower()
             if tipo_mov == 'entrada':
@@ -100,15 +92,12 @@ def kardex_articulo(request):
                 if not bodega or inv.bodega_destino == bodega:
                     saldo_inicial += inv.cantidad
             elif tipo_mov == 'transferencia':
-                # En saldo inicial también considerar transferencias
                 if bodega:
                     if inv.bodega_origen == bodega:
                         saldo_inicial -= inv.cantidad
                     elif inv.bodega_destino == bodega:
                         saldo_inicial += inv.cantidad
-                # Sin bodega: las transferencias no afectan el saldo global
-        
-        # Obtener movimientos del período
+
         inventarios = Inventario.objects.filter(
             empresa=request.empresa,
             articulo=articulo,
@@ -116,56 +105,41 @@ def kardex_articulo(request):
             fecha_movimiento__date__lte=fecha_hasta_obj,
             estado='confirmado'
         ).select_related('bodega_origen', 'bodega_destino', 'creado_por')
-        
+
         if bodega:
             inventarios = inventarios.filter(
                 Q(bodega_origen=bodega) | Q(bodega_destino=bodega)
             )
-        
+
         inventarios = inventarios.order_by('fecha_movimiento', 'id')
-        
-        # Eliminar duplicados: agrupar por campos clave y tomar solo el primero de cada grupo
-        # Los duplicados típicamente tienen: mismo numero_documento, tipo_movimiento, fecha, cantidad, bodega
+
         movimientos_unicos = {}
         inventarios_limpios = []
-        
         for inv in inventarios:
-            # Crear clave única basada en campos que identifican un movimiento único
-            # Para ventas, el numero_documento es único por venta, así que si hay múltiples movimientos
-            # con el mismo numero_documento, tipo, fecha y cantidad, son duplicados
             clave = (
                 inv.numero_documento or inv.numero_folio or '',
                 inv.tipo_movimiento,
                 inv.bodega_origen_id if inv.bodega_origen else None,
                 inv.bodega_destino_id if inv.bodega_destino else None,
-                str(inv.fecha_movimiento.date()),  # Solo la fecha, no la hora
-                str(inv.cantidad),  # Usar string para evitar problemas de precisión
+                str(inv.fecha_movimiento.date()),
+                str(inv.cantidad),
             )
-            
-            # Si ya existe un movimiento con esta clave, saltarlo (es duplicado)
-            # Mantener el primero que aparece (el más antiguo por ID)
             if clave not in movimientos_unicos:
                 movimientos_unicos[clave] = inv
                 inventarios_limpios.append(inv)
             else:
-                # Si encontramos un duplicado, mantener el que tiene el ID más bajo (más antiguo)
                 existente = movimientos_unicos[clave]
                 if inv.id < existente.id:
-                    # Reemplazar con el más antiguo
                     index = inventarios_limpios.index(existente)
                     inventarios_limpios[index] = inv
                     movimientos_unicos[clave] = inv
-        
-        inventarios = inventarios_limpios
-        
-        # Procesar movimientos
+
         saldo = saldo_inicial
-        for inv in inventarios:
+        for inv in inventarios_limpios:
             entrada = 0
             salida = 0
-            
             tipo_mov = inv.tipo_movimiento.lower()
-            
+
             if tipo_mov == 'entrada':
                 if not bodega or inv.bodega_destino == bodega:
                     entrada = inv.cantidad
@@ -183,7 +157,6 @@ def kardex_articulo(request):
                         salida = abs(inv.cantidad)
                         saldo -= salida
             elif tipo_mov == 'transferencia':
-                # Transferencia: salida de origen, entrada en destino
                 if bodega:
                     if inv.bodega_origen == bodega:
                         salida = inv.cantidad
@@ -192,11 +165,9 @@ def kardex_articulo(request):
                         entrada = inv.cantidad
                         saldo += entrada
                 else:
-                    # Sin bodega específica: mostrar transferencia sin afectar saldo global
-                    # (es movimiento interno, no cambia stock total de la empresa)
-                    entrada = inv.cantidad  # Mostrar la cantidad transferida
-                    salida = inv.cantidad   # En ambas columnas para indicar movimiento
-            
+                    entrada = inv.cantidad
+                    salida = inv.cantidad
+
             if entrada > 0 or salida > 0:
                 movimientos.append({
                     'fecha': inv.fecha_movimiento,
@@ -211,17 +182,13 @@ def kardex_articulo(request):
                     'saldo': saldo,
                     'usuario': inv.creado_por.username if inv.creado_por else '-'
                 })
-        
         saldo_actual = saldo
-    
-    # Obtener artículos para el selector (todos para búsqueda con Select2)
+
     articulos = Articulo.objects.filter(
         empresa=request.empresa,
         activo=True
     ).order_by('nombre')
-    
-    # Stock en sistema basado en movimientos de Inventario (coherente con la cartola)
-    # Debe usar la misma lógica que el saldo actual, eliminando duplicados
+
     stock_sistema = None
     if articulo:
         stock_sistema_calc = 0
@@ -230,21 +197,16 @@ def kardex_articulo(request):
             articulo=articulo,
             estado='confirmado'
         ).select_related('bodega_origen', 'bodega_destino')
-        # Considerar movimientos hasta la fecha_hasta seleccionada
         try:
-            fecha_hasta_obj  # ya calculada arriba
+            fecha_hasta_obj
         except NameError:
-            from datetime import datetime as _dt
-            from django.utils import timezone as _tz
-            fecha_hasta_obj = _tz.now().date()
+            fecha_hasta_obj = timezone.now().date()
         inv_qs = inv_qs.filter(fecha_movimiento__date__lte=fecha_hasta_obj)
         if bodega:
             inv_qs = inv_qs.filter(Q(bodega_origen=bodega) | Q(bodega_destino=bodega))
-        
-        # Eliminar duplicados usando la misma lógica que el saldo actual
+
         movimientos_unicos_stock = {}
         inv_qs_limpios = []
-        
         for inv in inv_qs:
             clave = (
                 inv.numero_documento or inv.numero_folio or '',
@@ -254,7 +216,6 @@ def kardex_articulo(request):
                 str(inv.fecha_movimiento.date()),
                 str(inv.cantidad),
             )
-            
             if clave not in movimientos_unicos_stock:
                 movimientos_unicos_stock[clave] = inv
                 inv_qs_limpios.append(inv)
@@ -264,8 +225,7 @@ def kardex_articulo(request):
                     index = inv_qs_limpios.index(existente)
                     inv_qs_limpios[index] = inv
                     movimientos_unicos_stock[clave] = inv
-        
-        # Calcular stock usando movimientos sin duplicados
+
         for inv in inv_qs_limpios:
             t = (inv.tipo_movimiento or '').lower()
             if t == 'entrada':
@@ -275,7 +235,6 @@ def kardex_articulo(request):
                 if not bodega or inv.bodega_origen == bodega:
                     stock_sistema_calc -= inv.cantidad
             elif t == 'ajuste':
-                # En ajustes, la cantidad puede ser negativa; usar bodega_destino como referencia
                 if not bodega or inv.bodega_destino == bodega:
                     stock_sistema_calc += inv.cantidad
             elif t == 'transferencia':
@@ -284,12 +243,9 @@ def kardex_articulo(request):
                         stock_sistema_calc -= inv.cantidad
                     elif inv.bodega_destino == bodega:
                         stock_sistema_calc += inv.cantidad
-                else:
-                    # Sin bodega, transferencias netean en 0 a nivel global
-                    pass
         stock_sistema = stock_sistema_calc
-    
-    context = {
+
+    return {
         'articulo': articulo,
         'bodega': bodega,
         'bodegas': bodegas,
@@ -302,5 +258,87 @@ def kardex_articulo(request):
         'tiene_sucursal': hasattr(request, 'sucursal_activa') and request.sucursal_activa,
         'sucursal_nombre': request.sucursal_activa.nombre if hasattr(request, 'sucursal_activa') and request.sucursal_activa else None,
     }
-    
+
+
+@login_required
+@requiere_empresa
+@permission_required('inventario.view_movimientoinventario', raise_exception=True)
+def kardex_articulo(request):
+    """
+    Kardex (Cartola) de movimientos de un artículo
+    Muestra todas las entradas, salidas, transferencias y ajustes
+    """
+    context = _obtener_datos_kardex(request)
     return render(request, 'inventario/kardex_articulo.html', context)
+
+
+@login_required
+@requiere_empresa
+@permission_required('inventario.view_movimientoinventario', raise_exception=True)
+def kardex_articulo_excel(request):
+    """Exporta el Kardex de articulo a un Excel real con formato corporativo."""
+    context = _obtener_datos_kardex(request)
+    articulo = context['articulo']
+    if not articulo:
+        return HttpResponse("Debe seleccionar un articulo valido para exportar el Kardex.", status=400)
+
+    movimientos = context['movimientos']
+    bodega = context['bodega']
+    fecha_desde = context['fecha_desde']
+    fecha_hasta = context['fecha_hasta']
+    saldo_actual = context['saldo_actual']
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Kardex"
+
+    headers = ['Fecha', 'Tipo', 'Documento', 'Detalle', 'Origen', 'Destino', 'Entrada', 'Salida', 'Saldo', 'Usuario']
+    branding = setup_corporate_sheet(
+        ws,
+        request.empresa,
+        "KARDEX DE ARTICULO",
+        f"Articulo: {articulo.codigo} - {articulo.nombre}",
+        len(headers),
+    )
+    styles = branding['styles']
+    ws['A5'] = (
+        f"Bodega: {(bodega.nombre if bodega else 'Todas')} | "
+        f"Periodo: {fecha_desde} al {fecha_hasta} | "
+        f"Saldo actual: {saldo_actual}"
+    )
+    ws['A5'].font = styles['subtitle_font']
+    ws['A5'].alignment = styles['center']
+
+    write_table_headers(ws, branding['header_row'], headers, styles)
+
+    row = branding['data_row']
+    for movimiento in movimientos:
+        ws.cell(row=row, column=1, value=movimiento['fecha'].strftime('%d-%m-%Y %H:%M')).alignment = styles['center']
+        ws.cell(row=row, column=2, value=movimiento['tipo']).alignment = styles['center']
+        ws.cell(row=row, column=3, value=movimiento['documento']).alignment = styles['center']
+        ws.cell(row=row, column=4, value=movimiento['detalle']).alignment = styles['wrap']
+        ws.cell(row=row, column=5, value=movimiento['bodega_origen'])
+        ws.cell(row=row, column=6, value=movimiento['bodega_destino'])
+        ws.cell(row=row, column=7, value=float(movimiento['entrada'] or 0)).alignment = styles['right']
+        ws.cell(row=row, column=8, value=float(movimiento['salida'] or 0)).alignment = styles['right']
+        ws.cell(row=row, column=9, value=float(movimiento['saldo'] or 0)).alignment = styles['right']
+        ws.cell(row=row, column=10, value=movimiento['usuario']).alignment = styles['center']
+
+        for col in (7, 8, 9):
+            ws.cell(row=row, column=col).number_format = '#,##0.00'
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding['data_row']) % 2 == 1))
+        row += 1
+
+    resumen_row = row
+    ws.cell(row=resumen_row, column=1, value='RESUMEN').font = Font(bold=True)
+    ws.cell(row=resumen_row, column=8, value='Saldo final').font = Font(bold=True)
+    ws.cell(row=resumen_row, column=8).alignment = styles['right']
+    ws.cell(row=resumen_row, column=9, value=float(saldo_actual or 0)).font = Font(bold=True)
+    ws.cell(row=resumen_row, column=9).alignment = styles['right']
+    ws.cell(row=resumen_row, column=9).number_format = '#,##0.00'
+    style_data_row(ws, resumen_row, len(headers), styles)
+
+    set_column_widths(ws, [18, 14, 16, 44, 22, 22, 12, 12, 12, 16])
+    ws.freeze_panes = f"A{branding['data_row']}"
+    safe_codigo = ''.join(ch for ch in articulo.codigo if ch.isalnum() or ch in ('-', '_')) or 'articulo'
+    return build_excel_response(wb, f"kardex_{safe_codigo}.xlsx")

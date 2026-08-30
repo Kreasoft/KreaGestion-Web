@@ -1,343 +1,162 @@
 {% extends 'base.html' %}
-{% load static %}
 {% load format_filters %}
-
-{% block title %}Facturas SII - GestionCloud{% endblock %}
-
+{% block title %}Aceptación y reclamo de facturas - GestionCloud{% endblock %}
 {% block body_class %}hide-top-bar{% endblock %}
-
-{% block extra_css %}
+{% block extra_head %}
 <style>
-    /* VARIABLES ESTILO PIEDRA & SOFT UI */
-    :root {
-        --stone-primary: #8B7355;
-        --stone-secondary: #6F5B44;
-        --stone-light: #E8DCC8;
-        --stone-bg: #FAFAF8;
-        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
-        --stone-text: #5D4037;
-        
-        /* Paleta Soft UI Dashboard */
-        --soft-bg: #fdfaf7;
-        --soft-cream: #f9f1e8;
-        --soft-blue: #a5c1d6;
-        --soft-peach: #fbd5c5;
-        --soft-pink: #f7e0d6;
-        --soft-green: #dcedc8;
-        --soft-shadow: 0 10px 30px rgba(139, 115, 85, 0.08);
-        --neumorphic-shadow: 8px 8px 16px #ebe1d6, -8px -8px 16px #ffffff;
-    }
-
-    body {
-        background-color: var(--stone-bg);
-        color: var(--stone-text);
-        font-family: 'Poppins', sans-serif;
-    }
-
-    /* --- SOFT UI PASTEL CARDS --- */
-    .card-stats-pastel-base {
-        border-radius: 20px !important;
-        border: 1px solid rgba(255, 255, 255, 0.6) !important;
-        box-shadow: var(--neumorphic-shadow) !important;
-        position: relative !important;
-        overflow: hidden !important;
-        min-height: 100px !important;
-        color: #6a5a4d !important;
-        transition: transform 0.3s ease !important;
-    }
-    .card-stats-pastel-base:hover { transform: translateY(-5px) !important; }
-
-    /* Variantes de color SOFT UI */
-    .card-stats-pastel-cafe {
-        background: var(--soft-cream) !important;
-    }
-    .card-stats-pastel-verde {
-        background: var(--soft-green) !important;
-    }
-    .card-stats-pastel-amarillo {
-        background: var(--soft-peach) !important;
-    }
-    .card-stats-pastel-azul {
-        background: var(--soft-blue) !important;
-    }
-
-    .card-title-pastel {
-        font-size: 0.7rem !important;
-        letter-spacing: 1px !important;
-        font-weight: 700 !important;
-        opacity: 0.7 !important;
-        color: #6a5a4d !important;
-        text-transform: uppercase !important;
-        margin-bottom: 0.25rem !important;
-    }
-    .card-value-pastel {
-        color: #5D4037 !important;
-        font-weight: 700 !important;
-        font-size: 1.6rem !important;
-    }
-    .card-icon-bg {
-        position: absolute !important;
-        right: -10px !important;
-        top: 5px !important;
-        bottom: 0 !important;
-        font-size: 90px !important;
-        opacity: 0.15 !important;
-        pointer-events: none !important;
-        z-index: 1 !important;
-        color: #6a5a4d !important;
-    }
-
-    /* Estilos tabla Piedra (Compacta - Replicada de orden_compra_list) */
-    .table-piedra {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        font-family: 'Poppins', sans-serif !important;
-    }
-
-    .table-piedra thead th {
-        background: #FDFCFB !important;
-        border-bottom: 2px solid #E8DCC8 !important;
-        color: #8B7355 !important;
-        font-weight: 700 !important;
-        text-transform: uppercase !important;
-        font-size: 0.7rem !important;
-        letter-spacing: 1px !important;
-        padding: 12px 15px !important;
-    }
-
-    .table-piedra tbody tr {
-        height: 32px !important;
-        transition: all 0.2s ease !important;
-    }
-
-    .table-piedra tbody tr:nth-of-type(odd) {
-        background-color: rgba(245, 241, 232, 0.3) !important;
-    }
-    
-    .table-piedra tbody tr:nth-of-type(even) {
-        background-color: white !important;
-    }
-
-    .table-piedra tbody tr:hover {
-        background-color: #F5F1E8 !important;
-    }
-
-    .table-piedra tbody td {
-        padding: 4px 15px !important;
-        border-bottom: 1px solid #F5F1E8 !important;
-        vertical-align: middle !important;
-        font-size: 0.85rem !important;
-        color: #4A5568 !important;
-    }
-
-    /* Botones de acción */
-    .btn-action-piedra {
-        width: 28px !important;
-        height: 28px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: white !important;
-        border: 1px solid #D4C4A8 !important;
-        border-radius: 6px !important;
-        color: #8B7355 !important;
-        font-size: 0.75rem !important;
-        transition: all 0.2s ease !important;
-        text-decoration: none !important;
-        cursor: pointer !important;
-    }
-    .btn-action-piedra:hover {
-        background: #8B7355 !important;
-        color: white !important;
-        transform: scale(1.1) !important;
-    }
-    
-    /* Badges */
-    .badge-stone {
-        font-size: 0.65rem !important;
-        padding: 4px 8px !important;
-        border-radius: 6px !important;
-        font-weight: 600 !important;
-        border: 1px solid transparent !important;
-        background: #ECEFF1 !important; 
-        color: #455A64 !important; 
-        border-color: #CFD8DC !important;
-    }
+  .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
+  .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
+  #modalEventoSII .modal-body { padding: 8px 12px !important; }
+  #modalEventoSII .modal-header { padding: 8px 16px !important; }
+  #modalEventoSII .modal-footer { padding: 6px 12px !important; }
 </style>
 {% endblock %}
-
+{% block extra_css %}
+<style>
+  :root { --stone:#8b7355; --stone-dark:#5d4037; --stone-light:#e8dcc8; --paper:#fafaf8; }
+  .sii-shell{background:var(--paper);min-height:100vh;padding:8px 12px}
+  .sii-card{background:#fff;border:1px solid var(--stone-light);border-radius:12px;box-shadow:0 4px 12px rgba(93,64,55,.08);overflow:hidden}
+  .sii-header{padding:8px 16px;background:var(--gradient-piedra,linear-gradient(135deg,#efebe9,#d7ccc8));border-bottom:2px solid #d4c4a8}
+  .sii-title{color:var(--stone-dark);font-size:1.45rem;margin:0;font-weight:300}
+  .stat{border:1px solid var(--stone-light);border-left:4px solid var(--stone);border-radius:8px;padding:6px 8px;background:#fff}
+  .stat small{color:#796b5d;text-transform:uppercase;font-weight:700;font-size:.62rem}
+  .stat strong{display:block;color:var(--stone-dark);font-size:1.1rem}
+  .legal-note{border-left:4px solid #C49A52;background:#fff8e7;padding:6px 10px;border-radius:6px;font-size:.72rem;color:#624b20}
+  .table-sii{line-height:1!important;margin:0!important}
+  .table-sii>thead>tr>th{height:24px!important;font-size:.6rem!important;text-transform:uppercase;color:#6f5b44;background:#f8f5f1;border-bottom:1px solid var(--stone-light);white-space:nowrap;padding:3px 6px!important}
+  .table-sii>tbody>tr{height:26px!important}
+  .table-sii>tbody>tr>td{height:26px!important;font-size:.66rem!important;vertical-align:middle!important;padding:1px 6px!important;border-bottom:1px solid #eee8e1!important;white-space:nowrap!important}
+  .table-sii .badge{font-size:.52rem!important;padding:2px 6px!important;background:#E8DCC8!important;color:#5D4037!important}
+  .event-chip{display:inline-block;padding:2px 5px;border-radius:6px;background:#EFE8C8;color:#6F6F2E;font-weight:700;font-size:.53rem}
+  .event-chip.accepted{background:#E8F0DC;color:#5F8D62}
+  .event-chip.rejected{background:#F8E4D8;color:#C76F43}
+  .event-chip.error{background:#fff8e7;color:#8a5a00}
+  .deadline{font-size:.56rem!important}.deadline.expired{color:#C76F43;font-weight:700}.deadline.open{color:#5F8D62}
+  .table-sii .btn.btn-sm{width:23px!important;height:22px!important;padding:0!important;border-radius:5px!important;font-size:.6rem!important;background:#fff!important;color:#5D4037!important;border:1px solid #D4C4A8!important}
+  .table-sii .btn-gavel,.table-sii .btn-gavel i{background:#E8DCC8!important;color:#5D4037!important;border-color:#C49A52!important}
+  .table-sii form.d-inline{display:inline-block!important;margin:0!important}
+  #modalEventoSII .form-label{font-size:.72rem;font-weight:600;color:#5D4037;margin-bottom:2px}
+  #modalEventoSII .tributary-confirm{display:flex;align-items:center;gap:8px;font-size:.72rem;color:#5D4037;margin:0}
+  #modalEventoSII .tributary-confirm input[type="checkbox"]{width:16px;height:16px;accent-color:#8B8B3A;flex:0 0 16px}
+  #modalEventoSII .rcv-resumen{font-size:.72rem;color:#6F5B44;background:#fff;border:1px solid #E8DCC8;border-radius:6px;padding:6px 8px}
+  #modalEventoSII .modal-footer .btn{width:auto!important;min-width:0!important;height:28px!important;padding:0 12px!important}
+</style>
+{% endblock %}
 {% block content %}
-<div class="container-fluid" style="padding: 15px; background: #FAFAF8; min-height: 100vh;">
-    
-    <div class="row">
-        <div class="col-12">
-            <!-- TARJETA PRINCIPAL CONTENEDORA (Estilo Piedra Unificado) -->
-            <div class="card" style="border: 2px solid #E8DCC8 !important; border-radius: 15px !important; overflow: hidden !important; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15) !important;">
-                
-                <!-- HEADER INTEGRADO -->
-                <div class="card-header" style="background: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%) !important; border-bottom: 3px solid #D4C4A8 !important; padding: 15px 20px !important;">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-file-invoice-dollar me-3" style="font-size: 2.2rem; color: #5D4037; opacity: 0.8;"></i>
-                            <div>
-                                <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: #5D4037; letter-spacing: -1px; font-size: 1.8rem;">
-                                    Facturas <span class="fw-bold">Recibidas SII</span>
-                                </h2>
-                                <div style="font-size: 0.85rem; font-family: 'Poppins', sans-serif; color: #5D4037; opacity: 0.8; margin-top: 2px;">
-                                    Consulta de Documentos Tributarios Electrónicos.
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Botón de acción (Opcional, si hubiera carga manual) -->
-                         <button type="button" class="btn btn-sm" onclick="location.reload()" style="background: rgba(245, 241, 232, 0.9); border: 1px solid #D4C4A8; color: #6F5B44; font-weight: 600; font-size: 0.75rem;">
-                            <i class="fas fa-sync-alt me-1"></i> Actualizar
-                        </button>
-                    </div>
-                </div>
-
-                <div class="card-body" style="background: #FAFAF8 !important; padding: 15px !important;">
-                    
-                    <!-- ESTADISTICAS SOFT UI -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <!-- Café (Cream): Total Neto -->
-                            <div class="card card-stats-pastel-cafe card-stats-pastel-base">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title-pastel">Total Neto</div>
-                                    <h3 class="card-value-pastel">{{ total_neto|format_moneda }}</h3>
-                                </div>
-                                <div class="card-icon-bg" style="color: #616161;">
-                                    <i class="fas fa-calculator"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                             <!-- Amarillo (Peach): Total IVA -->
-                            <div class="card card-stats-pastel-amarillo card-stats-pastel-base">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title-pastel">Total IVA</div>
-                                    <h3 class="card-value-pastel">{{ total_iva|format_moneda }}</h3>
-                                </div>
-                                <div class="card-icon-bg" style="color: #F57C00;">
-                                    <i class="fas fa-percent"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                             <!-- Azul (Soft Blue): Total General -->
-                            <div class="card card-stats-pastel-azul card-stats-pastel-base">
-                                <div class="card-body p-3" style="position: relative; z-index: 2;">
-                                    <div class="card-title-pastel">Total General</div>
-                                    <h3 class="card-value-pastel">{{ total_general|format_moneda }}</h3>
-                                </div>
-                                <div class="card-icon-bg" style="color: #2E7D32;">
-                                    <i class="fas fa-wallet"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- FILTROS -->
-                    <div style="padding: 15px; background: #FAFAF8; border-bottom: 1px solid #E8DCC8; margin-bottom: 15px; border-radius: 8px;">
-                        <form method="GET" class="row g-2 align-items-center">
-                            <div class="col-md-4">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text" style="background: white; border-right: none; color: #8B7355; border-color: #D4C4A8;"><i class="fas fa-search"></i></span>
-                                    <input type="text" name="search" class="form-control form-control-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" 
-                                           placeholder="Buscar por RUT, Razón Social o Folio..." value="{{ search|default:'' }}">
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <input type="date" name="fecha_desde" class="form-control form-control-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" value="{{ fecha_desde }}">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <input type="date" name="fecha_hasta" class="form-control form-control-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" value="{{ fecha_hasta }}">
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <select name="dias" class="form-select form-select-sm" style="border-color: #D4C4A8; font-size: 0.75rem;" onchange="this.form.submit()">
-                                    <option value="7" {% if dias_7 %}selected{% endif %}>Últimos 7 días</option>
-                                    <option value="30" {% if dias_30 %}selected{% endif %}>Últimos 30 días</option>
-                                    <option value="90" {% if dias_90 %}selected{% endif %}>Últimos 90 días</option>
-                                    <option value="all" {% if dias_all %}selected{% endif %}>Todo el historial</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-1 text-end">
-                                <button type="submit" class="btn btn-sm w-100" style="background: #8B7355; color: white; font-size: 0.75rem; border: none; padding: 4px 10px;">
-                                    <i class="fas fa-filter"></i>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- TABLA -->
-                    <div class="table-responsive">
-                        <table class="table-piedra mb-0">
-                            <thead>
-                                <tr>
-                                    <th style="width: 10%;">TIPO</th>
-                                    <th style="width: 10%;">FOLIO</th>
-                                    <th style="width: 12%;">EMISIÓN</th>
-                                    <th style="width: 25%;">PROVEEDOR</th>
-                                    <th style="width: 10%; text-align: right;">NETO</th>
-                                    <th style="width: 10%; text-align: right;">IVA</th>
-                                    <th style="width: 13%; text-align: right;">TOTAL</th>
-                                    <th style="width: 10%; text-align: center;">ACCIONES</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for doc in documentos %}
-                                <tr>
-                                    <td><span class="badge-stone">{{ doc.tipo_documento }}</span></td>
-                                    <td><strong style="color: #6F5B44; font-size: 0.9rem;">#{{ doc.numero }}</strong></td>
-                                    <td class="text-muted small">{{ doc.fecha_emision }}</td>
-                                    <td>
-                                        <div class="d-flex flex-column">
-                                            <span style="color: #4A5568; font-size: 0.85rem; font-weight: 600;">{{ doc.razon_social_emisor|truncatechars:35 }}</span>
-                                            <span class="small text-muted" style="font-size: 0.75rem;">{{ doc.rut_emisor }}</span>
-                                        </div>
-                                    </td>
-                                    <td class="text-end text-muted small">{{ doc.neto|format_moneda }}</td>
-                                    <td class="text-end text-muted small">{{ doc.iva|format_moneda }}</td>
-                                    <td class="text-end fw-bold" style="color: #6F5B44;">{{ doc.total|format_moneda }}</td>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            {% if doc.download_pdf_url %}
-                                            <a href="{{ doc.download_pdf_url }}" target="_blank" class="btn-action-piedra" title="Ver PDF Original" style="color: #D32F2F !important; border-color: #ef9a9a !important;">
-                                                <i class="fas fa-file-pdf"></i>
-                                            </a>
-                                            {% endif %}
-                                            <a href="{% url 'compras:descargar_xml_factura_sii' doc.numero %}" class="btn-action-piedra" title="Descargar XML">
-                                                <i class="fas fa-file-code"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="8" class="text-center py-5">
-                                        <div class="d-flex flex-column align-items-center">
-                                            <i class="fas fa-search fa-3x mb-3 opacity-25" style="color: #8B7355;"></i>
-                                            <h6 class="fw-bold" style="color: #8B7355;">No se encontraron documentos</h6>
-                                            <p class="text-muted small mb-0">Intenta cambiar los filtros de búsqueda.</p>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div class="mt-3 text-end text-muted small fst-italic" style="font-size: 0.75rem;">
-                         <i class="fas fa-check-circle me-1 text-success"></i> Sincronizado con SII
-                    </div>
-
-                </div> <!-- Fin Card Body -->
-            </div> <!-- Fin Card Principal -->
-        </div>
+<div class="sii-shell"><div class="sii-card">
+  <div class="sii-header d-flex justify-content-between align-items-center gap-3 flex-wrap">
+    <div>
+      <h1 class="sii-title">Gestión de <span class="fw-bold">Facturas SII</span></h1>
+      <div style="font-size:0.75rem;color:#5D4037;opacity:.75;">Registro oficial de eventos sobre DTE recibidos</div>
     </div>
+    {% if perms.compras.add_documentorecibidosii %}<div class="d-flex gap-2 flex-wrap">
+      <form method="post" action="{% url 'compras:sincronizar_facturas_sii' %}" class="d-flex gap-1">{% csrf_token %}
+        <input type="month" name="periodo" value="{{ periodo_sync }}" class="form-control form-control-sm" required>
+        <button class="btn btn-sm text-nowrap" style="background:var(--color-verde-oliva,#8B8B3A);border:1px solid #6F6F2E;color:#fff;font-weight:700;font-size:.75rem;"><i class="fas fa-cloud-download-alt me-1"></i>Sincronizar SII</button>
+      </form>
+      <form method="post" action="{% url 'compras:importar_factura_xml' %}" enctype="multipart/form-data" class="d-flex gap-1">{% csrf_token %}
+        <input type="file" name="xml_dte" accept=".xml,text/xml,application/xml" class="form-control form-control-sm" required>
+        <button class="btn btn-sm text-nowrap" style="background:rgba(93,64,55,.12);border:1px solid rgba(93,64,55,.28);color:#5D4037;font-weight:600;font-size:.75rem;"><i class="fas fa-upload me-1"></i>Adjuntar XML</button>
+      </form>
+    </div>{% endif %}
+  </div>
+  <div style="padding:8px 10px;">
+    <div class="legal-note mb-3"><strong>Importante:</strong> el SII permite actuar durante 8 días corridos desde su recepción. El acuse o la aceptación impiden reclamar posteriormente; un reclamo impide otorgar acuse. Cada envío queda auditado.</div>
+    <div class="row g-2 mb-3">
+      <div class="col-md-4"><div class="stat"><small>Neto recibido</small><strong>{{ total_neto|format_moneda }}</strong></div></div>
+      <div class="col-md-4"><div class="stat"><small>IVA recibido</small><strong>{{ total_iva|format_moneda }}</strong></div></div>
+      <div class="col-md-4"><div class="stat"><small>Total recibido</small><strong>{{ total_general|format_moneda }}</strong></div></div>
+    </div>
+    <form method="get" class="row g-1 mb-2">
+      <div class="col-md-6"><input name="search" value="{{ search }}" class="form-control form-control-sm" placeholder="Proveedor, RUT o folio"></div>
+      <div class="col-md-2"><input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="form-control form-control-sm"></div>
+      <div class="col-md-2"><input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="form-control form-control-sm"></div>
+      <div class="col-md-2"><button class="btn btn-outline-secondary btn-sm w-100"><i class="fas fa-filter me-1"></i>Filtrar</button></div>
+    </form>
+    <div class="table-responsive"><table class="table table-hover table-sii tabla-eventos-sii tabla-nombre-completo mb-0">
+      <thead><tr><th>DTE</th><th>Proveedor</th><th>Emisión</th><th class="text-end">Total</th><th>Recepción / plazo</th><th>Eventos</th><th class="text-end">Acciones</th></tr></thead>
+      <tbody>{% for doc in documentos %}<tr>
+        <td class="text-nowrap"><strong>{{ doc.tipo_dte }}</strong> <span class="text-muted">· Folio {{ doc.folio }}</span></td>
+        <td class="td-nombre"><strong>{{ doc.razon_social_emisor|default:"Proveedor no informado" }}</strong> <span class="text-muted">· {{ doc.rut_emisor }}</span></td>
+        <td>{{ doc.fecha_emision|date:"d-m-Y"|default:"-" }}</td><td class="text-end fw-bold">{{ doc.monto_total|format_moneda }}</td>
+        <td class="text-nowrap"><span class="badge {% if doc.estado_rcv == 'PENDIENTE' %}bg-warning text-dark{% elif doc.estado_rcv == 'RECLAMADO' %}bg-danger{% else %}bg-secondary{% endif %}">{{ doc.estado_rcv }}</span> {% if doc.fecha_recepcion_sii %}<span class="text-muted">{{ doc.fecha_recepcion_sii|date:"d-m-Y" }}</span> <span class="deadline {% if doc.plazo_vencido %}expired{% else %}open{% endif %}">{% if doc.plazo_vencido %}· Vencido{% else %}· Límite {{ doc.fecha_limite_eventos|date:"d-m" }}{% endif %}</span>{% else %}<span class="text-warning">Consultar SII</span>{% endif %}</td>
+        <td class="event-summary">{% for evento in doc.eventos_resumen %}<span class="event-chip {% if evento.estado == 'aceptado_sii' %}accepted{% elif evento.estado == 'rechazado_sii' %}rejected{% else %}error{% endif %}" title="{{ evento.descripcion_respuesta }}">{{ evento.accion }} · {{ evento.get_estado_display }}</span>{% if not forloop.last %}&nbsp;{% endif %}{% empty %}<span class="text-muted">Sin eventos</span>{% endfor %}</td>
+        <td class="text-end text-nowrap">
+          <form method="post" action="{% url 'compras:consultar_eventos_sii' doc.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-outline-secondary btn-sm" title="Consultar fecha y eventos en SII"><i class="fas fa-sync-alt"></i></button></form>
+          <a href="{% url 'compras:ver_registro_rcv_pdf' doc.pk %}" class="btn btn-outline-danger btn-sm" title="Ver factura RCV"><i class="fas fa-file-pdf"></i></a>
+          <a href="{% url 'compras:ver_registro_rcv_xml' doc.pk %}" class="btn btn-sm" style="border:1px solid #D4C4A8;color:#5D4037;" title="Ver XML del registro RCV"><i class="fas fa-code"></i></a>
+          {% if doc.tiene_xml_dte %}
+          <a href="{% url 'compras:descargar_xml_factura_sii' doc.pk %}" target="_blank" class="btn btn-outline-success btn-sm" title="XML original con detalle"><i class="fas fa-file-code"></i></a>
+          {% else %}
+          <a href="{% url 'compras:ver_registro_rcv_pdf' doc.pk %}" class="btn btn-sm" style="border:1px solid #C49A52;color:#5D4037;" title="{% if doc.estado_xml_intercambio == 'pedido' %}XML pedido el {{ doc.xml_solicitado_en|date:'d-m H:i' }}{% else %}XML pendiente: chequear o pedir al proveedor{% endif %}"><i class="fas fa-envelope"></i></a>
+          {% endif %}
+          {% if perms.compras.registrar_evento_sii and doc.admite_eventos_aceptacion and doc.fecha_recepcion_sii and not doc.plazo_vencido %}<button type="button" class="btn btn-gavel btn-sm" data-bs-toggle="modal" data-bs-target="#modalEventoSII" data-url="{% url 'compras:registrar_evento_sii' doc.pk %}" data-tipo="{{ doc.tipo_dte }}" data-folio="{{ doc.folio }}" data-proveedor="{{ doc.razon_social_emisor|default:'Proveedor no informado' }}" data-rut="{{ doc.rut_emisor }}" data-total="{{ doc.monto_total|format_moneda }}" data-limite="{{ doc.fecha_limite_eventos|date:'d-m-Y' }}" title="Decisión tributaria"><i class="fas fa-gavel"></i></button>{% endif %}
+        </td></tr>
+      {% empty %}<tr><td colspan="7" class="text-center py-5 text-muted"><i class="fas fa-inbox fa-2x mb-2 d-block"></i>Importe el XML de una factura recibida para comenzar.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</div></div>
+
+<div class="modal fade" id="modalEventoSII" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border:1px solid #D4C4A8; border-radius:8px; overflow:hidden;">
+      <div class="modal-header" style="background:var(--gradient-piedra,linear-gradient(135deg,#efebe9,#d7ccc8)); border-bottom:2px solid #D4C4A8;">
+        <h5 class="modal-title" style="margin:0; font-size:1.1rem; font-weight:600; color:#5D4037;"><i class="fas fa-gavel me-2"></i>Decisión tributaria ante el SII</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form id="formEventoSII" method="post" action="">
+        {% csrf_token %}
+        <div class="modal-body" style="background:#FAFAF8;">
+          <div class="rcv-resumen mb-2">
+            <strong id="evtDocTitulo">—</strong>
+            <div id="evtDocDetalle" class="mt-1">—</div>
+          </div>
+          <p class="mb-2" style="font-size:.68rem; color:#8B7355; margin:0 0 8px;">El envío es irreversible. Un acuse o aceptación impide reclamar; un reclamo impide otorgar acuse.</p>
+          <div class="mb-2">
+            <label class="form-label" for="evtAccion">Decisión tributaria</label>
+            <select name="accion" id="evtAccion" class="form-select form-select-sm" required>
+              <option value="">Seleccione...</option>
+              {% for codigo,nombre in acciones_sii %}<option value="{{ codigo }}">{{ codigo }} — {{ nombre }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="evtMotivo">Motivo / respaldo interno <span style="font-weight:400; color:#8B7355;">(obligatorio para reclamos)</span></label>
+            <input name="motivo" id="evtMotivo" maxlength="1000" class="form-control form-control-sm" placeholder="Detalle verificable del motivo">
+          </div>
+          <label class="tributary-confirm">
+            <input type="checkbox" name="confirmar" value="1" required>
+            <span>Confirmo el envío irreversible al SII</span>
+          </label>
+        </div>
+        <div class="modal-footer" style="background:#FAFAF8; border-top:1px solid #E8DCC8;">
+          <button type="button" class="btn btn-sm" data-bs-dismiss="modal" style="color:#5D4037; height:28px;">Cancelar</button>
+          <button type="submit" class="btn btn-sm" style="background:#8B8B3A; border:1px solid #6F6F2E; color:#fff; font-weight:700; height:28px; padding:0 12px;"><i class="fas fa-paper-plane me-1"></i>Firmar y enviar al SII</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var modal = document.getElementById('modalEventoSII');
+  if (!modal) return;
+  modal.addEventListener('show.bs.modal', function (ev) {
+    var btn = ev.relatedTarget;
+    if (!btn) return;
+    var form = document.getElementById('formEventoSII');
+    form.action = btn.getAttribute('data-url') || '';
+    form.reset();
+    document.getElementById('evtDocTitulo').textContent =
+      (btn.getAttribute('data-tipo') || '') + ' · Folio ' + (btn.getAttribute('data-folio') || '');
+    var limite = btn.getAttribute('data-limite') || '';
+    document.getElementById('evtDocDetalle').textContent =
+      (btn.getAttribute('data-proveedor') || '') + ' · ' + (btn.getAttribute('data-rut') || '') +
+      ' · Total ' + (btn.getAttribute('data-total') || '') +
+      (limite ? ' · Límite ' + limite : '');
+  });
+});
+</script>
 {% endblock %}
