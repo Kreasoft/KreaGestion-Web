@@ -12,6 +12,8 @@
     .form-control, .form-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
     .form-control:focus, .form-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
     .modal-header { padding: 8px 16px !important; }
+    #modalCliente .modal-header,
+    #modalDetalleCliente .modal-header { padding: 14px 20px !important; }
     .modal-body { padding: 8px 12px !important; }
 </style>
 {% endblock %}
@@ -119,61 +121,6 @@
         transform: scale(1.1);
     }
 </style>
-    {% include 'clientes/cliente_form_modal.html' %}
-    {% include 'clientes/cliente_detail_modal.html' %}
-    <script>
-        function abrirModalDetalleCliente(id) {
-            const modalEl = document.getElementById('modalDetalleCliente');
-            if (!modalEl) return;
-            const modal = new bootstrap.Modal(modalEl);
-            
-            // Reset fields
-            document.getElementById('det_cliente_nombre_header').textContent = 'Cargando...';
-            
-            fetch(`/clientes/ajax/${id}/`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const c = data.cliente;
-                    
-                    // Header
-                    document.getElementById('det_cliente_nombre_header').textContent = c.nombre;
-                    document.getElementById('det_cliente_rut_header').textContent = `RUT: ${c.rut}`;
-                    
-                    // Identificación
-                    document.getElementById('det_cliente_nombre').textContent = c.nombre;
-                    document.getElementById('det_cliente_tipo').textContent = c.tipo_cliente.replace('_', ' ').toUpperCase();
-                    document.getElementById('det_cliente_direccion').textContent = (c.direccion || '') + (c.comuna ? `, ${c.comuna}` : '') + (c.ciudad ? `, ${c.ciudad}` : '');
-                    document.getElementById('det_cliente_telefono').textContent = c.telefono || 'No registrado';
-                    document.getElementById('det_cliente_email').textContent = c.email || 'No registrado';
-                    document.getElementById('det_cliente_giro').textContent = c.giro || 'No registrado';
-                    
-                    // Comercial
-                    const formattedLimite = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(c.limite_credito);
-                    document.getElementById('det_cliente_limite').textContent = formattedLimite;
-                    document.getElementById('det_cliente_plazo').textContent = `${c.plazo_pago} Días`;
-                    document.getElementById('det_cliente_descuento').textContent = `${c.descuento_porcentaje} %`;
-                    document.getElementById('det_cliente_vendedor').textContent = c.vendedor_nombre || 'Sin vendedor';
-                    document.getElementById('det_cliente_obs').textContent = c.observaciones || 'Sin observaciones.';
-                    
-                    // Botón Editar
-                    document.getElementById('btn_ir_a_editar').onclick = () => {
-                        modal.hide();
-                        setTimeout(() => abrirModalEditarCliente(id), 400);
-                    };
-                    
-                    modal.show();
-                } else {
-                    Swal.fire('Error', 'No se pudo cargar el detalle: ' + data.message, 'error');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire('Error', 'Falla en la conexión al servidor', 'error');
-            });
-        }
-    </script>
-    
 <script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
 {% endblock %}
 
@@ -458,65 +405,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
     {% include 'clientes/cliente_form_modal.html' %}
     {% include 'clientes/cliente_detail_modal.html' %}
-    <script>
-        function abrirModalDetalleCliente(id) {
-            const modalEl = document.getElementById('modalDetalleCliente');
-            if (!modalEl) return;
-            const modal = new bootstrap.Modal(modalEl);
-            
-            // Reset fields
-            document.getElementById('det_cliente_nombre_header').textContent = 'Cargando...';
-            
-            fetch(`/clientes/ajax/${id}/`)
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const c = data.cliente;
-                    
-                    // Header
-                    document.getElementById('det_cliente_nombre_header').textContent = c.nombre;
-                    document.getElementById('det_cliente_rut_header').textContent = `RUT: ${c.rut}`;
-                    
-                    // Identificación
-                    document.getElementById('det_cliente_nombre').textContent = c.nombre;
-                    document.getElementById('det_cliente_tipo').textContent = c.tipo_cliente.replace('_', ' ').toUpperCase();
-                    document.getElementById('det_cliente_direccion').textContent = (c.direccion || '') + (c.comuna ? `, ${c.comuna}` : '') + (c.ciudad ? `, ${c.ciudad}` : '');
-                    document.getElementById('det_cliente_telefono').textContent = c.telefono || 'No registrado';
-                    document.getElementById('det_cliente_email').textContent = c.email || 'No registrado';
-                    document.getElementById('det_cliente_giro').textContent = c.giro || 'No registrado';
-                    
-                    // Comercial
-                    const formattedLimite = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(c.limite_credito);
-                    document.getElementById('det_cliente_limite').textContent = formattedLimite;
-                    document.getElementById('det_cliente_plazo').textContent = `${c.plazo_pago} Días`;
-                    document.getElementById('det_cliente_descuento').textContent = `${c.descuento_porcentaje} %`;
-                    document.getElementById('det_cliente_vendedor').textContent = c.vendedor_nombre || 'Sin vendedor';
-                    
-                    // Aseguramos que el elemento det_cliente_ruta exista en el modal_detalle si queremos mostrarlo
-                    const rutaEl = document.getElementById('det_cliente_ruta');
-                    if (rutaEl) rutaEl.textContent = c.ruta_nombre || 'Sin ruta';
-
-                    document.getElementById('det_cliente_obs').textContent = c.observaciones || 'Sin observaciones.';
-                    
-                    // Botón Editar
-                    document.getElementById('btn_ir_a_editar').onclick = () => {
-                        modal.hide();
-                        setTimeout(() => abrirModalEditarCliente(id), 400);
-                    };
-                    
-                    modal.show();
-                } else {
-                    Swal.fire('Error', 'No se pudo cargar el detalle: ' + data.message, 'error');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire('Error', 'Falla en la conexión al servidor', 'error');
-            });
-        }
-    </script>
-    
-<script>document.addEventListener('clienteCreado', function(){ window.location.reload(); });</script>
 <style>
     .tabla-nombre-completo {
         table-layout: auto !important;

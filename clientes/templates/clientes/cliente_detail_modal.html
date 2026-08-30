@@ -1,161 +1,346 @@
-<!-- Modal Detalle Cliente (Estilo PyQt) -->
-<div class="modal fade" id="modalDetalleCliente" tabindex="-1" aria-hidden="true">
+<style>
+    #modalDetalleCliente .modal-content {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(139, 115, 85, 0.16);
+        box-shadow: 0 20px 50px rgba(93, 64, 55, 0.22);
+        background: #FAFAF8;
+    }
+    #modalDetalleCliente .modal-header.modal-detalle-header {
+        padding: 14px 20px !important;
+        background: var(--gradient-piedra, linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%));
+        border-bottom: 2px solid #D4C4A8 !important;
+    }
+    #modalDetalleCliente .modal-detalle-icon {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.62);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 4px rgba(93, 64, 55, 0.12);
+        color: #5D4037;
+        font-size: 1.15rem;
+    }
+    #modalDetalleCliente .modal-title {
+        color: #5D4037;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 1.22rem;
+        letter-spacing: -0.4px;
+        line-height: 1.2;
+        margin: 0;
+    }
+    #modalDetalleCliente .modal-title .fw-bold {
+        font-weight: 700;
+        word-break: break-word;
+    }
+    #modalDetalleCliente .modal-detalle-desc {
+        margin: 3px 0 0;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        color: #5D4037;
+        opacity: 0.78;
+        font-family: 'Poppins', sans-serif;
+    }
+    #modalDetalleCliente .modal-detalle-tabs {
+        display: flex;
+        gap: 6px;
+        padding: 10px 16px 0 !important;
+        background: #EDE6DA !important;
+        border-bottom: 2px solid #8B7355 !important;
+    }
+    #modalDetalleCliente .modal-detalle-tabs .nav-link {
+        border: 1px solid #C4B49A !important;
+        border-bottom: none !important;
+        color: #5D4037 !important;
+        font-weight: 600;
+        font-size: 0.86rem;
+        font-family: 'Poppins', sans-serif;
+        min-height: 42px;
+        padding: 10px 18px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 8px 8px 0 0;
+        background: #E8DCC8 !important;
+        text-transform: none;
+        opacity: 1;
+    }
+    #modalDetalleCliente .modal-detalle-tabs .nav-link.active {
+        color: #fff !important;
+        background: #C76F43 !important;
+        border-color: #C76F43 !important;
+        font-weight: 700;
+        box-shadow: 0 -2px 8px rgba(93, 64, 55, 0.18);
+    }
+    #modalDetalleCliente .modal-detalle-tabs .nav-link:hover:not(.active) {
+        background: #FAFAF8 !important;
+        border-color: #C76F43 !important;
+    }
+    #modalDetalleCliente .det-label {
+        display: block;
+        margin-bottom: 4px;
+        color: #8B7355;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        font-family: 'Poppins', sans-serif;
+    }
+    #modalDetalleCliente .det-label i {
+        color: #C76F43;
+        width: 14px;
+    }
+    #modalDetalleCliente .det-value {
+        min-height: 34px;
+        padding: 7px 10px;
+        background: #fff;
+        border: 1px solid #E8DCC8;
+        border-radius: 6px;
+        color: #5D4037;
+        font-size: 0.86rem;
+        font-weight: 500;
+        line-height: 1.35;
+    }
+    #modalDetalleCliente .det-value.is-empty {
+        color: #8B7355;
+        font-style: italic;
+        font-weight: 400;
+        background: #F5F1E8;
+    }
+    #modalDetalleCliente .det-value.det-highlight {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #5D4037;
+        background: #F5F1E8;
+    }
+    #modalDetalleCliente .det-email-aviso {
+        margin-top: 6px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        background: rgba(199, 111, 67, 0.12);
+        border: 1px solid rgba(199, 111, 67, 0.35);
+        color: #5D4037;
+        font-size: 0.74rem;
+        line-height: 1.35;
+    }
+    #modalDetalleCliente .modal-footer {
+        background: #F5F1E8;
+        border-top: 1px solid #E8DCC8;
+        padding: 12px 20px;
+    }
+    #modalDetalleCliente .btn-detalle-cerrar {
+        background: rgba(93, 64, 55, 0.1);
+        border: 1px solid rgba(93, 64, 55, 0.28);
+        color: #5D4037;
+        font-weight: 600;
+        font-size: 0.82rem;
+        border-radius: 8px;
+        padding: 7px 16px;
+    }
+    #modalDetalleCliente .btn-detalle-editar {
+        background: var(--color-verde-oliva, #8B8B3A);
+        border: 1px solid #6F6F2E;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.82rem;
+        border-radius: 8px;
+        padding: 7px 16px;
+    }
+    #modalDetalleCliente.modal.fade .modal-dialog {
+        transform: scale(0.94) translateY(24px);
+        transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #modalDetalleCliente.modal.show .modal-dialog {
+        transform: scale(1) translateY(0);
+    }
+</style>
+
+<div class="modal fade" id="modalDetalleCliente" tabindex="-1" aria-labelledby="det_cliente_nombre_header" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg" style="border-radius: 18px; overflow: hidden; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);">
-            
-            <!-- Header Premium con Degradado Piedra Soft -->
-                        <!-- Header Premium con Degradado Piedra Soft -->
-            <div class="modal-header border-0" style="background: var(--gradient-piedra); border-bottom: 1px solid #D4C4A8 !important; padding: 8px 16px !important; position: relative;">
-                <div class="d-flex align-items-center w-100">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 28px; height: 28px; background: rgba(255,255,255,0.5); backdrop-filter: blur(5px);">
-                        <i class="fas fa-user-circle fs-2" style="color: #5D4037;"></i>
+        <div class="modal-content">
+            <div class="modal-header border-0 modal-detalle-header">
+                <div class="d-flex align-items-start w-100">
+                    <div class="modal-detalle-icon me-3">
+                        <i class="fas fa-address-card"></i>
                     </div>
-                    <div>
-                        <h5 class="modal-title fw-normal mb-0" id="det_cliente_nombre_header" style="color: #5D4037; letter-spacing: -0.5px; font-size: 1.15rem; font-family: 'Poppins', sans-serif;">Cargando...</h5>
-                        <div class="fw-normal small opacity-75" id="det_cliente_rut_header" style="color: #5D4037;">RUT: ---</div>
+                    <div class="flex-grow-1 pe-2">
+                        <h5 class="modal-title" id="det_cliente_nombre_header">Ficha <span class="fw-bold">Cliente</span></h5>
+                        <p class="modal-detalle-desc" id="det_cliente_rut_header">Cargando ficha de identificación y condiciones comerciales.</p>
                     </div>
-                    <button type="button" class="btn-close ms-auto shadow-none" data-bs-dismiss="modal" aria-label="Close" style="filter: sepia(1) saturate(2) hue-rotate(330deg);"></button>
+                    <button type="button" class="btn-close shadow-none mt-1" data-bs-dismiss="modal" aria-label="Close" style="filter: sepia(1) saturate(2) hue-rotate(330deg);"></button>
                 </div>
             </div>
-            <div class="modal-body p-0">
-                <!-- Tabs Compactos Estilo Qt -->
-                <ul class="nav nav-tabs border-0 bg-light px-3 pt-2" id="detailTabs" role="tablist">
+
+            <div class="modal-body p-0" style="background-color: #FAFAF8;">
+                <ul class="nav nav-tabs modal-detalle-tabs" id="detailTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active border-0 py-2 px-4 small fw-bold text-uppercase opacity-75 d-flex align-items-center" 
-                                id="det-general-tab" data-bs-toggle="tab" data-bs-target="#det-general" type="button" role="tab">
+                        <button class="nav-link active" id="det-general-tab" data-bs-toggle="tab" data-bs-target="#det-general" type="button" role="tab">
                             <i class="fas fa-id-card me-2"></i>Identificación
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link border-0 py-2 px-4 small fw-bold text-uppercase opacity-75 d-flex align-items-center" 
-                                id="det-comercial-tab" data-bs-toggle="tab" data-bs-target="#det-comercial" type="button" role="tab">
-                            <i class="fas fa-hand-holding-usd me-2"></i>Comercial
+                        <button class="nav-link" id="det-comercial-tab" data-bs-toggle="tab" data-bs-target="#det-comercial" type="button" role="tab">
+                            <i class="fas fa-briefcase me-2"></i>Comercial
                         </button>
                     </li>
                 </ul>
 
-                <div class="tab-content detail-modal-content" style="padding: 8px 12px !important;">
-                    <!-- Tab Identificación -->
+                <div class="tab-content" style="padding: 16px 18px 8px;">
                     <div class="tab-pane fade show active" id="det-general" role="tabpanel">
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-building me-1"></i>Razón Social</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_nombre">---</div>
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <span class="det-label"><i class="fas fa-building me-1"></i>Razón Social</span>
+                                <div class="det-value" id="det_cliente_nombre">---</div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-tag me-1"></i>Tipo Cliente</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_tipo">---</div>
+                            <div class="col-md-5">
+                                <span class="det-label"><i class="fas fa-tag me-1"></i>Tipo Cliente</span>
+                                <div class="det-value" id="det_cliente_tipo">---</div>
                             </div>
                             <div class="col-12">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-map-marker-alt me-1"></i>Dirección Completa</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_direccion">---</div>
+                                <span class="det-label"><i class="fas fa-map-marker-alt me-1"></i>Dirección Completa</span>
+                                <div class="det-value" id="det_cliente_direccion">---</div>
                             </div>
                             <div class="col-md-4">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-phone me-1"></i>Teléfono</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_telefono">---</div>
+                                <span class="det-label"><i class="fas fa-phone me-1"></i>Teléfono</span>
+                                <div class="det-value" id="det_cliente_telefono">---</div>
                             </div>
                             <div class="col-md-8">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-envelope me-1"></i>Email</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_email">---</div>
+                                <span class="det-label"><i class="fas fa-envelope me-1"></i>Email</span>
+                                <div class="det-value" id="det_cliente_email">---</div>
+                                <div class="det-email-aviso d-none" id="det_email_aviso">
+                                    <i class="fas fa-exclamation-circle me-1" style="color:#C76F43;"></i>
+                                    Sin correo: no recibirá DTE, copias ni avisos. El teléfono queda como alternativa.
+                                </div>
                             </div>
                             <div class="col-12">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-briefcase me-1"></i>Giro Comercial</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_giro">---</div>
+                                <span class="det-label"><i class="fas fa-briefcase me-1"></i>Giro Comercial</span>
+                                <div class="det-value" id="det_cliente_giro">---</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Tab Comercial -->
                     <div class="tab-pane fade" id="det-comercial" role="tabpanel">
-                        <div class="row g-2">
+                        <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block">Límite de Crédito</label>
-                                <div class="p-3 bg-light rounded text-primary fw-bold fs-5" id="det_cliente_limite">$ 0</div>
+                                <span class="det-label">Límite de Crédito</span>
+                                <div class="det-value det-highlight" id="det_cliente_limite">$ 0</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block">Plazo de Pago</label>
-                                <div class="p-3 bg-light rounded text-dark fs-5" id="det_cliente_plazo">--- Días</div>
+                                <span class="det-label">Plazo de Pago</span>
+                                <div class="det-value det-highlight" id="det_cliente_plazo">--- Días</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block">Descuento Defecto</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_descuento">0 %</div>
+                                <span class="det-label">Descuento por Defecto</span>
+                                <div class="det-value" id="det_cliente_descuento">0 %</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-user-tie me-1"></i>Vendedor</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_vendedor">---</div>
+                                <span class="det-label"><i class="fas fa-user-tie me-1"></i>Vendedor</span>
+                                <div class="det-value" id="det_cliente_vendedor">---</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block"><i class="fas fa-truck me-1"></i>Ruta de Despacho</label>
-                                <div class="p-2 bg-light rounded text-dark" id="det_cliente_ruta">---</div>
+                                <span class="det-label"><i class="fas fa-truck me-1"></i>Ruta de Despacho</span>
+                                <div class="det-value" id="det_cliente_ruta">---</div>
                             </div>
                             <div class="col-12">
-                                <label class="text-muted small fw-bold text-uppercase mb-1 d-block">Observaciones</label>
-                                <div class="p-2 bg-light rounded text-muted italic" id="det_cliente_obs" style="height: 60px; overflow-y: auto;">---</div>
+                                <span class="det-label"><i class="fas fa-comment-alt me-1"></i>Observaciones</span>
+                                <div class="det-value" id="det_cliente_obs" style="min-height: 64px;">---</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="modal-footer border-0 p-4 pt-0">
-                <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal" style="border-radius: 10px; font-weight: 500;">Cerrar</button>
-                <button type="button" class="btn btn-piedra-outline px-4" id="btn_ir_a_editar" style="border-radius: 10px;">
-                    <i class="fas fa-edit me-2"></i>Editar Cliente
+            <div class="modal-footer">
+                <button type="button" class="btn btn-detalle-cerrar" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-detalle-editar" id="btn_ir_a_editar">
+                    <i class="fas fa-edit me-1"></i>Editar Cliente
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-/* Animación Spring-In para el Detalle */
-#modalDetalleCliente.modal.fade .modal-dialog {
-    transform: scale(0.8) translateY(50px);
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-#modalDetalleCliente.modal.show .modal-dialog {
-    transform: scale(1) translateY(0);
-}
+<script>
+(function () {
+    const TIPOS_CLIENTE = {
+        consumidor_final: 'Consumidor Final',
+        contribuyente: 'Contribuyente',
+        exento: 'Exento de IVA',
+        extranjero: 'Extranjero'
+    };
 
-/* Tabs Estilo Qt */
-#detailTabs .nav-link {
-    color: #8B7355;
-    position: relative;
-    transition: all 0.2s ease;
-    border-bottom: 3px solid transparent !important;
-}
-#detailTabs .nav-link.active {
-    background: transparent !important;
-    color: #6F5B44 !important;
-    opacity: 1 !important;
-    border-bottom: 3px solid #8B7355 !important;
-}
-#detailTabs .nav-link:hover:not(.active) {
-    background: rgba(139, 115, 85, 0.05);
-}
+    function setDetalleValor(id, valor, vacioTexto) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const texto = (valor === null || valor === undefined || String(valor).trim() === '') ? (vacioTexto || 'No registrado') : String(valor);
+        const vacio = texto === (vacioTexto || 'No registrado') || texto === 'Sin vendedor' || texto === 'Sin ruta' || texto === 'Sin observaciones.';
+        el.textContent = texto;
+        el.classList.toggle('is-empty', vacio);
+    }
 
-/* Botón Piedra Outline */
-.btn-piedra-outline {
-    border: 2px solid #8B7355;
-    color: #8B7355;
-    background: transparent;
-    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-.btn-piedra-outline:hover {
-    background: #8B7355;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(139, 115, 85, 0.3);
-}
+    window.abrirModalDetalleCliente = function (id) {
+        const modalEl = document.getElementById('modalDetalleCliente');
+        if (!modalEl) return;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        const title = document.getElementById('det_cliente_nombre_header');
+        const desc = document.getElementById('det_cliente_rut_header');
+        if (title) title.innerHTML = 'Ficha <span class="fw-bold">Cliente</span>';
+        if (desc) desc.textContent = 'Cargando ficha de identificación y condiciones comerciales.';
 
-.detail-modal-content {
-    background: white;
-    min-height: 350px;
-}
+        const firstTab = document.querySelector('#detailTabs button[data-bs-target="#det-general"]');
+        if (firstTab) bootstrap.Tab.getOrCreateInstance(firstTab).show();
 
-#det_cliente_obs:empty::before {
-    content: "Sin observaciones registradas.";
-    font-style: italic;
-    opacity: 0.5;
-}
-</style>
+        fetch(`/clientes/ajax/${id}/`)
+            .then(r => r.json())
+            .then(data => {
+                if (!(data.success && data.cliente)) {
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar el detalle: ' + (data.message || ''), confirmButtonColor: '#C76F43' });
+                    return;
+                }
+                const c = data.cliente;
+                const tipoTxt = TIPOS_CLIENTE[c.tipo_cliente] || String(c.tipo_cliente || '').replace('_', ' ');
+                const rutTxt = c.rut ? `RUT ${c.rut}` : 'RUT no informado';
+                if (title) title.innerHTML = 'Ficha <span class="fw-bold">' + (String(c.nombre || 'Cliente').trim()) + '</span>';
+                if (desc) desc.textContent = rutTxt + ' · ' + tipoTxt + '. Identificación, contacto y condiciones comerciales.';
+
+                setDetalleValor('det_cliente_nombre', c.nombre);
+                setDetalleValor('det_cliente_tipo', tipoTxt);
+                const dir = [(c.direccion || ''), (c.comuna || ''), (c.ciudad || '')].filter(Boolean).join(', ');
+                setDetalleValor('det_cliente_direccion', dir);
+                setDetalleValor('det_cliente_telefono', c.telefono);
+                setDetalleValor('det_cliente_email', c.email);
+                setDetalleValor('det_cliente_giro', c.giro);
+
+                const aviso = document.getElementById('det_email_aviso');
+                if (aviso) aviso.classList.toggle('d-none', !!(c.email && String(c.email).trim()));
+
+                const limite = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(c.limite_credito || 0);
+                setDetalleValor('det_cliente_limite', limite, '$ 0');
+                document.getElementById('det_cliente_limite')?.classList.remove('is-empty');
+                setDetalleValor('det_cliente_plazo', (c.plazo_pago || 0) + ' días', '--- Días');
+                document.getElementById('det_cliente_plazo')?.classList.remove('is-empty');
+                setDetalleValor('det_cliente_descuento', (c.descuento_porcentaje || 0) + ' %', '0 %');
+                document.getElementById('det_cliente_descuento')?.classList.remove('is-empty');
+                setDetalleValor('det_cliente_vendedor', c.vendedor_nombre, 'Sin vendedor');
+                setDetalleValor('det_cliente_ruta', c.ruta_nombre, 'Sin ruta');
+                setDetalleValor('det_cliente_obs', c.observaciones, 'Sin observaciones.');
+
+                const btnEditar = document.getElementById('btn_ir_a_editar');
+                if (btnEditar) {
+                    btnEditar.onclick = function () {
+                        modal.hide();
+                        setTimeout(() => window.abrirModalEditarCliente && abrirModalEditarCliente(id), 350);
+                    };
+                }
+                modal.show();
+            })
+            .catch(err => {
+                console.error(err);
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Falla en la conexión al servidor', confirmButtonColor: '#C76F43' });
+            });
+    };
+})();
+</script>

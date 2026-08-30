@@ -70,37 +70,44 @@
 
     /* Estilos para pestañas clásicas */
     .custom-classic-tabs {
-        padding: 6px 10px 0 10px; 
-        background: #f1ede9; 
-        border-bottom: 2px solid #D4C4A8 !important;
+        padding: 10px 16px 0;
+        background: #EDE6DA;
+        border-bottom: 2px solid #8B7355 !important;
+        display: flex;
+        gap: 4px;
     }
     .custom-classic-tabs .nav-link {
-        border: 1px solid transparent;
+        border: 1px solid #C4B49A;
         border-bottom: none;
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
-        color: #6F5B44;
-        font-weight: 500;
-        margin-right: 5px;
-        padding: 4px 10px;
+        color: #5D4037;
+        font-weight: 600;
+        font-size: 0.86rem;
+        margin-right: 6px;
+        min-height: 42px;
+        padding: 10px 18px;
+        display: inline-flex;
+        align-items: center;
         transition: all 0.2s;
-        background: #e4ddd6;
+        background: #E8DCC8;
     }
 
-    .custom-classic-tabs .nav-link:hover {
-        background: #d4c4a8;
+    .custom-classic-tabs .nav-link:hover:not(.active) {
+        background: #FAFAF8;
         color: #5D4037;
-        border-color: #D4C4A8;
+        border-color: #C76F43;
         border-bottom-color: transparent;
     }
 
     .custom-classic-tabs .nav-link.active {
-        background: white !important;
-        color: #8B7355 !important;
-        border: 2px solid #D4C4A8 !important;
-        border-bottom: 3px solid white !important;
-        margin-bottom: -2px;
+        background: #C76F43 !important;
+        color: #fff !important;
+        border: 1px solid #C76F43 !important;
+        border-bottom: none !important;
+        margin-bottom: 0;
         font-weight: 700;
+        box-shadow: 0 -2px 8px rgba(93, 64, 55, 0.18);
     }
 </style>
 {% endblock %}
@@ -118,11 +125,11 @@
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-user-plus me-3" style="font-size: 1.45rem; color: var(--color-piedra-texto); opacity: 0.8;"></i>
                                 <div>
-                                    <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -1px; font-size: 1.45rem;">
-                                        {{ title }}
+                                    <h2 class="mb-0" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem; font-weight: 300;">
+                                        {% if cliente %}Editar{% else %}Nuevo{% endif %} <span class="fw-bold">Cliente</span>
                                     </h2>
-                                    <div style="font-size: 0.7rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
-                                        Gestiona la información completa del cliente
+                                    <div style="font-size: 0.78rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.35; margin-top: 2px;">
+                                        {% if cliente %}Actualice la ficha, contactos y condiciones comerciales del cliente.{% else %}Complete los datos de identificación, contacto y condiciones comerciales.{% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -332,6 +339,9 @@
                                             </div>
                                             {{ form.email }}
                                         </div>
+                                        <small class="d-block mt-1" style="color:#8B7355;font-size:0.72rem;line-height:1.35;">
+                                            Recomendado para enviar DTE, copias y avisos. Si no lo registra, el teléfono queda como alternativa.
+                                        </small>
                                         {% if form.email.errors %}
                                             <div class="text-danger mt-1">{{ form.email.errors.0 }}</div>
                                         {% endif %}
@@ -914,6 +924,52 @@ document.addEventListener('DOMContentLoaded', function() {
             
             alert('Por favor complete todos los campos requeridos en la pestaña "Datos Básicos".');
         } else {
+            const emailField = document.querySelector('[name="email"]');
+            const emailVal = (emailField && emailField.value ? emailField.value : '').trim();
+            if (!emailVal && form.dataset.omitirAvisoEmail !== '1') {
+                e.preventDefault();
+                if (btnSubmit && btnText && btnSpinner) {
+                    btnText.style.display = 'inline-block';
+                    btnSpinner.style.display = 'none';
+                    btnSubmit.disabled = false;
+                }
+                const aviso = function() {
+                    form.dataset.omitirAvisoEmail = '1';
+                    form.requestSubmit ? form.requestSubmit() : form.submit();
+                };
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Sin correo electrónico',
+                        html: '<div style="text-align:left;font-size:0.92rem;line-height:1.45;color:#5D4037;">' +
+                            'El correo es el canal principal para enviar <strong>DTE, copias de facturas, boletas y avisos</strong> al cliente.<br><br>' +
+                            'Sin email no podrá recibir documentos por correo. Puede continuar y usar el <strong>teléfono como alternativa</strong>, pero se recomienda registrarlo ahora.' +
+                            '</div>',
+                        showCancelButton: true,
+                        reverseButtons: true,
+                        confirmButtonText: 'Continuar sin correo',
+                        cancelButtonText: 'Agregar correo',
+                        confirmButtonColor: '#C76F43',
+                        cancelButtonColor: '#8B7355',
+                        focusCancel: true
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            aviso();
+                        } else if (emailField) {
+                            const firstTab = document.querySelector('#datos-basicos-tab');
+                            if (firstTab) bootstrap.Tab.getOrCreateInstance(firstTab).show();
+                            setTimeout(() => emailField.focus(), 180);
+                        }
+                    });
+                } else {
+                    if (confirm('No ingresó correo. El email es necesario para enviar DTE y copias. ¿Continuar sin correo?')) {
+                        aviso();
+                    } else if (emailField) {
+                        emailField.focus();
+                    }
+                }
+                return;
+            }
             console.log('✓ Validación exitosa - Enviando formulario al servidor');
             
             // Timeout de seguridad: si después de 10 segundos no hay respuesta, rehabilitar el botón
