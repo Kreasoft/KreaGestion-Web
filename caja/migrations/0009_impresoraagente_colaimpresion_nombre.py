@@ -7,8 +7,9 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
+    # 0009 se aplicó en producción sin 0008 (solo añade ping del agente).
     dependencies = [
-        ("caja", "0008_caja_agente_ultimo_ping"),
+        ("caja", "0007_codigovinculoimpresion"),
         ("empresas", "0030_remove_empresa_api_key_remove_empresa_api_url_and_more"),
     ]
 
