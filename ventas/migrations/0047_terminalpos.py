@@ -6,10 +6,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
+    # 0047 se aplicó en producción cuando el leaf era 0040.
+    # 0041–0046 se añadieron después en el mismo lote y no deben ser padres de 0047.
     dependencies = [
         ("bodegas", "0004_alter_bodega_sucursal"),
         ("empresas", "0030_remove_empresa_api_key_remove_empresa_api_url_and_more"),
-        ("ventas", "0045_venta_fecha_vencimiento"),
+        ("ventas", "0040_ventadetalle_comentario"),
     ]
 
     operations = [
