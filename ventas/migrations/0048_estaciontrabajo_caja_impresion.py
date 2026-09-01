@@ -6,8 +6,9 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
+    # El FK es a caja.Caja (existe desde 0001). 0008 no estaba aplicada en producción.
     dependencies = [
-        ("caja", "0008_caja_agente_ultimo_ping"),
+        ("caja", "0001_initial"),
         ("ventas", "0047_terminalpos"),
     ]
 
