@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("bodegas", "0004_alter_bodega_sucursal"),
         ("empresas", "0030_remove_empresa_api_key_remove_empresa_api_url_and_more"),
-        ("ventas", "0046_vendedor_telefono_app"),
+        ("ventas", "0045_venta_fecha_vencimiento"),
     ]
 
     operations = [
