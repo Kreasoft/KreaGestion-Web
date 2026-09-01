@@ -228,14 +228,14 @@
         
         <!-- Título del Vale -->
         <div class="vale-title">
-            {% if venta.tipo_documento == 'ticket' %}TICKET FACTURABLE{% else %}VALE INTERNO{% endif %}
+            {% if venta.tipo_documento == 'ticket' %}TICKET FACTURABLE{% else %}VALE INTERNO{% endif %}{% if venta.estacion_trabajo %} · {{ venta.estacion_trabajo.nombre }}{% endif %}
             {% if tipo_documento_final %}
-            <div style="font-size: 12px; margin-top: 5px; color: #28a745;">
-                Se cerró como: <strong>{{ venta_procesada.venta_final.get_tipo_documento_display|upper }}</strong>
+            <div style="font-size: 12px; margin-top: 5px; color: #5F8D62;">
+                Se facturó como: <strong>{{ venta_procesada.venta_final.get_tipo_documento_display|upper }}</strong>
             </div>
             {% elif venta.tipo_documento_planeado and venta.tipo_documento == 'ticket' %}
-            <div style="font-size: 12px; margin-top: 5px; color: #666;">
-                Se cerrará como: <strong>{{ venta.get_tipo_documento_planeado_display|upper }}</strong>
+            <div style="font-size: 12px; margin-top: 5px; color: #6F5B44;">
+                Se facturará como: <strong>{{ venta.get_tipo_documento_planeado_display|upper }}</strong>
             </div>
             {% endif %}
         </div>
@@ -252,22 +252,26 @@
             </div>
             {% if tipo_documento_final %}
             <div class="info-row" style="background: #d4edda; padding: 5px; border: 1px solid #28a745; border-radius: 3px; margin-top: 5px;">
-                <span class="info-label" style="color: #155724;">Se cerró como:</span>
+                <span class="info-label" style="color: #155724;">Se facturó como:</span>
                 <span style="font-weight: bold; color: #155724; text-transform: uppercase;">{{ venta_procesada.venta_final.get_tipo_documento_display }}</span>
             </div>
             {% elif venta.tipo_documento_planeado %}
             <div class="info-row" style="background: #fff3cd; padding: 5px; border: 1px solid #ffc107; border-radius: 3px; margin-top: 5px;">
-                <span class="info-label" style="color: #856404;">Se cerrará como:</span>
+                <span class="info-label" style="color: #856404;">Se facturará como:</span>
                 <span style="font-weight: bold; color: #856404; text-transform: uppercase;">{{ venta.get_tipo_documento_planeado_display }}</span>
             </div>
             {% endif %}
             <div class="info-row">
                 <span class="info-label">Estación:</span>
-                <span>{{ venta.estacion_trabajo.nombre|default:"N/A" }}</span>
+                <span>{{ estacion_display|default:venta.estacion_trabajo.nombre|default:"N/A" }}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Vendedor:</span>
                 <span>{{ venta.vendedor.nombre|default:"N/A" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Bodega:</span>
+                <span>{{ bodega_display|default:"-" }}</span>
             </div>
         </div>
         

@@ -922,40 +922,44 @@ class DTEService:
                     token=token,
                     rut_emisor=self.empresa.rut
                 )
-                estado_up = str(estado.get('estado') or '').strip()
-                if estado_up in {'-11', 'FAU', ''} or not (estado.get('aceptados') or estado.get('rechazados') or estado.get('reparos')):
-                    try:
-                        por_folio = cliente_sii.consultar_estado_por_folio(
-                            self.empresa.rut,
-                            dte.rut_receptor,
-                            dte.tipo_dte,
-                            dte.folio,
-                            dte.fecha_emision,
-                            dte.monto_total,
-                        )
-                        if por_folio.get('estado') or por_folio.get('glosa'):
-                            estado['detalle_estado'] = por_folio.get('estado')
-                            if por_folio.get('glosa'):
-                                estado['glosa'] = por_folio.get('glosa')
-                            if por_folio.get('estado') and estado_up in {'-11', ''}:
-                                estado['estado'] = por_folio.get('estado')
-                            if por_folio.get('xml_respuesta'):
-                                estado['xml_respuesta'] = (
-                                    (estado.get('xml_respuesta') or '') + '\n' + por_folio['xml_respuesta']
-                                )
-                    except Exception as exc:
-                        print(f"[CONSULTA] getEstDte no disponible para folio {dte.folio}: {exc}")
+                folio_args = self._datos_consulta_folio(dte)
+                try:
+                    por_folio = cliente_sii.consultar_estado_por_folio(*folio_args)
+                    if por_folio.get('estado') or por_folio.get('glosa'):
+                        estado['detalle_estado'] = por_folio.get('estado')
+                        if por_folio.get('glosa'):
+                            estado['glosa'] = por_folio.get('glosa')
+                        if por_folio.get('xml_respuesta'):
+                            estado['xml_respuesta'] = (
+                                (estado.get('xml_respuesta') or '') + '\n' + por_folio['xml_respuesta']
+                            )
+                except Exception as exc:
+                    print(f"[CONSULTA] getEstDte no disponible para folio {dte.folio}: {exc}")
+                    estado['error_folio'] = str(exc)
+                try:
+                    avanzado = cliente_sii.consultar_estado_dte_avanzado(*folio_args)
+                    codigo_av = str(avanzado.get('estado') or '').strip().upper()
+                    estadodte = str(avanzado.get('estadodte') or '').strip()
+                    if codigo_av in {'DOK', 'EOK', 'RPR', 'RCH', 'SOK', 'RPC', 'RLV'} or estadodte in {'1', '2', '3', '4'}:
+                        estado['detalle_estado'] = codigo_av or estado.get('detalle_estado')
+                        estado['estadodte'] = estadodte
+                        if avanzado.get('glosa'):
+                            estado['glosa'] = avanzado.get('glosa')
+                        if avanzado.get('xml_respuesta'):
+                            estado['xml_respuesta'] = (
+                                (estado.get('xml_respuesta') or '') + '\n' + avanzado['xml_respuesta']
+                            )
+                except Exception as exc:
+                    print(f"[CONSULTA] getEstDteAv no disponible para folio {dte.folio}: {exc}")
+                    estado['error_avanzado'] = str(exc)
 
-            # Actualizar estado del DTE (solo si NO está en modo prueba)
-            modo_reutilizacion = self.empresa.modo_reutilizacion_folios
-            es_certificacion = self.empresa.ambiente_sii == 'certificacion'
-
-            if not (modo_reutilizacion and es_certificacion):
-                with transaction.atomic():
+            # Siempre guardar el resultado de la consulta, también en certificación.
+            with transaction.atomic():
+                    estado_previo = str(dte.estado_sii or '').strip().lower()
                     estado_sii = str(estado.get('estado') or '').strip().upper()
                     glosa_original = str(estado.get('glosa') or '').strip()
                     glosa_sii = glosa_original.upper()
-                    estado_texto = f"{estado_sii} {glosa_sii} {estado.get('detalle_estado') or ''}"
+                    estado_texto = f"{estado_sii} {glosa_sii} {estado.get('detalle_estado') or ''}".upper()
                     aceptados = int(estado.get('aceptados') or 0)
                     rechazados = int(estado.get('rechazados') or 0)
                     reparos = int(estado.get('reparos') or 0)
@@ -963,32 +967,76 @@ class DTEService:
 
                     from .clasificacion_sii import (
                         contiene_codigo_estado,
+                        es_consulta_datos_no_coinciden,
                         es_dte_no_recibido_sii,
+                        es_dte_sin_aceptacion_comercial,
                         es_espera_reintento_sii,
                         es_glosa_envio_procesado,
+                        es_recepcion_sii_documento,
                         evidencia_rechazo_tributario,
                         extraer_track_id,
                     )
+
+                    datos_no_coinciden = es_consulta_datos_no_coinciden(estado_texto, glosa_original)
+                    es_guia = es_dte_sin_aceptacion_comercial(dte.tipo_dte)
 
                     if es_espera_reintento_sii(estado_texto):
                         dte.estado_sii = 'enviado'
                         track_glosa = extraer_track_id(estado_texto)
                         if track_glosa and not str(dte.track_id or '').strip():
                             dte.track_id = track_glosa
-                    elif detalle_estado in {'RCH', 'RSC'} or rechazados > 0 or evidencia_rechazo_tributario(estado_texto):
+                    elif detalle_estado in {'RCH', 'RSC'} or evidencia_rechazo_tributario(estado_texto):
                         dte.estado_sii = 'rechazado'
                         if not glosa_original:
                             glosa_original = 'Rechazado por SII (RCH)'
                     elif detalle_estado in {'RLV', 'RPR', 'RPC'} or reparos > 0:
                         dte.estado_sii = 'aceptado_reparos'
-                    elif aceptados > 0:
-                        dte.estado_sii = 'aceptado'
                     elif any(token in estado_texto for token in ['ACEPTADO CON REPAROS', 'ACEPTADA CON REPAROS']) or contiene_codigo_estado(estado_texto, ('RPR', 'RPC', 'RLV')):
                         dte.estado_sii = 'aceptado_reparos'
-                    elif any(token in estado_texto for token in ['ACEPTADO', 'ACEPTADA', 'DTE ACEPTADO']) or contiene_codigo_estado(estado_texto, ('EOK', 'DOK', 'SOK')):
+                    elif (
+                        (detalle_estado in {'FAU', 'FAN', 'DNK'} or es_dte_no_recibido_sii(estado_texto))
+                        and not datos_no_coinciden
+                    ):
+                        if rechazados > 0:
+                            dte.estado_sii = 'rechazado'
+                            if not glosa_original or es_glosa_envio_procesado(glosa_original):
+                                glosa_original = 'DTE No Recibido'
+                        else:
+                            dte.estado_sii = 'enviado'
+                    elif es_guia and (
+                        es_recepcion_sii_documento(estado_texto)
+                        or detalle_estado in {'DOK', 'EOK', 'SOK'}
+                        or (aceptados > 0 and rechazados == 0)
+                    ):
                         dte.estado_sii = 'aceptado'
+                        if datos_no_coinciden or not glosa_original or es_glosa_envio_procesado(glosa_original):
+                            glosa_original = 'DTE Recibido'
+                    elif detalle_estado in {'EOK', 'SOK'} or contiene_codigo_estado(estado_texto, ('EOK', 'SOK')) or any(
+                        token in estado_texto for token in ['DTE ACEPTADO', 'DOCUMENTO ACEPTADO']
+                    ):
+                        if 'CON REPAROS' not in estado_texto:
+                            dte.estado_sii = 'aceptado'
+                    elif detalle_estado in {'DOK'} or 'DTE RECIBIDO' in estado_texto:
+                        dte.estado_sii = 'enviado'
+                        if not glosa_original or es_glosa_envio_procesado(glosa_original):
+                            glosa_original = 'DTE Recibido. El SII aún no informa aceptación ni rechazo.'
+                    elif rechazados > 0:
+                        dte.estado_sii = 'rechazado'
+                        if not glosa_original:
+                            glosa_original = 'Rechazado por SII (RCH)'
+                        elif es_glosa_envio_procesado(glosa_original) and not evidencia_rechazo_tributario(glosa_original):
+                            glosa_original = f'Envío procesado: {rechazados} documento(s) rechazado(s)'
                     elif es_glosa_envio_procesado(estado_texto) or estado_sii in {'EPR'}:
                         dte.estado_sii = 'enviado'
+
+                    # QueryEstUp (EPR) no debe bajar un DTE ya aceptado/anulado si no hubo DOK/EOK/RCH.
+                    if (
+                        estado_previo in {'aceptado', 'aceptado_reparos', 'anulado'}
+                        and dte.estado_sii == 'enviado'
+                        and detalle_estado not in {'DOK', 'EOK', 'SOK', 'RCH', 'RPR', 'RPC', 'RLV'}
+                        and 'DTE RECIBIDO' not in estado_texto
+                    ):
+                        dte.estado_sii = estado_previo
 
                     glosa_previa = (dte.glosa_sii or '').strip()
                     if es_dte_no_recibido_sii(estado_texto) and not glosa_original:
@@ -1016,7 +1064,8 @@ class DTEService:
                         except Exception:
                             pass
                     dte.save()
-                    dte.corregir_falso_rechazo_espera()
+                    if rechazados <= 0:
+                        dte.corregir_falso_rechazo_espera()
 
             print(f"Estado consultado: {estado['estado']}")
 
@@ -1077,6 +1126,48 @@ class DTEService:
                 if not rut_rec or rut_rec == rut_emp:
                     return 0
         return int(getattr(documento, 'monto_total', getattr(documento, 'total', 0)) or 0)
+
+    def _monto_consulta_sii(self, dte, xml=None):
+        """Monto con el que el SII indexó el DTE (TED/MntTotal del XML), no el de pantalla."""
+        xml = xml if xml is not None else (
+            (getattr(dte, 'xml_firmado', None) or '') or (getattr(dte, 'xml_dte', None) or '')
+        )
+        for patron in (r'<MNT>([^<]+)</MNT>', r'<MntTotal>([^<]+)</MntTotal>'):
+            m = re.search(patron, xml)
+            if not m:
+                continue
+            try:
+                return int(float(str(m.group(1)).replace(',', '.').strip()))
+            except (TypeError, ValueError):
+                continue
+        return int(self._monto_ted_para_documento(dte, getattr(dte, 'tipo_dte', None)) or 0)
+
+    def _datos_consulta_folio(self, dte):
+        xml = (getattr(dte, 'xml_firmado', None) or '') or (getattr(dte, 'xml_dte', None) or '')
+        fecha = dte.fecha_emision
+        m_fch = re.search(r'<FchEmis>([^<]+)</FchEmis>', xml)
+        if m_fch:
+            try:
+                fecha = datetime.strptime(m_fch.group(1).strip()[:10], '%Y-%m-%d').date()
+            except Exception:
+                pass
+        rut_rec = dte.rut_receptor
+        m_rut = re.search(r'<RUTRecep>([^<]+)</RUTRecep>', xml)
+        if m_rut:
+            rut_rec = m_rut.group(1).strip()
+        monto = self._monto_consulta_sii(dte, xml)
+        print(
+            f"[CONSULTA] folio {dte.folio} tipo {dte.tipo_dte} "
+            f"monto_xml={monto} monto_db={dte.monto_total} rut={rut_rec}"
+        )
+        return (
+            self.empresa.rut,
+            rut_rec,
+            dte.tipo_dte,
+            dte.folio,
+            fecha,
+            monto,
+        )
 
     def _obtener_it1_documento(self, documento):
         """Obtiene la glosa IT1 del TED desde el primer item real del documento."""

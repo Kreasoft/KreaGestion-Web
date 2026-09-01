@@ -83,6 +83,18 @@
         transform: rotate(-15deg);
     }
 
+    .envio-bg-badge {
+        display: inline-block;
+        min-width: 18px;
+        padding: 0 5px;
+        margin-left: 6px;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.22);
+        font-size: 0.68rem;
+        font-weight: 700;
+        line-height: 16px;
+    }
+
     .filter-section {
         background: white;
         border-radius: 8px;
@@ -271,16 +283,25 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-4 text-end d-flex justify-content-end gap-2">
+                        <div class="col-md-4 text-end d-flex justify-content-end gap-2 flex-wrap">
                             <button class="btn btn-sm" 
                                     style="background: white; border: 1px solid #D4C4A8; color: #8B7355; font-weight: 600; padding: 8px 15px; border-radius: 10px;"
                                     onclick="window.print()">
                                 <i class="fas fa-print me-2"></i>Imprimir
                             </button>
+                            <button class="btn btn-sm"
+                                    style="background: #8B8B3A; color: white; border: none; font-weight: 600; padding: 8px 15px; border-radius: 10px;"
+                                    onclick="enviarPendientesGuias()"
+                                    title="Envía al SII las guías del período que aún no tienen Track">
+                                <i class="fas fa-paper-plane me-2"></i>Enviar pendientes
+                                {% if guias_sin_track %}<span class="envio-bg-badge">{{ guias_sin_track }}</span>{% endif %}
+                            </button>
                             <button class="btn btn-sm" 
                                     style="background: #6F5B44; color: white; border: none; font-weight: 600; padding: 8px 15px; border-radius: 10px;"
-                                    onclick="sincronizarTodo()">
-                                <i class="fas fa-sync-alt me-2"></i>Sincronizar SII
+                                    onclick="consultarEstadosGuias()"
+                                    title="Consulta en el SII el estado de las guías ya enviadas">
+                                <i class="fas fa-sync-alt me-2"></i>Consultar estados
+                                {% if guias_por_consultar %}<span class="envio-bg-badge">{{ guias_por_consultar }}</span>{% endif %}
                             </button>
                             <button class="btn btn-sm btn-piedra" 
                                     style="padding: 8px 15px; border-radius: 10px;"
@@ -418,7 +439,7 @@
                                             {{ documento.get_estado_sii_real_display }}
                                         </span>
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center td-acciones">
                                         {% include 'facturacion_electronica/_dte_acciones_lista.html' with dte=documento %}
                                     </td>
                                     {% else %}
@@ -479,21 +500,42 @@
         window.location.href = "{% url 'ventas:libro_guias_excel' %}?" + params.toString();
     }
 
-    function sincronizarTodo() {
+    function returnUrlGuias() {
+        return encodeURIComponent(window.location.pathname + window.location.search);
+    }
+
+    function enviarPendientesGuias() {
         Swal.fire({
-            title: 'Sincronizar Guías',
-            text: '¿Deseas sincronizar los estados de todas las guías pendientes con el SII?',
+            title: 'Enviar guías al SII',
+            text: 'Se enviarán las guías de este período que aún no tienen Track.',
             icon: 'question',
             showCancelButton: true,
-            confirmButtonColor: '#8B7355',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sí, Sincronizar',
+            confirmButtonColor: '#8B8B3A',
+            cancelButtonColor: '#C76F43',
+            confirmButtonText: 'Enviar',
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
                 sessionStorage.setItem('libro_guias_scroll', window.scrollY);
-                const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-                window.location.href = "{% url 'facturacion_electronica:sincronizar_pendientes_sii' %}?return_url=" + returnUrl;
+                window.location.href = "{% url 'facturacion_electronica:sincronizar_pendientes_sii' %}?tipo_dte=52&return_url=" + returnUrlGuias();
+            }
+        });
+    }
+
+    function consultarEstadosGuias() {
+        Swal.fire({
+            title: 'Consultar estados SII',
+            text: 'Se consultará el estado de las guías ya enviadas que aún no tienen respuesta definitiva.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#6F5B44',
+            cancelButtonColor: '#C76F43',
+            confirmButtonText: 'Consultar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                sessionStorage.setItem('libro_guias_scroll', window.scrollY);
+                window.location.href = "{% url 'facturacion_electronica:consultar_estados_pendientes_sii' %}?tipo_dte=52&return_url=" + returnUrlGuias();
             }
         });
     }

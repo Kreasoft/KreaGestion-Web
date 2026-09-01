@@ -4,7 +4,8 @@ from django.utils import timezone
 from empresas.models import Sucursal
 from .models import (
     Vendedor, FormaPago, EstacionTrabajo, PrecioClienteArticulo, 
-    NotaCredito, NotaCreditoDetalle, NotaDebito, NotaDebitoDetalle
+    NotaCredito, NotaCreditoDetalle, NotaDebito, NotaDebitoDetalle,
+    ensure_estacion_caja_impresion,
 )
 
 
@@ -81,8 +82,10 @@ class EstacionTrabajoForm(forms.ModelForm):
     """Formulario para crear y editar estaciones de trabajo"""
 
     def __init__(self, *args, empresa=None, **kwargs):
+        ensure_estacion_caja_impresion()
         super().__init__(*args, **kwargs)
         empresa = empresa or getattr(self.instance, 'empresa', None)
+        self.empresa = empresa
         if empresa:
             self.fields['sucursal'].queryset = Sucursal.objects.filter(empresa=empresa).order_by('nombre')
             self.fields['sucursal'].required = True
@@ -105,7 +108,7 @@ class EstacionTrabajoForm(forms.ModelForm):
         widgets = {
             'sucursal': forms.Select(attrs={'class': 'form-select'}),
             'numero': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 001'}),
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Caja Principal'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Estación 1'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Opcional'}),
             'modo_pos': forms.Select(attrs={'class': 'form-select'}),
             'correlativo_ticket': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
@@ -165,6 +168,26 @@ class EstacionTrabajoForm(forms.ModelForm):
             'copias_vale': 'Copias Vale',
             'activo': 'Activa',
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        empresa = self.empresa or getattr(self.instance, 'empresa', None)
+        sucursal = cleaned.get('sucursal')
+        nombre = (cleaned.get('nombre') or '').strip()
+        cleaned['nombre'] = nombre
+        if empresa and sucursal and nombre:
+            qs = EstacionTrabajo.objects.filter(
+                empresa=empresa, sucursal=sucursal, nombre__iexact=nombre
+            )
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                self.add_error(
+                    'nombre',
+                    'Ya existe una estación con ese nombre en esta sucursal. '
+                    'Debe ser distinto para no mezclar ventas (estación + vendedor + sucursal).',
+                )
+        return cleaned
 
 
 class PrecioClienteArticuloForm(forms.ModelForm):

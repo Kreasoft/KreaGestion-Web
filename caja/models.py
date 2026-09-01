@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import IntegrityError, models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from django.utils import timezone
@@ -48,6 +48,120 @@ class Caja(models.Model):
     def get_apertura_activa(self):
         """Retorna la apertura activa si existe"""
         return self.aperturascaja.filter(estado='abierta').first()
+
+
+def caja_cola_para_estacion(estacion):
+    """
+    Caja técnica (cola/agente) de la estación.
+    El programa se vincula a esta caja; en Ventas el usuario no la elige.
+    """
+    if estacion is None:
+        return None
+
+    caja = (
+        Caja.objects.filter(empresa=estacion.empresa, estacion_trabajo=estacion, activo=True)
+        .order_by('id')
+        .first()
+    )
+    if caja is None and estacion.caja_impresion_id:
+        caja = Caja.objects.filter(pk=estacion.caja_impresion_id, activo=True).first()
+
+    sucursal = getattr(estacion, 'sucursal', None)
+    if caja is None:
+        if sucursal is None:
+            return None
+        numero = f'E{estacion.pk}'
+        nombre = f"Impresión {estacion.nombre or estacion.numero}"[:100]
+        try:
+            caja, _creada = Caja.objects.get_or_create(
+                empresa=estacion.empresa,
+                numero=numero,
+                defaults={
+                    'sucursal': sucursal,
+                    'nombre': nombre,
+                    'descripcion': 'Cola de impresión de la estación. No es caja de cobro.',
+                    'estacion_trabajo': estacion,
+                    'activo': True,
+                },
+            )
+        except IntegrityError:
+            caja = Caja.objects.filter(empresa=estacion.empresa, numero=numero).first()
+        if caja is None:
+            return None
+
+    updates_caja = []
+    if caja.estacion_trabajo_id != estacion.id:
+        caja.estacion_trabajo = estacion
+        updates_caja.append('estacion_trabajo')
+    if sucursal and caja.sucursal_id != sucursal.id:
+        caja.sucursal = sucursal
+        updates_caja.append('sucursal')
+    if not caja.activo:
+        caja.activo = True
+        updates_caja.append('activo')
+    if updates_caja:
+        caja.save(update_fields=updates_caja)
+
+    if estacion.caja_impresion_id != caja.id:
+        estacion.caja_impresion = caja
+        estacion.save(update_fields=['caja_impresion'])
+    return caja
+
+
+def asignar_impresora_estacion_desde_agente(caja, seleccionada=''):
+    """La impresora que eligió el agente queda en la estación, sin otro paso."""
+    if caja is None:
+        return None
+    from django.db.models import Q
+
+    seleccionada = (seleccionada or '').strip()
+    imp = None
+    if seleccionada:
+        imp = ImpresoraAgente.objects.filter(caja=caja, nombre=seleccionada).first()
+    if imp is None:
+        imp = (
+            ImpresoraAgente.objects.filter(caja=caja, en_uso=True)
+            .order_by('-ultimo_reporte')
+            .first()
+        )
+    if imp is None:
+        qs = ImpresoraAgente.objects.filter(caja=caja).order_by('-ultimo_reporte')
+        if qs.count() == 1:
+            imp = qs.first()
+    if imp is None:
+        return None
+
+    estaciones = EstacionTrabajo.objects.filter(
+        Q(caja_impresion=caja) | Q(pk=caja.estacion_trabajo_id)
+    ).distinct()
+    for est in estaciones:
+        if est.impresora_vales_id != imp.id:
+            est.impresora_vales = imp
+            est.save(update_fields=['impresora_vales'])
+    return imp
+
+
+class ImpresoraAgente(models.Model):
+    """Impresora Windows reportada por un agente en línea."""
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, verbose_name="Sucursal")
+    caja = models.ForeignKey(
+        Caja, on_delete=models.CASCADE, related_name='impresoras_agente',
+        verbose_name="Agente (caja)",
+    )
+    nombre = models.CharField(max_length=200, verbose_name="Nombre en Windows")
+    en_uso = models.BooleanField(default=False, verbose_name="Seleccionada en el agente")
+    ultimo_reporte = models.DateTimeField(default=timezone.now, verbose_name="Último reporte")
+
+    class Meta:
+        verbose_name = "Impresora del agente"
+        verbose_name_plural = "Impresoras del agente"
+        unique_together = ['caja', 'nombre']
+        ordering = ['nombre']
+
+    def __str__(self):
+        return self.nombre
 
 
 class AperturaCaja(models.Model):
@@ -298,6 +412,7 @@ class ColaImpresion(models.Model):
     documento_id = models.IntegerField(blank=True, null=True)
     contenido_raw = models.TextField(verbose_name="Comandos ESC/POS RAW", blank=True, null=True)
     contenido_esc_pos = models.TextField(blank=True, null=True)
+    nombre_impresora = models.CharField(max_length=200, blank=True, default='', verbose_name="Impresora Windows")
     estado = models.CharField(max_length=20, choices=[('pendiente', 'Pendiente'), ('imprimiendo', 'Imprimiendo'), ('impreso', 'Impreso'), ('error', 'Error')], default='pendiente', verbose_name="Estado")
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_impresion = models.DateTimeField(blank=True, null=True)
@@ -334,3 +449,46 @@ class CodigoVinculoImpresion(models.Model):
 
     def vigente(self):
         return timezone.now() <= self.fecha_expiracion
+
+
+def ensure_impresoras_agente():
+    """Crea tabla/columnas de impresoras reportadas si la migración no se aplicó."""
+    from django.db import connection
+    from django.db.migrations.recorder import MigrationRecorder
+
+    try:
+        tablas = set(connection.introspection.table_names())
+        with connection.cursor() as cursor:
+            cursor.execute("SET lock_timeout = '8s'")
+            if 'caja_impresoraagente' not in tablas:
+                with connection.schema_editor() as editor:
+                    editor.create_model(ImpresoraAgente)
+            cursor.execute(
+                """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'caja_colaimpresion' AND column_name = 'nombre_impresora'
+                """
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "ALTER TABLE caja_colaimpresion ADD COLUMN IF NOT EXISTS nombre_impresora varchar(200) NOT NULL DEFAULT ''"
+                )
+            cursor.execute(
+                """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'ventas_estaciontrabajo' AND column_name = 'impresora_vales_id'
+                """
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "ALTER TABLE ventas_estaciontrabajo ADD COLUMN IF NOT EXISTS impresora_vales_id bigint NULL"
+                )
+        recorder = MigrationRecorder(connection)
+        if not recorder.migration_qs.filter(app='caja', name='0009_impresoraagente_colaimpresion_nombre').exists():
+            recorder.record_applied('caja', '0009_impresoraagente_colaimpresion_nombre')
+        if not recorder.migration_qs.filter(app='ventas', name='0049_estaciontrabajo_impresora_vales').exists():
+            recorder.record_applied('ventas', '0049_estaciontrabajo_impresora_vales')
+        return True
+    except Exception as exc:
+        print(f"[ENSURE] impresoras_agente: {exc}")
+        return False

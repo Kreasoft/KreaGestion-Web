@@ -421,7 +421,11 @@ class EstacionTrabajo(models.Model):
         help_text="Sucursal donde opera esta estación",
     )
     numero = models.CharField(max_length=10, verbose_name="Número de Estación")
-    nombre = models.CharField(max_length=100, verbose_name="Nombre de la Estación")
+    nombre = models.CharField(
+        max_length=100,
+        verbose_name="Nombre de la Estación",
+        help_text="Lo que escribe el usuario (ej. Estación 1). Único en la sucursal. Las ventas se identifican por estación + vendedor + sucursal.",
+    )
     descripcion = models.TextField(blank=True, verbose_name="Descripción")
     
     # Correlativo único de la estación
@@ -492,6 +496,24 @@ class EstacionTrabajo(models.Model):
     )
     
     activo = models.BooleanField(default=True, verbose_name="Activo")
+    caja_impresion = models.ForeignKey(
+        'caja.Caja',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='estaciones_impresion',
+        verbose_name="Impresora de la estación",
+        help_text="Agente/cola donde salen los vales de esta estación. Puede ser propia o compartida. No tiene que ser la caja de cobro.",
+    )
+    impresora_vales = models.ForeignKey(
+        'caja.ImpresoraAgente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='estaciones_vales',
+        verbose_name="Impresora de vales",
+        help_text="La elige el agente de este computador. Se asigna sola al reportar.",
+    )
     
     # Auditoría
     fecha_creacion = models.DateTimeField(auto_now_add=True)
@@ -505,7 +527,42 @@ class EstacionTrabajo(models.Model):
     
     def __str__(self):
         return f"Estación {self.numero} - {self.nombre}"
-    
+
+    def info_impresora(self):
+        """Estado para la UI: el agente elige la impresora; aquí solo se muestra."""
+        caja = getattr(self, 'caja_impresion', None)
+        ping = getattr(caja, 'agente_ultimo_ping', None) if caja else None
+        en_linea = bool(ping and (timezone.now() - ping).total_seconds() < 120)
+        nombre = ''
+        imp = getattr(self, 'impresora_vales', None)
+        if imp is not None:
+            nombre = (imp.nombre or '').strip()
+        if not nombre and caja is not None:
+            cache = getattr(caja, '_prefetched_objects_cache', {})
+            if 'impresoras_agente' in cache:
+                items = list(caja.impresoras_agente.all())
+                en_uso = next((i for i in items if i.en_uso), None)
+                ultima = en_uso or (
+                    max(items, key=lambda i: i.ultimo_reporte) if items else None
+                )
+                if ultima:
+                    nombre = (ultima.nombre or '').strip()
+            else:
+                from caja.models import ImpresoraAgente
+                ultima = (
+                    ImpresoraAgente.objects.filter(caja=caja)
+                    .order_by('-en_uso', '-ultimo_reporte')
+                    .first()
+                )
+                if ultima:
+                    nombre = (ultima.nombre or '').strip()
+        return {
+            'nombre': nombre,
+            'en_linea': en_linea,
+            'conectada': bool(en_linea or nombre),
+            'etiqueta': nombre or ('la del programa' if en_linea else ''),
+        }
+
     def get_tipos_documentos_permitidos(self):
         """Retorna los tipos de documentos que puede emitir esta estación"""
         tipos = []
@@ -589,6 +646,111 @@ class EstacionTrabajo(models.Model):
             print(f"[DEBUG INCREMENTAR] Corregido a: {valor_despues}")
         
         return self.correlativo_ticket
+
+
+class TerminalPOS(models.Model):
+    """PC o notebook registrado para vender. No es el perfil de estación."""
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name='terminales_pos')
+    sucursal = models.ForeignKey(
+        Sucursal, on_delete=models.SET_NULL, null=True, blank=True, related_name='terminales_pos'
+    )
+    estacion = models.ForeignKey(
+        EstacionTrabajo, on_delete=models.PROTECT, related_name='terminales',
+        verbose_name="Perfil de estación",
+    )
+    bodega = models.ForeignKey(
+        'bodegas.Bodega', on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Bodega para rebaja",
+    )
+    vendedor = models.ForeignKey(
+        Vendedor, on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="Vendedor por defecto",
+    )
+    codigo = models.CharField(max_length=20, verbose_name="Código")
+    nombre = models.CharField(max_length=120, verbose_name="Nombre del equipo")
+    token = models.CharField(max_length=64, unique=True, verbose_name="Identificador del equipo")
+    activo = models.BooleanField(default=True)
+    ultimo_acceso = models.DateTimeField(null=True, blank=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Terminal POS"
+        verbose_name_plural = "Terminales POS"
+        ordering = ['nombre']
+        unique_together = ['empresa', 'codigo']
+
+    def __str__(self):
+        return f"{self.codigo} · {self.nombre}"
+
+
+def ensure_terminalpos_table():
+    """Crea ventas_terminalpos si la migración no se alcanzó a aplicar."""
+    from django.db import connection
+    from django.db.migrations.recorder import MigrationRecorder
+
+    try:
+        if 'ventas_terminalpos' in connection.introspection.table_names():
+            return True
+        with connection.schema_editor() as editor:
+            editor.create_model(TerminalPOS)
+        recorder = MigrationRecorder(connection)
+        if not recorder.migration_qs.filter(app='ventas', name='0047_terminalpos').exists():
+            recorder.record_applied('ventas', '0047_terminalpos')
+        return True
+    except Exception:
+        return False
+
+
+def ensure_estacion_caja_impresion():
+    """Agrega ventas_estaciontrabajo.caja_impresion_id si la migración no se aplicó."""
+    from django.db import connection
+    from django.db.migrations.recorder import MigrationRecorder
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'ventas_estaciontrabajo'
+                  AND column_name = 'caja_impresion_id'
+                """
+            )
+            if cursor.fetchone():
+                return True
+            cursor.execute("SET lock_timeout = '8s'")
+            cursor.execute(
+                """
+                ALTER TABLE ventas_estaciontrabajo
+                ADD COLUMN IF NOT EXISTS caja_impresion_id integer NULL
+                """
+            )
+            cursor.execute(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'ventas_estaciontrabajo_caja_impresion_id_fkey'
+                    ) THEN
+                        ALTER TABLE ventas_estaciontrabajo
+                        ADD CONSTRAINT ventas_estaciontrabajo_caja_impresion_id_fkey
+                        FOREIGN KEY (caja_impresion_id)
+                        REFERENCES caja_caja(id)
+                        ON DELETE SET NULL;
+                    END IF;
+                END $$;
+                """
+            )
+        recorder = MigrationRecorder(connection)
+        if not recorder.migration_qs.filter(app='ventas', name='0048_estaciontrabajo_caja_impresion').exists():
+            recorder.record_applied('ventas', '0048_estaciontrabajo_caja_impresion')
+        print("[ENSURE] columna caja_impresion_id lista")
+        return True
+    except Exception as exc:
+        print(f"[ENSURE] caja_impresion_id: {exc}")
+        return False
 
 
 class Devolucion(models.Model):

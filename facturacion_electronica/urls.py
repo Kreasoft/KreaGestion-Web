@@ -45,6 +45,7 @@ urlpatterns = [
     path('nota-debito/<int:notadebito_id>/ver/', views_dte.ver_notadebito_electronica, name='ver_notadebito_electronica'),
     path('dte/<int:dte_id>/regenerar-xml/', views_dte.regenerar_xml_dte, name='regenerar_xml_dte'),
     path('dte/sincronizar-pendientes/', views_dte.sincronizar_pendientes_sii, name='sincronizar_pendientes_sii'),
+    path('dte/consultar-estados/', views_dte.consultar_estados_pendientes_sii, name='consultar_estados_pendientes_sii'),
     
     # Monitor de envíos
     path('monitor/', views_monitor.monitor_envios, name='monitor_envios'),

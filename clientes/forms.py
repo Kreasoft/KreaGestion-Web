@@ -229,17 +229,13 @@ class ContactoClienteForm(forms.ModelForm):
     
     def clean_email(self):
         email = self.cleaned_data.get('email', '')
-        if email:
-            # Verificar que el email sea único para el cliente
-            if self.instance.pk and self.instance.cliente:
-                queryset = ContactoCliente.objects.filter(
-                    cliente=self.instance.cliente, 
-                    email=email
-                ).exclude(pk=self.instance.pk)
-                
-                if queryset.exists():
-                    raise ValidationError('Este email ya está siendo usado por otro contacto del mismo cliente.')
-        
+        cliente = getattr(self.instance, 'cliente', None)
+        if email and cliente:
+            queryset = ContactoCliente.objects.filter(cliente=cliente, email=email)
+            if self.instance.pk:
+                queryset = queryset.exclude(pk=self.instance.pk)
+            if queryset.exists():
+                raise ValidationError('Este email ya está siendo usado por otro contacto del mismo cliente.')
         return email
 
 

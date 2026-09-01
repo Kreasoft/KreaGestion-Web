@@ -96,6 +96,62 @@
     .est-docs { width: 100%; border-collapse: collapse; }
     .est-docs th { font-size: 0.65rem; color: #8B7355; text-transform: uppercase; font-weight: 700; padding: 3px 6px; border-bottom: 1px solid #E8DCC8; }
     .est-docs td { padding: 3px 6px; font-size: 0.72rem; color: #5D4037; border-bottom: 1px solid #F5F1E8; vertical-align: middle; }
+    .est-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 168px;
+        height: 34px !important;
+        padding: 0 18px !important;
+        font-size: 0.8rem !important;
+        font-weight: 700;
+        border-radius: 6px;
+    }
+    .est-btn-search {
+        min-width: 42px;
+        width: 42px;
+        height: 34px !important;
+        padding: 0 !important;
+    }
+    .card-header .form-control {
+        height: 34px !important;
+        min-height: 34px !important;
+        width: 240px !important;
+        font-size: 0.8rem !important;
+    }
+    .modal-footer .btn {
+        min-width: 150px;
+        height: 36px;
+        padding: 0 18px;
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+    .table-piedra tbody td.td-acciones .ico-32 {
+        width: 28px !important;
+        height: 28px !important;
+        min-width: 28px !important;
+        min-height: 28px !important;
+        max-height: 28px !important;
+        font-size: 13px !important;
+    }
+    .est-titulo-nombre {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 12px;
+        padding: 3px 12px;
+        border-radius: 999px;
+        background: #C76F43;
+        color: #FAFAF8;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        vertical-align: middle;
+        line-height: 1.2;
+    }
+    .modal-title .est-titulo-nombre {
+        font-size: 0.92rem;
+        margin-left: 10px;
+    }
 </style>
 {% endblock %}
 
@@ -109,6 +165,9 @@
                     <div>
                         <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); letter-spacing: -0.5px; font-size: 1.45rem;">
                             Estaciones de <span class="fw-bold">Trabajo</span>
+                            {% if estacion_actual %}
+                            <span class="est-titulo-nombre">{{ estacion_actual.numero }} · {{ estacion_actual.nombre }}</span>
+                            {% endif %}
                         </h2>
                         <div style="font-size: 0.75rem; font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); opacity: 0.75; line-height: 1.2;">
                             Define cómo opera cada caja del POS: modo, cierre, documentos e impresión
@@ -117,12 +176,15 @@
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <form method="get" class="d-flex align-items-center gap-1">
-                        <input type="text" name="search" class="form-control" placeholder="Buscar estación..." value="{{ search }}" style="width: 200px;">
-                        <button type="submit" class="btn btn-sm" style="background: #8B7355; border: none; color: #fff; font-size: 0.72rem; height: 26px;">
+                        <input type="text" name="search" class="form-control" placeholder="Buscar estación..." value="{{ search }}">
+                        <button type="submit" class="btn est-btn est-btn-search" style="background: #8B7355; border: none; color: #fff;">
                             <i class="fas fa-search"></i>
                         </button>
                     </form>
-                    <button class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: #fff; font-weight: 700; font-size: 0.75rem; height: 26px;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
+                    <a href="{% url 'ventas:conectar_impresora_estacion' %}?elegir=1" class="btn est-btn" style="background: #C76F43; border: 1px solid #A85A36; color: #fff;">
+                        <i class="fas fa-print me-1"></i> Conectar impresora
+                    </a>
+                    <button class="btn est-btn" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: #fff;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
                         <i class="fas fa-plus me-1"></i> Nueva Estación
                     </button>
                 </div>
@@ -130,6 +192,7 @@
         </div>
 
         <div class="card-body" style="padding: 8px 10px;">
+            {% include "caja/includes/alerta_agente_impresion.html" %}
             <div class="table-responsive rounded-bottom" style="background: white;">
                 <table class="table-piedra tabla-nombre-completo mb-0">
                     <thead>
@@ -141,6 +204,7 @@
                             <th style="width: 14%;">Cierre</th>
                             <th style="width: 18%;">Documentos</th>
                             <th style="width: 8%;">Ticket</th>
+                            <th style="width: 12%;">Impresora</th>
                             <th style="width: 6%;" class="text-center">Estado</th>
                             <th style="width: 6%;" class="text-center">Acciones</th>
                         </tr>
@@ -184,18 +248,31 @@
                             <td style="font-family: 'Courier New', monospace; font-weight: 700; color: #6F5B44;">
                                 #{{ estacion.correlativo_ticket|stringformat:"06d" }}
                             </td>
+                            <td>
+                                {% with info=estacion.info_impresora %}
+                                    {% if info.en_linea %}
+                                        {% if info.nombre %}{{ info.nombre }}{% else %}Lista{% endif %}
+                                        <span style="color:#5F8D62;font-weight:700;font-size:0.68rem;"> · en línea</span>
+                                    {% elif info.nombre %}
+                                        {{ info.nombre }}
+                                    {% else %}
+                                        <span style="color:#8B7355;">Sin conectar</span>
+                                    {% endif %}
+                                {% endwith %}
+                            </td>
                             <td class="text-center">
                                 <span class="estado-dot {% if estacion.activo %}estado-dot-activo{% else %}estado-dot-inactivo{% endif %}" title="{% if estacion.activo %}Activo{% else %}Inactivo{% endif %}"></span>
                             </td>
                             <td class="td-acciones text-center">
-                                <button class="ico-32" title="Ver" onclick="verEstacion({{ estacion.id }})"><i class="fas fa-eye"></i></button>
-                                <button class="ico-32" title="Editar" onclick="editarEstacion({{ estacion.id }})"><i class="fas fa-edit"></i></button>
+                                <button class="ico-32" title="Ver" onclick="verEstacion({{ estacion.id }}, '{{ estacion.numero|escapejs }}', '{{ estacion.nombre|escapejs }}')"><i class="fas fa-eye"></i></button>
+                                <button class="ico-32" title="Editar" onclick="editarEstacion({{ estacion.id }}, '{{ estacion.numero|escapejs }}', '{{ estacion.nombre|escapejs }}')"><i class="fas fa-edit"></i></button>
+                                <a class="ico-32" title="Conectar impresora" href="{% url 'ventas:conectar_impresora_estacion_pk' estacion.id %}"><i class="fas fa-print"></i></a>
                                 <button class="ico-32" title="Eliminar" onclick="eliminarEstacion({{ estacion.id }}, '{{ estacion.nombre|escapejs }}')"><i class="fas fa-trash"></i></button>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="9" class="text-center py-3">
+                            <td colspan="10" class="text-center py-3">
                                 <i class="fas fa-desktop fa-2x mb-2" style="color: #D4C4A8;"></i>
                                 <div style="color: #8B7355; font-size: 0.85rem;">No hay estaciones de trabajo</div>
                                 <button class="btn btn-sm mt-2" style="background: #8B8B3A; color: white;" data-bs-toggle="modal" data-bs-target="#modalCrearEstacion">
@@ -248,8 +325,8 @@
                     {% include "ventas/_estaciontrabajo_campos.html" with form=form_crear %}
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #E8DCC8; background: #FAFAF8; flex-shrink: 0;">
-                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: white;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: white;">
                         <i class="fas fa-save me-1"></i>Guardar
                     </button>
                 </div>
@@ -269,7 +346,7 @@
             </div>
             <div class="modal-body" id="detalleEstacion"></div>
             <div class="modal-footer" style="border-top: 1px solid #E8DCC8; background: #FAFAF8;">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
@@ -304,7 +381,16 @@ function syncCierreDirecto(root) {
     }
 }
 
-function verEstacion(id) {
+function tituloEstacion(texto, numero, nombre) {
+    var etiqueta = (numero || nombre)
+        ? ' <span class="est-titulo-nombre">' + (numero ? numero + ' · ' : '') + (nombre || '') + '</span>'
+        : '';
+    return texto + etiqueta;
+}
+
+function verEstacion(id, numero, nombre) {
+    document.querySelector('#modalVerEstacion .modal-title').innerHTML =
+        '<i class="fas fa-desktop me-2"></i>' + tituloEstacion('Detalle de la estación', numero, nombre);
     fetch(`/ventas/estaciones-trabajo/${id}/`)
         .then(function (response) { return response.text(); })
         .then(function (html) {
@@ -313,7 +399,9 @@ function verEstacion(id) {
         });
 }
 
-function editarEstacion(id) {
+function editarEstacion(id, numero, nombre) {
+    document.querySelector('#modalEditarEstacion .modal-title').innerHTML =
+        '<i class="fas fa-edit me-2"></i>' + tituloEstacion('Editar estación de trabajo', numero, nombre);
     fetch(`/ventas/estaciones-trabajo/${id}/editar/?v=${new Date().getTime()}`)
         .then(function (response) {
             if (!response.ok) throw new Error('Error al cargar el formulario');
@@ -322,8 +410,10 @@ function editarEstacion(id) {
         .then(function (html) {
             document.getElementById('formEditarEstacion').innerHTML = html;
             document.getElementById('footerEditarEstacion').innerHTML =
-                '<button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>' +
-                '<button type="submit" class="btn btn-sm" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;" form="formEditarEstacionSubmit">' +
+                '<a class="btn" style="background:#C76F43;border:1px solid #A85A36;color:#fff;" href="/ventas/estaciones-trabajo/' + id + '/conectar-impresora/">' +
+                '<i class="fas fa-print me-1"></i>Conectar impresora</a>' +
+                '<button type="button" class="btn" style="background:#8B7355;border:1px solid #6F5B44;color:#fff;" data-bs-dismiss="modal">Cancelar</button>' +
+                '<button type="submit" class="btn" style="background:#8B8B3A;border:1px solid #6F6F2E;color:#fff;" form="formEditarEstacionSubmit">' +
                 '<i class="fas fa-save me-1"></i>Guardar cambios</button>';
             new bootstrap.Modal(document.getElementById('modalEditarEstacion')).show();
             var form = document.getElementById('formEditarEstacionSubmit');

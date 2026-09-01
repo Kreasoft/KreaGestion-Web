@@ -367,6 +367,16 @@
                 <span>{{ dte.get_tipo_traslado_display|default:"-" }}</span>
                 {% endif %}
             </div>
+            {% if transferencia %}
+            <div class="cliente-row">
+                <span class="cliente-label">Desde:</span>
+                <span>{{ transferencia.bodega_origen.nombre }}</span>
+            </div>
+            <div class="cliente-row">
+                <span class="cliente-label">Hasta:</span>
+                <span>{{ transferencia.bodega_destino.nombre }}</span>
+            </div>
+            {% endif %}
             {% if dte.patente_transporte or dte.vehiculo %}
             <div class="cliente-row">
                 <span class="cliente-label">Patente:</span>
@@ -504,11 +514,10 @@
         {% endif %}
 
         <!-- OBSERVACIONES -->
-        {% if venta and venta.observaciones and "Ticket generado" not in venta.observaciones %}
-        <div style="border-top: 1px dashed #000; padding-top: 2mm; margin-top: 2mm; font-size: 7pt;">
-            <strong>Observaciones:</strong><br>
-            {{ venta.observaciones|truncatewords:30 }}
-        </div>
+        {% if transferencia and transferencia.observaciones %}
+        {% include "includes/visor_observacion.html" with observacion=transferencia.observaciones %}
+        {% elif venta and venta.observaciones %}
+        {% include "includes/visor_observacion.html" with observacion=venta.observaciones %}
         {% endif %}
 
         <!-- FOOTER -->

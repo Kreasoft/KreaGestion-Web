@@ -19,6 +19,7 @@ urlpatterns = [
     path('aperturas/crear/', views.apertura_create, name='apertura_create'),
     path('aperturas/<int:pk>/', views.apertura_detail, name='apertura_detail'),
     path('aperturas/<int:pk>/cerrar/', views.apertura_cerrar, name='apertura_cerrar'),
+    path('cerrar/', views.cierre_caja_activa, name='cierre_caja'),
     path('aperturas/<int:pk>/imprimir/', views.apertura_imprimir, name='apertura_imprimir'),
     
     # Procesamiento de Ventas

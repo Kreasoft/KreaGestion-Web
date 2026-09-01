@@ -11,18 +11,23 @@ def print(*args, **kwargs):
     return None
 
 
+def _debe_rebajar_stock(venta):
+    """La rebaja de stock solo aplica al facturar el documento, no al crear el ticket."""
+    if venta.tipo_documento == 'cotizacion':
+        return False
+    if venta.estado != 'confirmada':
+        return False
+    if venta.tipo_documento == 'ticket':
+        return bool(venta.facturado)
+    return True
+
+
 @receiver(post_save, sender=Venta)
 def actualizar_stock_venta(sender, instance, created, **kwargs):
     """
-    Actualiza el stock cuando se confirma o anula una venta.
-    Solo aplica para ventas confirmadas, no para cotizaciones ni borradores.
+    Actualiza el stock cuando se factura o anula un documento.
+    Los tickets pendientes (facturado=False) no rebajan inventario.
     """
-    # Solo procesar ventas confirmadas (no cotizaciones ni borradores)
-    if instance.tipo_documento in ['cotizacion']:
-        return
-    
-    # Verificar si ya hay movimientos de inventario para esta venta
-    # Esto evita procesar múltiples veces cuando el signal se ejecuta varias veces
     from inventario.models import Inventario
     movimientos_existentes = Inventario.objects.filter(
         empresa=instance.empresa,
@@ -30,12 +35,9 @@ def actualizar_stock_venta(sender, instance, created, **kwargs):
         tipo_movimiento='salida',
         estado='confirmado'
     ).exists()
-    
-    # Si la venta está confirmada, descontar stock (solo si no se ha procesado antes)
-    if instance.estado == 'confirmada' and not movimientos_existentes:
+
+    if _debe_rebajar_stock(instance) and not movimientos_existentes:
         descontar_stock_venta(instance)
-    
-    # Si la venta fue anulada, reponer stock
     elif instance.estado == 'anulada':
         reponer_stock_venta(instance)
 
@@ -51,10 +53,13 @@ def descontar_stock_venta(venta):
     if not detalles:
         return
     
-    # Obtener la bodega principal de la empresa (la primera activa)
     from bodegas.models import Bodega
-    bodega = Bodega.objects.filter(empresa=venta.empresa, activa=True).first()
-    
+    bodega = None
+    if getattr(venta, 'sucursal_id', None):
+        bodega = Bodega.objects.filter(empresa=venta.empresa, sucursal=venta.sucursal, activa=True).first()
+    if not bodega:
+        bodega = Bodega.objects.filter(empresa=venta.empresa, activa=True).first()
+
     if not bodega:
         print(f"WARNING: No se encontró bodega activa para la empresa {venta.empresa}")
         return

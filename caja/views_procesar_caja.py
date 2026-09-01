@@ -40,6 +40,52 @@ def _monto_decimal(raw):
         return Decimal('0')
 
 
+def _listas_despacho_caja(empresa):
+    """Vendedores, móviles y choferes activos para el formulario de cobro."""
+    from ventas.models import Vendedor
+
+    vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+    vehiculos = []
+    choferes = []
+    if getattr(empresa, 'usa_sistema_despacho', False):
+        try:
+            from pedidos.models_transporte import Vehiculo, Chofer
+            vehiculos = Vehiculo.objects.filter(empresa=empresa, activo=True).order_by('patente')
+            choferes = Chofer.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+        except Exception:
+            vehiculos = []
+            choferes = []
+    return vendedores, vehiculos, choferes
+
+
+def _aplicar_despacho_caja(ticket, empresa, post_data):
+    """Asigna vendedor, móvil y chofer del formulario al ticket antes de generar el DTE."""
+    campos = []
+    vendedor_id = (post_data.get('vendedor_id') or '').strip()
+    if vendedor_id:
+        from ventas.models import Vendedor
+        vendedor = Vendedor.objects.filter(pk=vendedor_id, empresa=empresa, activo=True).first()
+        if vendedor:
+            ticket.vendedor = vendedor
+            campos.append('vendedor')
+
+    if getattr(empresa, 'usa_sistema_despacho', False):
+        from pedidos.models_transporte import Vehiculo, Chofer
+        vehiculo_id = (post_data.get('vehiculo_id') or '').strip()
+        chofer_id = (post_data.get('chofer_id') or '').strip()
+        if vehiculo_id:
+            vehiculo = Vehiculo.objects.filter(pk=vehiculo_id, empresa=empresa, activo=True).first()
+            if vehiculo:
+                ticket.vehiculo = vehiculo
+                campos.append('vehiculo')
+        if chofer_id:
+            chofer = Chofer.objects.filter(pk=chofer_id, empresa=empresa, activo=True).first()
+            if chofer:
+                ticket.chofer = chofer
+                campos.append('chofer')
+    return campos
+
+
 @login_required
 @requiere_empresa
 @requiere_permiso('caja.add_ventaprocesada', mensaje='No tienes permisos para procesar ventas. Contacta al administrador.', redirect_url='caja:apertura_list')
@@ -116,6 +162,14 @@ def procesar_venta_caja(request, ticket_id):
     fecha_vencimiento_default = resolver_fecha_vencimiento(fecha_documento, plazo_pago_cliente)
 
     def _contexto_formulario(form=None, fecha_vencimiento=None, **extra):
+        from gestioncloud.views import bodegas_para_rebaja
+        vendedores, vehiculos, choferes = _listas_despacho_caja(request.empresa)
+        bodegas_rebaja, bodega_rebaja = bodegas_para_rebaja(
+            request,
+            sucursal=sucursal_caja,
+            caja=getattr(apertura_activa, 'caja', None),
+            bodega_id=request.POST.get('bodega_id') if request.method == 'POST' else None,
+        )
         ctx = {
             'ticket': ticket,
             'form': form or ProcesarVentaForm(empresa=request.empresa, ticket=ticket, initial={'ticket_id': ticket.id}),
@@ -128,6 +182,11 @@ def procesar_venta_caja(request, ticket_id):
             'fecha_documento': fecha_documento,
             'plazo_pago_cliente': plazo_pago_cliente,
             'fecha_vencimiento': fecha_vencimiento or fecha_vencimiento_default,
+            'vendedores': vendedores,
+            'vehiculos': vehiculos,
+            'choferes': choferes,
+            'bodegas': bodegas_rebaja,
+            'bodega_rebaja': bodega_rebaja,
         }
         ctx.update(extra)
         return ctx
@@ -233,7 +292,9 @@ def procesar_venta_caja(request, ticket_id):
             ticket.fecha_vencimiento = resolver_fecha_vencimiento(
                 fecha_documento, plazo_pago_cliente, request.POST.get('fecha_vencimiento')
             )
-            ticket.save(update_fields=['fecha', 'fecha_vencimiento'])
+            campos_ticket = ['fecha', 'fecha_vencimiento']
+            campos_ticket.extend(_aplicar_despacho_caja(ticket, request.empresa, request.POST))
+            ticket.save(update_fields=campos_ticket)
             
             if ticket.tipo_documento_planeado in ['factura', 'boleta', 'guia']:
                 tipo_dte_map = {
@@ -311,28 +372,30 @@ def procesar_venta_caja(request, ticket_id):
                 # Recalcular totales de la apertura
                 apertura_activa.calcular_totales()
             
-            # 3. Descontar stock
-            from inventario.models import Stock
+            # 3. Rebajar stock solo al facturar el documento
+            from django.db.models.signals import post_save
+            from gestioncloud.views import bodegas_para_rebaja
+            from ventas.signals import actualizar_stock_venta
+            from .views import descontar_stock_venta_completo
 
-            bodega_caja = getattr(getattr(apertura_activa, 'caja', None), 'bodega', None) if apertura_activa else None
+            _bodegas, bodega_caja = bodegas_para_rebaja(
+                request,
+                sucursal=sucursal_caja,
+                caja=getattr(apertura_activa, 'caja', None),
+                bodega_id=request.POST.get('bodega_id'),
+            )
             if bodega_caja:
-                for detalle in ticket.ventadetalle_set.all():
-                    stock = Stock.objects.filter(
-                        empresa=request.empresa,
-                        bodega=bodega_caja,
-                        articulo=detalle.articulo
-                    ).first()
-                    
-                    if stock:
-                        stock.cantidad -= detalle.cantidad
-                        stock.save()
-                        print(f"[CAJA] Stock descontado: {detalle.articulo.nombre} - {detalle.cantidad}")
-                    else:
-                        print(f"[CAJA] ADVERTENCIA: No se encontr stock para {detalle.articulo.nombre} en bodega {bodega_caja.nombre}")
-            
-            # 4. Marcar ticket como facturado
-            ticket.facturado = True
-            ticket.save()
+                request.session['dashboard_bodega_id'] = bodega_caja.id
+                request.session.modified = True
+                descontar_stock_venta_completo(ticket, bodega_caja)
+
+            # 4. Marcar ticket como facturado (sin volver a rebajar por el signal)
+            post_save.disconnect(actualizar_stock_venta, sender=Venta)
+            try:
+                ticket.facturado = True
+                ticket.save()
+            finally:
+                post_save.connect(actualizar_stock_venta, sender=Venta)
             
             # 5. Crear registro de venta procesada
             VentaProcesada.objects.create(

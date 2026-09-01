@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Conectar impresora - Estaciones - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    body { background: #FAFAF8 !important; }
+    .imp-wrap { max-width: 720px; margin: 0 auto; }
+    .imp-paso {
+        display: flex; gap: 12px; align-items: flex-start;
+        padding: 12px 0; border-bottom: 1px solid #E8DCC8;
+    }
+    .imp-paso:last-child { border-bottom: none; }
+    .imp-num {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: #5D4037; color: #FAFAF8;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+    }
+    .imp-codigo {
+        font-size: 2rem; letter-spacing: 0.35em; font-weight: 700;
+        color: #5D4037; background: #E8DCC8; border-radius: 8px;
+        padding: 14px 8px; text-align: center; font-family: ui-monospace, monospace;
+    }
+    .imp-estacion {
+        background: #fff;
+        border: 1px solid #E8DCC8;
+        border-radius: 8px;
+        padding: 12px 14px;
+    }
+    .imp-badge {
+        display: inline-block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #E8DCC8;
+        color: #5D4037;
+    }
+    .imp-badge-ok { background: #5F8D62; color: #FAFAF8; }
+    .imp-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8B7355; }
+    .imp-valor { font-size: 0.88rem; color: #5D4037; font-weight: 600; }
+    .imp-listo {
+        background: #E8F0E8;
+        border: 1px solid #5F8D62;
+        border-radius: 8px;
+        padding: 12px 14px;
+        color: #5D4037;
+        font-size: 0.95rem;
+        margin-bottom: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 8px 12px;">
+    <div class="imp-wrap">
+        <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(93, 64, 55, 0.12);">
+            <div class="card-header" style="background: var(--gradient-piedra); padding: 10px 16px;">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-print me-3" style="font-size: 1.3rem; color: var(--color-piedra-texto);"></i>
+                        <div>
+                            <h2 class="mb-0 fw-light" style="font-family: 'Poppins', sans-serif; color: var(--color-piedra-texto); font-size: 1.35rem;">
+                                Conectar <span class="fw-bold">impresora</span>
+                            </h2>
+                            <div style="font-size: 0.75rem; color: var(--color-piedra-texto); opacity: 0.8;">
+                                Estación de trabajo · {{ empresa.nombre }}
+                            </div>
+                        </div>
+                    </div>
+                    <a href="{% url 'ventas:estaciontrabajo_list' %}" class="btn btn-sm" style="background: #8B7355; border: 1px solid #6F5B44; color: #fff; font-weight: 600;">
+                        Volver a estaciones
+                    </a>
+                </div>
+            </div>
+
+            <div class="card-body" style="background: #FAFAF8; padding: 16px 18px;">
+                {% if error %}
+                <div class="alert py-2 mb-3" style="background: #F8E6DC; border-left: 4px solid #C76F43; color: #5D4037; font-size: 0.85rem;">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                {% if not estacion %}
+                <p class="mb-3" style="color: #6F5B44; font-size: 0.9rem;">
+                    Elija la estación de este computador. El código queda para ese puesto, no para una caja.
+                </p>
+                <form method="get" action="{% url 'ventas:conectar_impresora_estacion' %}">
+                    <label class="form-label small mb-1" style="color: #6F5B44;">Estación</label>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <select name="estacion_id" class="form-select form-select-sm" style="border-color: #E8DCC8; max-width: 420px;">
+                            <option value="">Seleccione una estación…</option>
+                            {% for e in estaciones %}
+                            <option value="{{ e.id }}">
+                                {{ e.nombre }}{% if e.sucursal %} · {{ e.sucursal.nombre }}{% endif %} · {{ e.numero }}
+                            </option>
+                            {% empty %}
+                            <option value="" disabled>No hay estaciones activas</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-sm" style="background: #C76F43; border: 1px solid #A85A36; color: #fff; font-weight: 700;" {% if not estaciones %}disabled{% endif %}>
+                            Continuar
+                        </button>
+                    </div>
+                </form>
+                {% else %}
+
+                <div class="imp-estacion mb-3">
+                    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                        <div>
+                            <div class="imp-label">Estación</div>
+                            <div style="font-size: 1.15rem; font-weight: 700; color: #5D4037; line-height: 1.2;">
+                                {{ estacion.nombre }}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if estacion_abierta %}
+                            <span class="imp-badge imp-badge-ok">Abierta en este PC</span>
+                            {% endif %}
+                            {% if agente_en_linea %}
+                            <span class="imp-badge imp-badge-ok">Programa en línea</span>
+                            {% endif %}
+                            <a href="{% url 'ventas:conectar_impresora_estacion' %}?elegir=1" class="small" style="color: #C76F43; font-weight: 600;">
+                                Elegir otra
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-4">
+                            <div class="imp-label">Sucursal</div>
+                            <div class="imp-valor">{% if estacion.sucursal %}{{ estacion.sucursal.nombre }}{% else %}Sin sucursal{% endif %}</div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="imp-label">Modalidad</div>
+                            <div class="imp-valor">{{ modalidad }}</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="imp-label">Impresora</div>
+                            <div class="imp-valor" id="imp-nombre-actual">
+                                {% if info_impresora.en_linea %}
+                                    {% if info_impresora.nombre %}{{ info_impresora.nombre }} · {% endif %}en línea
+                                {% elif info_impresora.nombre %}
+                                    {{ info_impresora.nombre }}
+                                {% else %}
+                                    Aún no conectada
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="imp-estado-vivo">
+                    {% if agente_en_linea or info_impresora.en_linea %}
+                    <div class="imp-listo">
+                        Listo. El programa está en línea. Los vales de <strong>{{ estacion.nombre }}</strong>
+                        {% if info_impresora.nombre %}
+                        salen por <strong>{{ info_impresora.nombre }}</strong>.
+                        {% else %}
+                        se imprimen en la impresora que ya tiene el programa.
+                        {% endif %}
+                        No hay que descargar ni configurar nada más.
+                    </div>
+                    {% elif info_impresora.nombre %}
+                    <div class="imp-listo">
+                        Última impresora: <strong>{{ info_impresora.nombre }}</strong>. Abra el programa en este PC para volver a imprimir.
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if agente_en_linea or info_impresora.conectada %}
+                <p class="mb-2" style="color: #6F5B44; font-size: 0.85rem;">
+                    Si el programa está abierto, ya imprime. No descargue de nuevo.
+                </p>
+                <p class="mb-2" style="font-size: 0.75rem;">
+                    <a href="{% url 'ventas:descargar_agente_impresion' %}" style="color:#8B7355;">Descargar de nuevo solo si lo perdió</a>
+                </p>
+                <details id="imp-pedir-codigo"{% if codigo %} open{% endif %} style="border-top: 1px solid #E8DCC8; padding-top: 10px;">
+                    <summary style="color:#8B7355;font-size:0.75rem;cursor:pointer;">Pedir código si cambió de computador</summary>
+                    <form method="post" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="estacion_id" value="{{ estacion.id }}">
+                        <button type="submit" class="btn btn-sm" style="background: #C76F43; border: 1px solid #A85A36; color: #fff; font-weight: 700;">
+                            Obtener código
+                        </button>
+                    </form>
+                    {% if codigo %}
+                    <div class="mt-3">
+                        <div class="small mb-1" style="color: #6F5B44;">Anote este código e ingréselo en el programa:</div>
+                        <div class="imp-codigo">{{ codigo }}</div>
+                        <div class="small mt-1" style="color: #8B7355;">Válido 24 horas para {{ estacion.nombre }}.</div>
+                    </div>
+                    {% endif %}
+                </details>
+                {% else %}
+                <p class="mb-3" style="color: #6F5B44; font-size: 0.9rem;">
+                    En 3 pasos deja lista la impresora de <strong>{{ estacion.nombre }}</strong>.
+                </p>
+
+                <div class="imp-paso">
+                    <div class="imp-num">1</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold" style="color: #5D4037;">Descargue el programa en este computador</div>
+                        <div class="small mb-2" style="color: #8B7355;">Descomprima la carpeta y haga doble clic en <strong>AgenteImpresion.exe</strong>.</div>
+                        <a href="{% url 'ventas:descargar_agente_impresion' %}" class="btn btn-sm" style="background: #8B8B3A; border: 1px solid #6F6F2E; color: #fff; font-weight: 700;">
+                            <i class="fas fa-download me-1"></i> Descargar programa
+                        </a>
+                    </div>
+                </div>
+
+                <div class="imp-paso">
+                    <div class="imp-num">2</div>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold" style="color: #5D4037;">Obtenga el código de esta estación</div>
+                        <div class="small mb-2" style="color: #8B7355;">Ingréselo en el programa. Queda vinculado a {{ estacion.nombre }}.</div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="estacion_id" value="{{ estacion.id }}">
+                            <button type="submit" class="btn btn-sm" style="background: #C76F43; border: 1px solid #A85A36; color: #fff; font-weight: 700;">
+                                Obtener código
+                            </button>
+                        </form>
+                        {% if codigo %}
+                        <div class="mt-3">
+                            <div class="small mb-1" style="color: #6F5B44;">Anote este código e ingréselo en el programa:</div>
+                            <div class="imp-codigo">{{ codigo }}</div>
+                            <div class="small mt-1" style="color: #8B7355;">Válido 24 horas para {{ estacion.nombre }}.</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="imp-paso">
+                    <div class="imp-num">3</div>
+                    <div>
+                        <div class="fw-bold" style="color: #5D4037;">En el programa: código, impresora e Iniciar</div>
+                        <div class="small" style="color: #8B7355;">Esta pantalla se actualiza sola cuando el programa está en línea.</div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% if estacion %}
+<script>
+(function () {
+    var box = document.getElementById('imp-estado-vivo');
+    var nombreEl = document.getElementById('imp-nombre-actual');
+    if (!box) return;
+    var estacionNombre = "{{ estacion.nombre|escapejs }}";
+    function esc(s) {
+        return String(s || '').replace(/[&<>"']/g, function (c) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+        });
+    }
+    function pintar(d) {
+        if (!d || !d.ok) return;
+        if (d.agente_en_linea || d.en_linea) {
+            var dest = d.nombre
+                ? 'salen por <strong>' + esc(d.nombre) + '</strong>.'
+                : 'se imprimen en la impresora que ya tiene el programa.';
+            box.innerHTML = '<div class="imp-listo">Listo. El programa está en línea. Los vales de <strong>' +
+                esc(estacionNombre) + '</strong> ' + dest + ' No hay que descargar ni configurar nada más.</div>';
+            if (nombreEl) nombreEl.textContent = d.nombre ? (d.nombre + ' · en línea') : 'en línea';
+        }
+    }
+    function poll() {
+        fetch(window.location.pathname + '?estado=1', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(pintar)
+            .catch(function () {});
+    }
+    setInterval(poll, 4000);
+    poll();
+})();
+</script>
+{% endif %}
+{% endblock %}

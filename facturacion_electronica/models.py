@@ -8,10 +8,13 @@ import unicodedata
 from facturacion_electronica.ind_traslado import IND_TRASLADO_CHOICES, TIPO_DESPACHO_SII_CHOICES
 from facturacion_electronica.clasificacion_sii import (
     contiene_codigo_estado,
+    conteos_envio_sii,
     es_dte_no_recibido_sii,
+    es_dte_sin_aceptacion_comercial,
     es_espera_reintento_sii,
     es_falso_rechazo_sii,
     es_glosa_envio_procesado,
+    es_recepcion_sii_documento,
     evidencia_rechazo_tributario,
     extraer_segundos_espera,
     extraer_track_id,
@@ -906,6 +909,32 @@ class DocumentoTributarioElectronico(models.Model):
             type(self).objects.filter(pk=self.pk).update(**campos)
         return True
 
+    def aplicar_rechazo_conteo_envio(self):
+        """QueryEstUp con RECHAZADOS>0 no debe quedar como Pendiente SII.
+
+        No aplica si ya hay estado de documento (DOK/EOK/RCH) en la respuesta.
+        """
+        try:
+            respuesta = self.respuesta_sii or ''
+        except Exception:
+            respuesta = self._campo_sii_cargado('respuesta_sii')
+        texto = f'{respuesta} {self.glosa_sii or ''}'
+        if contiene_codigo_estado(texto, ('EOK', 'DOK', 'SOK', 'RCH', 'RSC')):
+            return False
+        if any(token in texto.upper() for token in ['DTE RECIBIDO', 'DTE ACEPTADO']):
+            return False
+        conteos = conteos_envio_sii(respuesta, self.glosa_sii)
+        if conteos['rechazados'] <= 0 or conteos['aceptados'] > 0:
+            return False
+        self.estado_sii = 'rechazado'
+        campos = {'estado_sii': 'rechazado'}
+        if es_glosa_envio_procesado(self.glosa_sii) and not evidencia_rechazo_tributario(self.glosa_sii):
+            self.glosa_sii = f"Envío procesado: {conteos['rechazados']} documento(s) rechazado(s)"
+            campos['glosa_sii'] = self.glosa_sii
+        if self.pk:
+            type(self).objects.filter(pk=self.pk).update(**campos)
+        return True
+
     def get_estado_sii_real(self):
         try:
             return self._calcular_estado_sii_real()
@@ -925,8 +954,36 @@ class DocumentoTributarioElectronico(models.Model):
         error = self._normalizar_estado_texto(self._campo_sii_cargado('error_envio'))
         texto_sii = f'{glosa} {error}'.strip()
 
-        # Nunca Rechazada sin RCH/RSC o la palabra RECHAZADO.
+        # Rechazo tributario real (RCH) gana. EOK (aceptación comercial) gana al conteo del envío.
+        # DOK / DTE Recibido solo confirma que el SII tomó el documento, no que lo aceptó.
         if evidencia_rechazo_tributario(texto_sii, texto):
+            return 'rechazado'
+        if any(token in glosa for token in ['ACEPTADO CON REPAROS', 'ACEPTADA CON REPAROS']) or contiene_codigo_estado(glosa, ('RPR', 'RPC', 'RLV')):
+            return 'aceptado_reparos'
+        if (
+            any(token in glosa for token in ['DTE ACEPTADO', 'DOCUMENTO ACEPTADO'])
+            or contiene_codigo_estado(glosa, ('EOK', 'SOK'))
+            or contiene_codigo_estado(texto, ('EOK', 'SOK'))
+            or (
+                any(token in glosa for token in ['ACEPTADO', 'ACEPTADA'])
+                and 'RECIBIDO' not in glosa
+                and 'CON REPAROS' not in glosa
+            )
+        ):
+            return 'aceptado'
+        conteos = conteos_envio_sii(texto, texto_sii)
+        if es_dte_sin_aceptacion_comercial(self.tipo_dte):
+            if es_recepcion_sii_documento(glosa, texto) or (
+                conteos['aceptados'] > 0 and conteos['rechazados'] == 0
+            ):
+                return 'aceptado'
+        if (
+            'DTE RECIBIDO' in glosa
+            or contiene_codigo_estado(glosa, ('DOK',))
+            or contiene_codigo_estado(texto, ('DOK',))
+        ):
+            return 'enviado'
+        if conteos['rechazados'] > 0 and conteos['aceptados'] == 0:
             return 'rechazado'
         if estado_actual == 'rechazado':
             return 'enviado' if str(self.track_id or '').strip() else 'pendiente'
@@ -936,11 +993,6 @@ class DocumentoTributarioElectronico(models.Model):
 
         if es_glosa_envio_procesado(texto_sii, texto):
             return 'enviado'
-
-        if any(token in glosa for token in ['ACEPTADO CON REPAROS', 'ACEPTADA CON REPAROS']) or contiene_codigo_estado(glosa, ('RPR', 'RPC', 'RLV')):
-            return 'aceptado_reparos'
-        if any(token in glosa for token in ['ACEPTADO', 'ACEPTADA']) or contiene_codigo_estado(glosa, ('EOK', 'DOK', 'SOK')):
-            return 'aceptado'
 
         if estado_actual in {'error', 'error_envio'}:
             return 'error_envio'
@@ -1017,6 +1069,11 @@ class DocumentoTributarioElectronico(models.Model):
         return self.get_estado_sii_real() not in {'rechazado', 'anulado'}
 
     @property
+    def puede_compartir_pdf_correo_whatsapp(self):
+        """PDF, correo y WhatsApp solo si el SII ya aceptó el DTE."""
+        return self.get_estado_sii_real() in {'aceptado', 'aceptado_reparos'}
+
+    @property
     def es_error_envio(self):
         return self.get_estado_sii_real() == 'error_envio'
 
@@ -1039,10 +1096,18 @@ class DocumentoTributarioElectronico(models.Model):
             )
         return 'Este documento no puede emitirse ni imprimirse como documento tributario valido.'
 
+    def get_mensaje_no_compartible(self):
+        if not self.puede_emitir_documento_tributario:
+            return self.get_mensaje_no_emitible()
+        return (
+            'Este documento aún no está aceptado por el SII. '
+            'El PDF, el correo y WhatsApp estarán disponibles cuando sea aceptado.'
+        )
+
     def requiere_consulta_estado_sii(self):
         if not self.tiene_track_sii:
             return False
-        return self.get_estado_sii_real() != 'anulado'
+        return not self.get_estado_sii_real_es_final
 
     @property
     def permite_reenvio_xml_corregido(self):

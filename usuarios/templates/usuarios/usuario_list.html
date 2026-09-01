@@ -11,8 +11,41 @@
 <style>
     .form-control, .form-select, .table-select { height: 26px !important; min-height: 26px !important; padding: 2px 8px !important; font-size: 0.72rem !important; border-color: #D4C4A8 !important; }
     .form-control:focus, .form-select:focus, .table-select:focus { border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; }
-    .modal-header { padding: 8px 16px !important; }
-    .modal-body { padding: 8px 12px !important; }
+    #usuarioModal .modal-content {
+        border: 1px solid #D4C4A8;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 18px 48px rgba(93, 64, 55, 0.18);
+    }
+    #usuarioModal .modal-header {
+        padding: 14px 20px !important;
+        background: linear-gradient(135deg, #EFEBE9 0%, #D7CCC8 100%);
+        border-bottom: 1px solid #D4C4A8 !important;
+    }
+    #usuarioModal .modal-usuario-icon {
+        width: 38px; height: 38px; min-width: 38px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.7);
+        display: flex; align-items: center; justify-content: center;
+        color: #5D4037;
+        box-shadow: 0 1px 4px rgba(93,64,55,0.12);
+    }
+    #usuarioModal .modal-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 1.2rem;
+        letter-spacing: -0.4px;
+        color: #5D4037;
+        line-height: 1.15;
+    }
+    #usuarioModal .modal-title strong { font-weight: 700; }
+    #usuarioModal #usuarioModalDesc {
+        margin: 3px 0 0;
+        font-size: 0.75rem;
+        color: #6F5B44;
+        opacity: 0.85;
+    }
+    #usuarioModal .modal-body { padding: 18px 20px 16px !important; background: #FAFAF8; }
 </style>
 {% endblock %}
 
@@ -401,9 +434,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const usuarioModalBody = document.getElementById('usuarioModalBody');
     
     // Listeners para abrir modal (Create)
+    const usuarioModalDesc = document.getElementById('usuarioModalDesc');
     document.getElementById('btnNuevoUsuario')?.addEventListener('click', function() {
-        usuarioModalTitle.textContent = 'Crear Nuevo Usuario';
-        usuarioModalBody.innerHTML = '<div class="text-center" style="height: 40px; font-size: 0.75rem; color: #8D6E63;"><div class="spinner-border text-secondary" role="status"></div></div>';
+        usuarioModalTitle.innerHTML = 'Nuevo <strong>usuario</strong>';
+        if (usuarioModalDesc) usuarioModalDesc.textContent = 'Complete los datos de acceso y el rol del colaborador.';
+        usuarioModalBody.innerHTML = '<div class="text-center py-4" style="color:#8B7355;font-size:0.8rem;">Cargando…</div>';
         usuarioModal.show();
         
         fetch('{% url "usuarios:usuario_create" %}', {
@@ -421,8 +456,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.btn-editar-usuario').forEach(button => {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
-            usuarioModalTitle.textContent = 'Editar Usuario';
-            usuarioModalBody.innerHTML = '<div class="text-center" style="height: 40px; font-size: 0.75rem; color: #8D6E63;"><div class="spinner-border text-secondary" role="status"></div></div>';
+            usuarioModalTitle.innerHTML = 'Editar <strong>usuario</strong>';
+            if (usuarioModalDesc) usuarioModalDesc.textContent = 'Actualice los datos, el rol o la contraseña de acceso.';
+            usuarioModalBody.innerHTML = '<div class="text-center py-4" style="color:#8B7355;font-size:0.8rem;">Cargando…</div>';
             usuarioModal.show();
             
             fetch(`/usuarios/${userId}/editar/`, {
@@ -461,14 +497,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         usuarioModal.hide();
                         location.reload();
                     } else {
-                        // Handle errors (simplificado)
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                        form.querySelectorAll('[id^="error_"]').forEach(function (el) { el.textContent = ''; });
+                        var caja = document.getElementById('formErrors');
+                        if (caja) {
+                            caja.style.display = data.error ? 'block' : 'none';
+                            caja.textContent = data.error || '';
+                        }
                         if (data.errors) {
-                             // Display errors logic
-                             submitBtn.disabled = false;
-                             submitBtn.innerHTML = originalText;
-                             // Recargar form con errores si es html o inyectar
-                             // Aquí asumimos simple reload por brevedad en este step
-                             alert('Error en el formulario. Por favor revisa los campos.');
+                            Object.keys(data.errors).forEach(function (campo) {
+                                var destino = document.getElementById('error_id_' + campo);
+                                if (destino) destino.textContent = data.errors[campo].join(' ');
+                            });
                         }
                     }
                 })
@@ -486,18 +527,20 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- Modal PlaceHolder -->
-<div class="modal fade" id="usuarioModal" tabindex="-1" aria-labelledby="usuarioModalLabel" aria-hidden="true">
+<div class="modal fade" id="usuarioModal" tabindex="-1" aria-labelledby="usuarioModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content" style="border-radius: 8px; border: 1px solid #D4C4A8; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-            <div class="modal-header" style="background: var(--gradient-piedra); border-bottom: 1px solid #D4C4A8; padding: 8px 16px;">
-                <h5 class="modal-title fw-bold" id="usuarioModalTitle" style="color: var(--color-piedra-texto); font-size: 1rem;">
-                    <i class="fas fa-user-circle me-2"></i>Gestión de Usuario
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="modal-usuario-icon"><i class="fas fa-user"></i></div>
+                    <div>
+                        <h5 class="modal-title mb-0" id="usuarioModalTitle">Gestión de <strong>usuario</strong></h5>
+                        <p id="usuarioModalDesc">Administración de datos, rol y acceso.</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
-            <div class="modal-body" id="usuarioModalBody" style="background: #fafaf9; padding: 8px 12px !important;">
-                <!-- Content loaded via AJAX -->
-            </div>
+            <div class="modal-body" id="usuarioModalBody"></div>
         </div>
     </div>
 </div>

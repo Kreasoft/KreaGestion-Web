@@ -29,6 +29,9 @@ urlpatterns = [
     path('formas-pago/<int:pk>/eliminar/', views.formapago_delete, name='formapago_delete'),
     
     # Estaciones de Trabajo
+    path('estaciones-trabajo/conectar-impresora/', views.conectar_impresora_estacion, name='conectar_impresora_estacion'),
+    path('estaciones-trabajo/<int:pk>/conectar-impresora/', views.conectar_impresora_estacion, name='conectar_impresora_estacion_pk'),
+    path('estaciones-trabajo/descargar-impresora/', views.descargar_agente_impresion, name='descargar_agente_impresion'),
     path('estaciones-trabajo/', views.estaciontrabajo_list, name='estaciontrabajo_list'),
     path('estaciones-trabajo/crear/', views.estaciontrabajo_create, name='estaciontrabajo_create'),
     path('estaciones-trabajo/<int:pk>/', views.estaciontrabajo_detail, name='estaciontrabajo_detail'),

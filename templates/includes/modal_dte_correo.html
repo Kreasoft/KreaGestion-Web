@@ -1,0 +1,221 @@
+<style>
+    #modalDteCorreo .modal-dialog { max-width: 460px; }
+    #modalDteCorreo .modal-content {
+        border: 1px solid #C4B198;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #FAFAF8;
+        box-shadow: 0 18px 48px rgba(93, 64, 55, 0.18);
+    }
+    #modalDteCorreo .modal-header {
+        padding: 14px 20px !important;
+        background: linear-gradient(135deg, #EFEBE9 0%, #D7CCC8 100%);
+        border-bottom: 1px solid #D4C4A8 !important;
+        align-items: flex-start;
+    }
+    #modalDteCorreo .modal-correo-icon {
+        width: 38px; height: 38px; min-width: 38px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.7);
+        display: flex; align-items: center; justify-content: center;
+        color: #5D4037;
+        box-shadow: 0 1px 4px rgba(93,64,55,0.12);
+    }
+    #modalDteCorreo .modal-title {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 300;
+        font-size: 1.2rem;
+        letter-spacing: -0.4px;
+        color: #5D4037;
+        line-height: 1.15;
+    }
+    #modalDteCorreo .modal-title strong { font-weight: 700; }
+    #modalDteCorreo #dteCorreoSub {
+        margin: 3px 0 0;
+        font-size: 0.75rem;
+        color: #6F5B44;
+        opacity: 0.9;
+    }
+    #modalDteCorreo .modal-body {
+        padding: 16px 20px 12px !important;
+        background: #FAFAF8;
+    }
+    #modalDteCorreo .correo-doc {
+        background: #F7F3EC;
+        border: 1px solid #E8DCC8;
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 14px;
+    }
+    #modalDteCorreo .correo-doc-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 0.8rem;
+        color: #5D4037;
+    }
+    #modalDteCorreo .correo-doc-row + .correo-doc-row { margin-top: 6px; }
+    #modalDteCorreo .correo-doc-row span { color: #8B7355; font-weight: 650; }
+    #modalDteCorreo .correo-doc-row strong { font-weight: 650; text-align: right; }
+    #modalDteCorreo label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #8B7355;
+    }
+    #modalDteCorreo .form-control {
+        height: 32px;
+        font-size: 13.5px;
+        color: #5D4037;
+        border: 1px solid #D4C4A8;
+        border-radius: 8px;
+        background: #fff;
+    }
+    #modalDteCorreo textarea.form-control {
+        height: auto;
+        min-height: 72px;
+        padding: 8px 10px;
+    }
+    #modalDteCorreo .form-control:focus {
+        border-color: #6F5B44;
+        box-shadow: 0 0 0 2px rgba(111,91,68,0.16);
+    }
+    #modalDteCorreo .correo-hint {
+        margin-top: 10px;
+        font-size: 0.72rem;
+        color: #6F5B44;
+    }
+    #modalDteCorreo .correo-warn {
+        margin-top: 10px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #F8E6DC;
+        border: 1px solid #E2C4B0;
+        font-size: 0.72rem;
+        color: #C76F43;
+    }
+    #modalDteCorreo .modal-footer {
+        border-top: 1px solid #E8DCC8;
+        background: #F7F3EC;
+        padding: 10px 16px;
+        gap: 8px;
+    }
+    #modalDteCorreo .btn-correo-cancel {
+        background: transparent;
+        color: #C76F43;
+        border: 1px solid #E2C4B0;
+        font-size: 0.75rem;
+        font-weight: 650;
+        border-radius: 8px;
+        padding: 6px 12px;
+    }
+    #modalDteCorreo .btn-correo-cancel:hover { background: #F8E6DC; color: #C76F43; }
+    #modalDteCorreo .btn-correo-ok {
+        background: #5F8D62;
+        color: #FAFAF8;
+        border: 1px solid #4E7A51;
+        font-weight: 650;
+        font-size: 0.75rem;
+        border-radius: 8px;
+        padding: 6px 14px;
+    }
+    #modalDteCorreo .btn-correo-ok:hover { background: #527A55; color: #FAFAF8; }
+    #modalDteCorreo .btn-correo-ok:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+    }
+</style>
+<div class="modal fade" id="modalDteCorreo" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="formDteCorreo" action="#">
+                {% csrf_token %}
+                <input type="hidden" name="return_url" id="dteCorreoReturn" value="">
+                <div class="modal-header">
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="modal-correo-icon"><i class="fas fa-envelope"></i></div>
+                        <div>
+                            <h5 class="modal-title mb-0">Enviar <strong>correo</strong></h5>
+                            <p id="dteCorreoSub" class="mb-0">Se adjuntan el PDF tributario y el XML del documento.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="correo-doc">
+                        <div class="correo-doc-row"><span>Documento</span><strong id="dteCorreoTipoFolio">—</strong></div>
+                        <div class="correo-doc-row"><span>Receptor</span><strong id="dteCorreoReceptor">—</strong></div>
+                    </div>
+                    <label for="dteCorreoEmail">Correo destino</label>
+                    <input type="email" name="email" id="dteCorreoEmail" class="form-control" required placeholder="cliente@correo.cl" autocomplete="email">
+                    <label for="dteCorreoMensaje" class="mt-3">Mensaje (opcional)</label>
+                    <textarea name="mensaje" id="dteCorreoMensaje" class="form-control" rows="3" maxlength="800" placeholder="Texto adicional para el cliente"></textarea>
+                    <div class="correo-hint"><i class="fas fa-paperclip me-1"></i>El destinatario recibe el PDF y el XML firmado.</div>
+                    {% if not correo_smtp_listo %}
+                    <div class="correo-warn">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Falta configurar SMTP en Empresa para que el correo llegue.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-correo-cancel" data-bs-dismiss="modal">Cancelar</button>
+                    <a href="#" id="dteCorreoWhatsapp" target="_blank" rel="noopener" class="btn btn-correo-ok" style="background:#5F8D62;text-decoration:none;display:none;">WhatsApp</a>
+                    <button type="submit" class="btn btn-correo-ok"{% if not correo_smtp_listo %} disabled title="Configure SMTP en Empresa"{% endif %}>Enviar correo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    window.abrirModalDteCorreo = function (btn) {
+        var el = document.getElementById('modalDteCorreo');
+        var form = document.getElementById('formDteCorreo');
+        if (!el || !form || !btn) return;
+        form.setAttribute('action', btn.getAttribute('data-url') || '#');
+        document.getElementById('dteCorreoReturn').value = window.location.pathname + window.location.search;
+        var tipo = btn.getAttribute('data-tipo') || 'Documento';
+        var folio = btn.getAttribute('data-folio') || '';
+        document.getElementById('dteCorreoTipoFolio').textContent = tipo + (folio ? ' Nº ' + folio : '');
+        document.getElementById('dteCorreoReceptor').textContent = btn.getAttribute('data-receptor') || '—';
+        document.getElementById('dteCorreoEmail').value = btn.getAttribute('data-email') || '';
+        document.getElementById('dteCorreoMensaje').value = '';
+        bootstrap.Modal.getOrCreateInstance(el).show();
+    };
+    function telCl(raw) {
+        var d = String(raw || '').replace(/\D/g, '');
+        if (d.indexOf('56') === 0 && d.length >= 11) return d.slice(0, 11);
+        if (d.charAt(0) === '9' && d.length >= 9) return '56' + d.slice(0, 9);
+        if (d.length === 8) return '569' + d;
+        return '';
+    }
+    window.abrirWhatsappDte = function (btn) {
+        if (!btn) return;
+        var tipo = btn.getAttribute('data-tipo') || 'Documento';
+        var folio = btn.getAttribute('data-folio') || '';
+        var rec = btn.getAttribute('data-receptor') || 'Cliente';
+        var emp = btn.getAttribute('data-empresa') || '';
+        var tel = telCl(btn.getAttribute('data-telefono') || '');
+        var msg = 'Hola ' + rec + ', le enviamos ' + tipo + (folio ? ' N° ' + folio : '') + (emp ? ' de ' + emp : '') + '.';
+        var url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
+        window.open(url, '_blank', 'noopener');
+    };
+    document.addEventListener('click', function (e) {
+        var correo = e.target.closest('.btn-dte-correo');
+        if (correo) {
+            e.preventDefault();
+            window.abrirModalDteCorreo(correo);
+            return;
+        }
+        var wa = e.target.closest('.btn-dte-whatsapp');
+        if (wa) {
+            e.preventDefault();
+            window.abrirWhatsappDte(wa);
+        }
+    });
+})();
+</script>

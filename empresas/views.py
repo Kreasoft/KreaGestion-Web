@@ -722,6 +722,7 @@ def editar_empresa_activa(request):
 # CRUD DE SUCURSALES
 # ============================================
 
+@xframe_options_sameorigin
 @login_required
 @requiere_empresa
 def sucursal_list(request):
@@ -760,7 +761,9 @@ def sucursal_create(request):
 			
 			sucursal.save()
 			messages.success(request, f'Sucursal "{sucursal.nombre}" creada correctamente.')
-			return redirect('empresas:sucursal_list')
+			return render(request, 'empresas/sucursal_form_success.html', {
+				'mensaje': f'Sucursal "{sucursal.nombre}" creada correctamente.',
+			})
 		else:
 			messages.error(request, 'Error al crear la sucursal. Por favor, revise los datos ingresados.')
 	else:
@@ -794,7 +797,9 @@ def sucursal_update(request, pk):
 			
 			sucursal.save()
 			messages.success(request, f'Sucursal "{sucursal.nombre}" actualizada correctamente.')
-			return redirect('empresas:sucursal_list')
+			return render(request, 'empresas/sucursal_form_success.html', {
+				'mensaje': f'Sucursal "{sucursal.nombre}" actualizada correctamente.',
+			})
 		else:
 			messages.error(request, 'Error al actualizar la sucursal. Por favor, revise los datos ingresados.')
 	else:
@@ -880,6 +885,21 @@ def configurar_impresoras(request):
 		empresa.impresora_nota_debito = request.POST.get('impresora_nota_debito', 'laser')
 		empresa.impresora_vale = request.POST.get('impresora_vale', 'termica_80')
 		empresa.impresora_cotizacion = request.POST.get('impresora_cotizacion', 'laser')
+
+		def _copias(campo):
+			try:
+				n = int(request.POST.get(campo, 1) or 1)
+			except (TypeError, ValueError):
+				n = 1
+			return max(1, min(10, n))
+
+		empresa.copias_factura = _copias('copias_factura')
+		empresa.copias_boleta = _copias('copias_boleta')
+		empresa.copias_guia = _copias('copias_guia')
+		empresa.copias_nota_credito = _copias('copias_nota_credito')
+		empresa.copias_nota_debito = _copias('copias_nota_debito')
+		empresa.copias_vale = _copias('copias_vale')
+		empresa.copias_cotizacion = _copias('copias_cotizacion')
 		
 		empresa.save()
 		

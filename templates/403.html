@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% if es_csrf %}Sesión de seguridad{% else %}Sin permiso{% endif %} - GestionCloud{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .gc-403 {
+        max-width: 520px;
+        margin: 36px auto 48px;
+        padding: 0 16px;
+        color: #5D4037;
+    }
+    .gc-403-card {
+        background: #FAFAF8;
+        border: 1px solid #E8DCC8;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(93, 64, 55, 0.08);
+        padding: 28px 26px 24px;
+        text-align: center;
+    }
+    .gc-403-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 14px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: #F5E6D8;
+        border: 1px solid #E8DCC8;
+        color: #C76F43;
+        font-size: 1.35rem;
+    }
+    .gc-403 h1 {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #5D4037;
+    }
+    .gc-403 p {
+        margin: 0 0 8px;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        color: #6F5B44;
+    }
+    .gc-403-nota {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #F6EBD4;
+        border: 1px solid #E8D4A8;
+        color: #6F5B44;
+        font-size: 0.78rem;
+        text-align: left;
+    }
+    .gc-403-actions {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+    }
+    .gc-403-actions a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        font-size: 0.78rem;
+        font-weight: 650;
+        text-decoration: none;
+    }
+    .gc-403-volver {
+        background: #8B7355;
+        color: #FAFAF8 !important;
+        border: 1px solid #8B7355;
+    }
+    .gc-403-volver:hover { background: #6F5B44; color: #FAFAF8 !important; }
+    .gc-403-inicio {
+        background: #5F8D62;
+        color: #FAFAF8 !important;
+        border: 1px solid #5F8D62;
+    }
+    .gc-403-inicio:hover { background: #4E7A51; color: #FAFAF8 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gc-403">
+    <div class="gc-403-card">
+        <div class="gc-403-icon" aria-hidden="true">
+            {% if es_csrf %}
+            <i class="fas fa-clock"></i>
+            {% else %}
+            <i class="fas fa-lock"></i>
+            {% endif %}
+        </div>
+
+        {% if es_csrf %}
+        <h1>No se pudo completar la acción</h1>
+        <p>La sesión de seguridad venció o la pantalla estuvo demasiado tiempo abierta. No es un problema de permisos.</p>
+        <p>Vuelva a la pantalla anterior e intente de nuevo.</p>
+        {% else %}
+        <h1>Sin permiso para esta opción</h1>
+        <p>Su usuario no tiene acceso a esta función de GestionCloud.</p>
+        <p>No es un fallo del sistema: su perfil o rol no incluye esta opción.</p>
+        {% if detalle_permiso %}
+        <p class="gc-403-nota">{{ detalle_permiso }}</p>
+        {% endif %}
+        <p class="gc-403-nota">Si necesita usarla, pida al administrador que le asigne el permiso en <strong>Usuarios → Perfiles / grupos</strong>.</p>
+        {% endif %}
+
+        <div class="gc-403-actions">
+            <a class="gc-403-volver" href="{% url 'dashboard' %}"
+               onclick="if (history.length > 1) { history.back(); return false; }">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            {% if user.is_authenticated %}
+            <a class="gc-403-inicio" href="{% url 'dashboard' %}">
+                <i class="fas fa-home"></i> Ir al inicio
+            </a>
+            {% else %}
+            <a class="gc-403-inicio" href="{% url 'login' %}">
+                <i class="fas fa-sign-in-alt"></i> Iniciar sesión
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

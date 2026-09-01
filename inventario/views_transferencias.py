@@ -23,7 +23,7 @@ from bodegas.models import Bodega
 from articulos.models import Articulo
 from facturacion_electronica.models import ArchivoCAF, DocumentoTributarioElectronico
 from facturacion_electronica.dte_service import DTEService
-from facturacion_electronica.views_dte import _build_receptor_display
+from facturacion_electronica.views_dte import _build_receptor_display, n_copias_impresion, resolver_bodega_documento
 from django.db import IntegrityError
 import json
 
@@ -663,18 +663,30 @@ def transferencia_imprimir_guia(request, pk):
     iva = subtotal * Decimal('0.19')
     total = subtotal + iva
     
+    n_copias = n_copias_impresion(
+        request.empresa, dte=dte, tipo_slug='guia', request=request
+    )
+    tipo_impresora = str(getattr(request.empresa, 'impresora_guia', 'laser') or 'laser').lower()
+    forzar_a4 = (request.GET.get('formato') or '').strip().lower() in ('a4', 'carta', 'laser')
+    usar_termica = (not forzar_a4) and tipo_impresora in {'termica_80', 'termica_58', 'termica'}
+
     context = {
-        'guia': dte,  # Usar 'guia' como nombre de variable para el template
+        'guia': dte,
         'dte': dte,
         'receptor_display': _build_receptor_display(dte, fallback_cliente=receptor_fallback),
+        'bodega_display': resolver_bodega_documento(dte=dte),
         'transferencia': transferencia,
         'detalles': detalles,
         'subtotal': subtotal,
         'iva': iva,
         'total': total,
         'empresa': request.empresa,
+        'n_copias': n_copias,
+        'copias_range': range(n_copias),
     }
-    
+
+    if usar_termica:
+        return render(request, 'inventario/guia_despacho_electronica_termica.html', context)
     return render(request, 'inventario/guia_despacho_html.html', context)
 
 

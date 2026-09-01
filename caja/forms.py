@@ -88,6 +88,7 @@ class AperturaCajaForm(forms.ModelForm):
                     cajas_disponibles.append(caja.id)
             
             self.fields['caja'].queryset = Caja.objects.filter(id__in=cajas_disponibles)
+            self.fields['caja'].empty_label = 'Seleccione una caja'
     
     def clean_caja(self):
         caja = self.cleaned_data.get('caja')

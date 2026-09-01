@@ -10,7 +10,7 @@ from empresas.models import Empresa, Sucursal
 from django.db.models import Sum, Q, F, Count, DateField
 from django.db.models.functions import Coalesce, TruncDate, ExtractMonth, ExtractYear
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 @login_required
 @requiere_empresa
@@ -380,82 +380,569 @@ def dashboard(request):
         template_name = 'dashboard_moderno.html'
     return render(request, template_name, context)
 
+def _dte_de_venta(venta):
+    try:
+        return venta.dte
+    except Exception:
+        return None
+
+
+def _etiqueta_reimpresion_venta(venta):
+    """Tipo fiscal y folio CAF (o número interno) para una venta del vendedor."""
+    dte = _dte_de_venta(venta)
+    if dte and dte.folio:
+        tipo = _TIPO_DTE_CORTO.get(str(dte.tipo_dte), dte.get_tipo_dte_display())
+        return tipo, dte.folio
+    codigo = (getattr(venta, 'tipo_documento', None) or '')
+    if codigo == 'ticket':
+        codigo = getattr(venta, 'tipo_documento_planeado', None) or 'boleta'
+    tipo = _TIPO_VENTA_CORTO.get(codigo) or 'Boleta'
+    return tipo, venta.numero_venta
+
+
+def _clasificar_forma_pago(forma_pago):
+    codigo = (getattr(forma_pago, 'codigo', '') or '').upper()
+    nombre = (getattr(forma_pago, 'nombre', '') or '').lower()
+    if codigo in ('EF', 'EFE', 'EFECTIVO') or 'efectivo' in nombre:
+        return 'efectivo'
+    if codigo in ('TC', 'TD', 'TAR') or 'tarjeta' in nombre:
+        return 'tarjeta'
+    if codigo in ('TR', 'TEF', 'TRANSF') or 'transfer' in nombre:
+        return 'transferencia'
+    return 'otro'
+
+
+def bodegas_para_rebaja(request, sucursal=None, caja=None, bodega_id=None):
+    """Bodega elegida para rebajar stock solo al facturar el documento."""
+    sucursal = sucursal or getattr(request, 'sucursal_activa', None)
+    qs = Bodega.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
+    if sucursal:
+        filtradas = qs.filter(Q(sucursal=sucursal) | Q(sucursal__isnull=True))
+        if filtradas.exists():
+            qs = filtradas
+
+    candidatas = []
+    if bodega_id:
+        candidatas.append(bodega_id)
+    candidatas.append(request.session.get('dashboard_bodega_id'))
+    if getattr(caja, 'bodega_id', None):
+        candidatas.append(caja.bodega_id)
+
+    bodega = None
+    for raw in candidatas:
+        if not raw:
+            continue
+        bodega = Bodega.objects.filter(pk=raw, empresa=request.empresa, activa=True).first()
+        if bodega:
+            break
+    if not bodega:
+        bodega = qs.first()
+    return qs, bodega
+
+
 @login_required
 @requiere_empresa
 def dashboard_vendedor(request):
-    """Dashboard simplificado para vendedores"""
-    from django.utils import timezone
+    """Puesto de ventas: emitir, consultar y reimprimir documentos del vendedor."""
+    import json
+    from decimal import Decimal
     from django.db.models import Sum
-    from ventas.models import Venta
-    
-    hoy = timezone.now().date()
-    inicio_mes = hoy.replace(day=1)
-    
-    # Ventas del usuario actual
+    from django.db.models.functions import ExtractHour, TruncDate
+
+    hoy = timezone.localdate()
+    tz = timezone.get_current_timezone()
+    inicio_dia = timezone.make_aware(datetime.combine(hoy, time.min), tz)
+    inicio_mes_dt = timezone.make_aware(datetime.combine(hoy.replace(day=1), time.min), tz)
+
     ventas_usuario = Venta.objects.filter(
         empresa=request.empresa,
         usuario_creacion=request.user,
-        estado__in=['confirmada', 'borrador']
-    )
-    
-    # Ventas de hoy
+    ).exclude(estado='anulada').select_related('cliente', 'forma_pago', 'dte')
+
     ventas_hoy = ventas_usuario.filter(fecha=hoy)
-    total_ventas_hoy = ventas_hoy.aggregate(suma=Sum('total'))['suma'] or 0
+    total_ventas_hoy = ventas_hoy.aggregate(suma=Sum('total'))['suma'] or Decimal('0')
     cantidad_ventas_hoy = ventas_hoy.count()
-    
-    # Ventas del mes
-    ventas_mes_qs = ventas_usuario.filter(fecha__gte=inicio_mes)
-    total_ventas_mes = ventas_mes_qs.aggregate(suma=Sum('total'))['suma'] or 0
+    ticket_promedio = (total_ventas_hoy / cantidad_ventas_hoy) if cantidad_ventas_hoy else Decimal('0')
+
+    ventas_mes_qs = ventas_usuario.filter(fecha__gte=hoy.replace(day=1))
+    total_ventas_mes = ventas_mes_qs.aggregate(suma=Sum('total'))['suma'] or Decimal('0')
     cantidad_ventas_mes = ventas_mes_qs.count()
-    
-    # Últimas 10 ventas para mostrar en tabla
-    ultimas_ventas = ventas_usuario.order_by('-fecha_creacion')[:10]
-    
+
+    cobrado_ayer = ventas_usuario.filter(fecha=hoy - timedelta(days=1)).aggregate(suma=Sum('total'))['suma'] or Decimal('0')
+    if cobrado_ayer:
+        vs_ayer_pct = int(round(((total_ventas_hoy - cobrado_ayer) / cobrado_ayer) * 100))
+    else:
+        vs_ayer_pct = 100 if total_ventas_hoy else 0
+
+    tickets_pendientes = ventas_usuario.filter(tipo_documento='ticket', facturado=False)
+    tickets_count = tickets_pendientes.count()
+    tickets_monto = tickets_pendientes.aggregate(suma=Sum('total'))['suma'] or Decimal('0')
+
+    ver_todas_ventas = request.GET.get('lista') == 'todas'
+    fecha_desde, fecha_hasta, inicio_rango, fin_rango = _fecha_rango_caja(request, hoy)
+    q_reimp = (request.GET.get('q') or '').strip()
+    if ver_todas_ventas:
+        documentos_recientes = list(
+            ventas_usuario.filter(fecha__gte=fecha_desde, fecha__lte=fecha_hasta).order_by('-fecha_creacion')[:500]
+        )
+        for venta in documentos_recientes:
+            venta.tipo_reimp, venta.folio_caf = _etiqueta_reimpresion_venta(venta)
+            venta.tipo_ico, venta.tipo_ico_cls = _icono_tipo_doc(venta.tipo_reimp)
+            venta.dte_reimp = _dte_de_venta(venta)
+            venta.dte_reimp_id = getattr(venta.dte_reimp, 'id', None)
+        if q_reimp:
+            needle = q_reimp.casefold()
+            documentos_recientes = [
+                venta for venta in documentos_recientes
+                if needle in f'{venta.tipo_reimp} {venta.folio_caf}'.casefold()
+                or needle in (getattr(venta.cliente, 'nombre', None) or '').casefold()
+                or needle in (venta.numero_venta or '').casefold()
+            ]
+        documentos_recientes.sort(
+            key=lambda v: (
+                (v.tipo_reimp or '').casefold(),
+                -(v.fecha_creacion.timestamp() if v.fecha_creacion else 0),
+            )
+        )
+        docs_rango_count = len(documentos_recientes)
+        total_rango = sum((v.total or Decimal('0')) for v in documentos_recientes)
+    else:
+        documentos_recientes = list(ventas_usuario.order_by('-fecha_creacion')[:9])
+        for venta in documentos_recientes:
+            venta.tipo_reimp, venta.folio_caf = _etiqueta_reimpresion_venta(venta)
+            venta.tipo_ico, venta.tipo_ico_cls = _icono_tipo_doc(venta.tipo_reimp)
+            venta.dte_reimp = _dte_de_venta(venta)
+            venta.dte_reimp_id = getattr(venta.dte_reimp, 'id', None)
+        docs_rango_count = len(documentos_recientes)
+        total_rango = None
+
+    por_hora = {
+        int(r['hora'] or 0): float(r['total'] or 0)
+        for r in ventas_usuario.filter(fecha_creacion__gte=inicio_dia).annotate(
+            hora=ExtractHour('fecha_creacion')
+        ).values('hora').annotate(total=Sum('total'))
+    }
+    horas_labels = [f'{h:02d}' for h in range(8, 23)]
+    horas_values = [int(por_hora.get(h, 0)) for h in range(8, 23)]
+
+    por_dia = {}
+    for fila in (
+        ventas_usuario.filter(fecha_creacion__gte=inicio_mes_dt)
+        .annotate(dia=TruncDate('fecha_creacion'))
+        .values('dia')
+        .annotate(total=Sum('total'))
+    ):
+        dia = fila['dia']
+        if dia:
+            por_dia[dia.day] = float(fila['total'] or 0)
+    dias_labels = [f'{d:02d}' for d in range(1, hoy.day + 1)]
+    dias_values = [int(por_dia.get(d, 0)) for d in range(1, hoy.day + 1)]
+    _meses_es = (
+        '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    )
+    mes_activo_label = f'{_meses_es[hoy.month]} {hoy.year}'
+
+    tipos_dte_grafico = {
+        '33': 'Facturas', '34': 'Facturas',
+        '39': 'Boletas', '41': 'Boletas',
+        '52': 'Guías', '56': 'Notas de débito', '61': 'Notas de crédito',
+    }
+    tipos_venta_grafico = {
+        'boleta': 'Boletas', 'boleta_electronica': 'Boletas',
+        'factura': 'Facturas', 'factura_electronica': 'Facturas',
+        'vale': 'Vales', 'guia': 'Guías', 'cotizacion': 'Cotizaciones',
+    }
+    tipos_hoy = {}
+    for venta in ventas_hoy:
+        dte = _dte_de_venta(venta)
+        etiqueta = tipos_dte_grafico.get(str(dte.tipo_dte)) if dte else None
+        if not etiqueta:
+            codigo = (venta.tipo_documento or '')
+            if codigo == 'ticket':
+                codigo = venta.tipo_documento_planeado or 'boleta'
+            etiqueta = tipos_venta_grafico.get(codigo, 'Boletas')
+        acc = tipos_hoy.setdefault(etiqueta, {'n': 0, 'total': Decimal('0')})
+        acc['n'] += 1
+        acc['total'] += venta.total or Decimal('0')
+    tipos_labels = list(tipos_hoy.keys()) or ['Sin datos']
+    tipos_values = [int(tipos_hoy[k]['total']) for k in tipos_hoy] or [0]
+
+    efectivo = tarjeta = transferencia = Decimal('0')
+    for venta in ventas_hoy:
+        grupo = _clasificar_forma_pago(venta.forma_pago)
+        monto = venta.total or Decimal('0')
+        if grupo == 'efectivo':
+            efectivo += monto
+        elif grupo == 'tarjeta':
+            tarjeta += monto
+        elif grupo == 'transferencia':
+            transferencia += monto
+
+    ahora = timezone.localtime()
+    if ahora.hour < 12:
+        saludo = 'Buenos días'
+    elif ahora.hour < 20:
+        saludo = 'Buenas tardes'
+    else:
+        saludo = 'Buenas noches'
+
+    nombre = ''
+    try:
+        nombre = (request.user.perfil.nombre_completo or '').strip()
+    except Exception:
+        nombre = ''
+    nombre = nombre or (request.user.first_name or '').strip() or request.user.username
+    bodegas_dashboard, bodega_seleccionada = bodegas_para_rebaja(
+        request, sucursal=getattr(request, 'sucursal_activa', None)
+    )
+
     context = {
+        'saludo': saludo,
+        'nombre_vendedor': nombre,
+        'bodegas_dashboard': bodegas_dashboard,
+        'bodega_seleccionada': bodega_seleccionada,
         'total_ventas_hoy': total_ventas_hoy,
         'cantidad_ventas_hoy': cantidad_ventas_hoy,
         'total_ventas_mes': total_ventas_mes,
         'cantidad_ventas_mes': cantidad_ventas_mes,
-        'ultimas_ventas': ultimas_ventas,
+        'ticket_promedio': ticket_promedio,
+        'cobrado_ayer': cobrado_ayer,
+        'vs_ayer_pct': vs_ayer_pct,
+        'tickets_count': tickets_count,
+        'tickets_monto': tickets_monto,
+        'documentos_recientes': documentos_recientes,
+        'ver_todas_ventas': ver_todas_ventas,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'docs_rango_count': docs_rango_count,
+        'total_rango': total_rango,
+        'rango_varios_dias': fecha_desde != fecha_hasta,
+        'q_reimp': q_reimp,
+        'horas_labels_json': json.dumps(horas_labels),
+        'horas_values_json': json.dumps(horas_values),
+        'tipos_labels_json': json.dumps(tipos_labels),
+        'tipos_values_json': json.dumps(tipos_values),
+        'mix_json': json.dumps([int(efectivo), int(tarjeta), int(transferencia)]),
+        'dias_labels_json': json.dumps(dias_labels),
+        'dias_values_json': json.dumps(dias_values),
+        'mes_activo_label': mes_activo_label,
     }
     return render(request, 'dashboard_vendedor.html', context)
+
+
+_TIPO_DTE_CORTO = {
+    '33': 'Factura',
+    '34': 'Factura Exenta',
+    '39': 'Boleta',
+    '41': 'Boleta Exenta',
+    '52': 'Guía',
+    '56': 'Nota de Débito',
+    '61': 'Nota de Crédito',
+}
+
+_TIPO_VENTA_CORTO = {
+    'factura': 'Factura',
+    'factura_electronica': 'Factura',
+    'boleta': 'Boleta',
+    'boleta_electronica': 'Boleta',
+    'guia': 'Guía',
+    'vale': 'Vale',
+    'cotizacion': 'Cotización',
+    'ticket': 'Ticket',
+}
+
+
+def _fecha_rango_caja(request, hoy):
+    """Rango Desde/Hasta; por defecto el día de hoy."""
+    def _parse(raw):
+        try:
+            return datetime.strptime((raw or '').strip(), '%Y-%m-%d').date()
+        except ValueError:
+            return None
+
+    desde = _parse(request.GET.get('desde')) or hoy
+    hasta = _parse(request.GET.get('hasta')) or hoy
+    if hasta < desde:
+        desde, hasta = hasta, desde
+    tz = timezone.get_current_timezone()
+    inicio = timezone.make_aware(datetime.combine(desde, time.min), tz)
+    fin = timezone.make_aware(datetime.combine(hasta, time.max), tz)
+    return desde, hasta, inicio, fin
+
+
+def _etiqueta_reimpresion(doc):
+    """Tipo de documento fiscal y folio CAF (o número interno si no hay DTE)."""
+    venta = doc.venta_final
+    dte = getattr(doc, 'dte_generado', None)
+    if not dte:
+        try:
+            dte = venta.dte
+        except Exception:
+            dte = None
+    if dte and dte.folio:
+        tipo = _TIPO_DTE_CORTO.get(str(dte.tipo_dte), dte.get_tipo_dte_display())
+        return tipo, dte.folio
+    codigo = (getattr(venta, 'tipo_documento', None) or '')
+    if codigo == 'ticket':
+        codigo = getattr(venta, 'tipo_documento_planeado', None) or 'boleta'
+    tipo = _TIPO_VENTA_CORTO.get(codigo) or 'Boleta'
+    return tipo, venta.numero_venta
+
+
+def _icono_tipo_doc(tipo):
+    t = (tipo or '').casefold()
+    if 'factura' in t:
+        return 'fa-file-invoice', 'tipo-ico-factura'
+    if 'boleta' in t:
+        return 'fa-receipt', 'tipo-ico-boleta'
+    if 'gu' in t:
+        return 'fa-truck', 'tipo-ico-guia'
+    if 'vale' in t:
+        return 'fa-ticket-alt', 'tipo-ico-vale'
+    if 'cr' in t:
+        return 'fa-file-export', 'tipo-ico-vale'
+    if 'd' in t and 'bito' in t:
+        return 'fa-file-import', 'tipo-ico-factura'
+    return 'fa-receipt', 'tipo-ico-boleta'
+
 
 @login_required
 @requiere_empresa
 def dashboard_cajero(request):
-    """Dashboard simplificado para cajeros"""
-    from caja.models import AperturaCaja, MovimientoCaja
+    """Puesto de caja: cobrar e imprimir documentos (sin POS ni apertura de turno)."""
+    import json
     from decimal import Decimal
-    
-    # Buscar si tiene una caja abierta
-    apertura_activa = AperturaCaja.objects.filter(
-        caja__empresa=request.empresa, 
-        usuario_apertura=request.user, 
-        estado='abierta'
-    ).first()
-    
-    ultimos_movimientos = []
-    total_recaudado = Decimal('0.00')
-    
-    if apertura_activa:
-        # Recalcular para asegurar tener la información fresca
-        apertura_activa.calcular_totales()
-        
-        # Sumamos los valores recibidos físicamente o digitalmente (ignoramos crédito)
-        total_recaudado = (
-            apertura_activa.total_ventas_efectivo + 
-            apertura_activa.total_ventas_tarjeta + 
-            apertura_activa.total_ventas_transferencia + 
-            apertura_activa.total_ventas_cheque
+    from django.db.models import Sum, Count
+    from django.db.models.functions import ExtractHour, TruncDate
+
+    from caja.impresion_utils import agente_impresion_en_linea
+    from caja.models import ColaImpresion, VentaProcesada
+    from caja.views import _apertura_activa_empresa, _filtrar_tickets_por_caja
+    from empresas.middleware import resolver_sucursal_operativa
+
+    sucursal = resolver_sucursal_operativa(request)
+    apertura_activa = _apertura_activa_empresa(request, sucursal)
+
+    tickets_qs = Venta.objects.filter(
+        empresa=request.empresa,
+        tipo_documento='ticket',
+        facturado=False,
+        venta_preventa__isnull=True,
+    ).exclude(
+        Q(tipo_documento_planeado='ticket')
+        | Q(tipo_documento_planeado__isnull=True)
+        | Q(tipo_documento_planeado='')
+    )
+    tickets_qs = _filtrar_tickets_por_caja(tickets_qs, getattr(apertura_activa, 'caja', None))
+    if not apertura_activa and sucursal:
+        tickets_qs = tickets_qs.filter(Q(sucursal=sucursal) | Q(sucursal__isnull=True))
+
+    tickets_count = tickets_qs.count()
+    tickets_monto = tickets_qs.aggregate(total=Sum('total'))['total'] or Decimal('0')
+
+    inicio_dia = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
+    docs_qs = VentaProcesada.objects.filter(
+        apertura_caja__caja__empresa=request.empresa,
+    ).select_related(
+        'venta_final', 'venta_preventa', 'venta_final__cliente',
+        'dte_generado', 'venta_final__dte',
+    )
+    if sucursal:
+        docs_qs = docs_qs.filter(
+            Q(apertura_caja__caja__sucursal=sucursal) | Q(venta_final__sucursal=sucursal)
         )
-        
-        ultimos_movimientos = MovimientoCaja.objects.filter(
-            apertura_caja=apertura_activa
-        ).order_by('-fecha')[:10]
-        
+    documentos_hoy = docs_qs.filter(fecha_proceso__gte=inicio_dia)
+    hoy = timezone.localdate()
+    ver_todas_ventas = request.GET.get('lista') == 'todas'
+    fecha_desde, fecha_hasta, inicio_rango, fin_rango = _fecha_rango_caja(request, hoy)
+    q_reimp = (request.GET.get('q') or '').strip()
+    if ver_todas_ventas:
+        docs_rango_qs = docs_qs.filter(
+            fecha_proceso__gte=inicio_rango,
+            fecha_proceso__lte=fin_rango,
+        )
+        documentos_recientes = list(docs_rango_qs.order_by('-fecha_proceso')[:500])
+        for doc in documentos_recientes:
+            doc.tipo_reimp, doc.folio_caf = _etiqueta_reimpresion(doc)
+            doc.tipo_ico, doc.tipo_ico_cls = _icono_tipo_doc(doc.tipo_reimp)
+        if q_reimp:
+            needle = q_reimp.casefold()
+            documentos_recientes = [
+                doc for doc in documentos_recientes
+                if needle in f'{doc.tipo_reimp} {doc.folio_caf}'.casefold()
+                or needle in (getattr(getattr(doc.venta_final, 'cliente', None), 'nombre', None) or '').casefold()
+                or needle in (getattr(doc.venta_final, 'numero_venta', None) or '').casefold()
+            ]
+        documentos_recientes.sort(
+            key=lambda d: (
+                (d.tipo_reimp or '').casefold(),
+                -(d.fecha_proceso.timestamp() if d.fecha_proceso else 0),
+            )
+        )
+        docs_rango_count = len(documentos_recientes)
+        total_rango = sum((d.venta_final.total or Decimal('0')) for d in documentos_recientes)
+    else:
+        documentos_recientes = list(docs_qs.order_by('-fecha_proceso')[:9])
+        for doc in documentos_recientes:
+            doc.tipo_reimp, doc.folio_caf = _etiqueta_reimpresion(doc)
+            doc.tipo_ico, doc.tipo_ico_cls = _icono_tipo_doc(doc.tipo_reimp)
+        docs_rango_count = len(documentos_recientes)
+        total_rango = None
+    cobrado_hoy = documentos_hoy.aggregate(total=Sum('venta_final__total'))['total'] or Decimal('0')
+    docs_hoy_count = documentos_hoy.count()
+    ticket_promedio = (cobrado_hoy / docs_hoy_count) if docs_hoy_count else Decimal('0')
+
+    inicio_ayer = inicio_dia - timedelta(days=1)
+    cobrado_ayer = docs_qs.filter(
+        fecha_proceso__gte=inicio_ayer, fecha_proceso__lt=inicio_dia
+    ).aggregate(total=Sum('venta_final__total'))['total'] or Decimal('0')
+    if cobrado_ayer:
+        vs_ayer_pct = int(round(((cobrado_hoy - cobrado_ayer) / cobrado_ayer) * 100))
+    else:
+        vs_ayer_pct = 100 if cobrado_hoy else 0
+
+    por_hora = {
+        int(r['hora'] or 0): float(r['total'] or 0)
+        for r in documentos_hoy.annotate(hora=ExtractHour('fecha_proceso'))
+        .values('hora')
+        .annotate(total=Sum('venta_final__total'))
+    }
+    horas_labels = [f'{h:02d}' for h in range(8, 23)]
+    horas_values = [int(por_hora.get(h, 0)) for h in range(8, 23)]
+
+    tz = timezone.get_current_timezone()
+    inicio_mes = timezone.make_aware(datetime.combine(hoy.replace(day=1), time.min), tz)
+    por_dia = {}
+    for fila in (
+        docs_qs.filter(fecha_proceso__gte=inicio_mes)
+        .annotate(dia=TruncDate('fecha_proceso'))
+        .values('dia')
+        .annotate(total=Sum('venta_final__total'))
+    ):
+        dia = fila['dia']
+        if dia:
+            por_dia[dia.day] = float(fila['total'] or 0)
+    dias_labels = [f'{d:02d}' for d in range(1, hoy.day + 1)]
+    dias_values = [int(por_dia.get(d, 0)) for d in range(1, hoy.day + 1)]
+    _meses_es = (
+        '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+    )
+    mes_activo_label = f'{_meses_es[hoy.month]} {hoy.year}'
+
+    tipos_dte_grafico = {
+        '33': 'Facturas', '34': 'Facturas',
+        '39': 'Boletas', '41': 'Boletas',
+        '52': 'Guías', '56': 'Notas de débito', '61': 'Notas de crédito',
+    }
+    tipos_venta_grafico = {
+        'boleta': 'Boletas', 'boleta_electronica': 'Boletas',
+        'factura': 'Facturas', 'factura_electronica': 'Facturas',
+        'vale': 'Vales', 'guia': 'Guías', 'cotizacion': 'Cotizaciones',
+    }
+    tipos_hoy = {}
+    for doc in documentos_hoy.select_related('venta_final', 'dte_generado'):
+        dte = doc.dte_generado
+        if dte:
+            etiqueta = tipos_dte_grafico.get(str(dte.tipo_dte))
+        else:
+            etiqueta = None
+        if not etiqueta:
+            venta = doc.venta_final
+            codigo = (getattr(venta, 'tipo_documento', None) or '')
+            if codigo == 'ticket':
+                codigo = getattr(venta, 'tipo_documento_planeado', None) or 'boleta'
+            etiqueta = tipos_venta_grafico.get(codigo, 'Boletas')
+        acc = tipos_hoy.setdefault(etiqueta, {'n': 0, 'total': Decimal('0')})
+        acc['n'] += 1
+        acc['total'] += getattr(doc.venta_final, 'total', None) or Decimal('0')
+    tipos_labels = list(tipos_hoy.keys()) or ['Sin datos']
+    tipos_values = [int(tipos_hoy[k]['total']) for k in tipos_hoy] or [0]
+
+    cola_qs = ColaImpresion.objects.filter(
+        empresa=request.empresa,
+        estado__in=['pendiente', 'imprimiendo', 'error'],
+    )
+    if sucursal:
+        cola_qs = cola_qs.filter(caja__sucursal=sucursal)
+
+    total_recaudado = Decimal('0.00')
+    efectivo = tarjeta = transferencia = Decimal('0.00')
+    turno_duracion = ''
+    if apertura_activa:
+        apertura_activa.calcular_totales()
+        efectivo = apertura_activa.total_ventas_efectivo or Decimal('0.00')
+        tarjeta = apertura_activa.total_ventas_tarjeta or Decimal('0.00')
+        transferencia = apertura_activa.total_ventas_transferencia or Decimal('0.00')
+        total_recaudado = (
+            efectivo + tarjeta + transferencia
+            + (apertura_activa.total_ventas_cheque or Decimal('0.00'))
+        )
+        segundos = max(0, int((timezone.now() - apertura_activa.fecha_apertura).total_seconds()))
+        horas, resto = divmod(segundos, 3600)
+        minutos = resto // 60
+        turno_duracion = f'{horas} h {minutos:02d} min' if horas else f'{minutos} min'
+
+    mix_total = efectivo + tarjeta + transferencia
+    def _pct(parte):
+        if not mix_total:
+            return 0
+        return int(round((parte / mix_total) * 100))
+
+    ahora = timezone.localtime()
+    hora = ahora.hour
+    if hora < 12:
+        saludo = 'Buenos días'
+    elif hora < 20:
+        saludo = 'Buenas tardes'
+    else:
+        saludo = 'Buenas noches'
+
+    nombre = (request.user.first_name or '').strip() or request.user.username
+    bodegas_rebaja, bodega_rebaja = bodegas_para_rebaja(
+        request, sucursal=sucursal, caja=getattr(apertura_activa, 'caja', None)
+    )
+
     context = {
         'apertura_activa': apertura_activa,
+        'sucursal_caja': sucursal,
         'total_recaudado': total_recaudado,
-        'ultimos_movimientos': ultimos_movimientos,
+        'efectivo_turno': efectivo,
+        'tarjeta_turno': tarjeta,
+        'transferencia_turno': transferencia,
+        'pct_efectivo': _pct(efectivo),
+        'pct_tarjeta': _pct(tarjeta),
+        'pct_transferencia': _pct(transferencia),
+        'turno_duracion': turno_duracion,
+        'saludo': saludo,
+        'nombre_cajero': nombre,
+        'tickets_count': tickets_count,
+        'tickets_monto': tickets_monto,
+        'documentos_recientes': documentos_recientes,
+        'ver_todas_ventas': ver_todas_ventas,
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'docs_rango_count': docs_rango_count,
+        'total_rango': total_rango,
+        'rango_varios_dias': fecha_desde != fecha_hasta,
+        'q_reimp': q_reimp,
+        'docs_hoy_count': docs_hoy_count,
+        'cobrado_hoy': cobrado_hoy,
+        'ticket_promedio': ticket_promedio,
+        'cobrado_ayer': cobrado_ayer,
+        'vs_ayer_pct': vs_ayer_pct,
+        'horas_labels_json': json.dumps(horas_labels),
+        'horas_values_json': json.dumps(horas_values),
+        'tipos_labels_json': json.dumps(tipos_labels),
+        'tipos_values_json': json.dumps(tipos_values),
+        'mix_json': json.dumps([int(efectivo), int(tarjeta), int(transferencia)]),
+        'dias_labels_json': json.dumps(dias_labels),
+        'dias_values_json': json.dumps(dias_values),
+        'mes_activo_label': mes_activo_label,
+        'impresora_ok': agente_impresion_en_linea(request.empresa, sucursal),
+        'cola_impresion_count': cola_qs.count(),
+        'bodegas_dashboard': bodegas_rebaja,
+        'bodega_seleccionada': bodega_rebaja,
     }
     return render(request, 'dashboard_cajero.html', context)

@@ -257,13 +257,18 @@
 
         <!-- CUADRO DEL DOCUMENTO -->
         <div class="document-box">
-            <div class="document-type">{% if vale.tipo_documento == 'ticket' %}TICKET FACTURABLE{% else %}VALE INTERNO{% endif %}</div>
+            <div class="document-type">{% if vale.tipo_documento == 'ticket' %}TICKET FACTURABLE{% else %}VALE INTERNO{% endif %}{% if vale.estacion_trabajo %} · {{ vale.estacion_trabajo.nombre }}{% endif %}</div>
             <div class="document-folio">N° {{ vale.numero_venta }}</div>
             <div class="document-fecha">
                 {% load l10n %}
                 {{ vale.fecha_creacion|date:"d-m-Y H:i" }}
             </div>
-            <div style="font-size: 7pt; margin-top: 1mm; color: #dc3545; font-weight: bold;">
+            {% if vale.tipo_documento == 'ticket' and vale.tipo_documento_planeado %}
+            <div style="font-size: 7.5pt; margin-top: 1.5mm; font-weight: 700;">
+                Se facturará como: {{ vale.get_tipo_documento_planeado_display|upper }}
+            </div>
+            {% endif %}
+            <div style="font-size: 7pt; margin-top: 1mm; color: #C76F43; font-weight: bold;">
                 DOCUMENTO NO TRIBUTARIO
             </div>
         </div>
@@ -278,12 +283,22 @@
                 <span class="cliente-label">RUT:</span>
                 <span>{{ vale.cliente.rut|default:"-" }}</span>
             </div>
+            {% if estacion_display or vale.estacion_trabajo %}
+            <div class="cliente-row">
+                <span class="cliente-label">Estación:</span>
+                <span>{{ estacion_display|default:vale.estacion_trabajo.nombre }}</span>
+            </div>
+            {% endif %}
             {% if vale.vendedor %}
             <div class="cliente-row">
                 <span class="cliente-label">Vendedor:</span>
                 <span>{{ vale.vendedor.nombre }}</span>
             </div>
             {% endif %}
+            <div class="cliente-row">
+                <span class="cliente-label">Bodega:</span>
+                <span>{{ bodega_display|default:"-" }}</span>
+            </div>
         </div>
 
         <!-- DETALLE DE PRODUCTOS -->

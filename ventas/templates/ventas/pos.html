@@ -55,6 +55,19 @@
             font-weight: 600;
             font-size: 1.3rem;
         }
+        .pos-titulo-estacion {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 12px;
+            padding: 3px 12px;
+            border-radius: 999px;
+            background: #FAFAF8;
+            color: #5D4037;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            vertical-align: middle;
+        }
 
         .pos-info {
             display: flex;
@@ -526,6 +539,23 @@
             justify-content: center;
         }
 
+        .pos-tip-nombre {
+            position: fixed;
+            z-index: 9999;
+            display: none;
+            max-width: 280px;
+            padding: 6px 10px;
+            background: #5D4037;
+            color: #FAFAF8;
+            font-size: 0.78rem;
+            font-weight: 600;
+            line-height: 1.3;
+            border-radius: 6px;
+            box-shadow: 0 6px 16px rgba(93, 64, 55, 0.28);
+            pointer-events: none;
+        }
+        .pos-tip-nombre.is-on { display: block; }
+
         /* Estilo de tarjeta en vista lista — alto estándar 28px */
         .pos-products-container:has(.vista-lista) {
             padding: 2px 4px;
@@ -700,6 +730,17 @@
             -webkit-line-clamp: 2;
             line-clamp: 2;
             -webkit-box-orient: vertical;
+        }
+
+        .pos-product-code {
+            font-size: 0.58rem;
+            font-weight: 600;
+            color: #8B7355;
+            margin: 0 0 2px;
+            line-height: 1.15;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .pos-product-price {
@@ -1686,6 +1727,7 @@
                     <div class="d-flex align-items-center">
                         <h2 class="mb-0">
                             <i class="fas fa-cash-register me-2"></i>Punto de Venta (POS)
+                            <span id="titulo-estacion-nombre" class="pos-titulo-estacion">{{ nombre_estacion_pos }}</span>
                         </h2>
                         <div id="clienteEnHeader" style="margin-left: 20px;"></div>
                     </div>
@@ -1707,7 +1749,7 @@
                         </div>
                         <div class="pos-info-item">
                             <i class="fas fa-desktop"></i>
-                            <span id="estacion-actual">Estación: <span id="estacion-nombre">-</span></span>
+                            <span id="estacion-actual">Modalidad: <span id="estacion-nombre">-</span></span>
                             <button class="btn btn-sm btn-outline-light ms-2" onclick="mostrarCambiarEstacion()"
                                 title="Cambiar estación de trabajo" style="padding: 2px 6px; font-size: 0.7rem;">
                                 <i class="fas fa-exchange-alt"></i>
@@ -1734,9 +1776,6 @@
                     <button class="btn btn-outline-light" onclick="mostrarHistorialTickets()"
                         title="Ver historial de ventas del día">
                         <i class="fas fa-history me-1"></i>Historial
-                    </button>
-                    <button class="btn btn-outline-light" onclick="window.print()" title="Imprimir (Navegador)">
-                        <i class="fas fa-print"></i>
                     </button>
                     <a href="{% url 'dashboard' %}" class="btn btn-outline-light" title="Volver al Sistema">
                         <i class="fas fa-arrow-left me-1"></i>Salir
@@ -1846,7 +1885,7 @@
                             <div class="pos-products-grid" id="pos-products-grid">
                                 {% for articulo in articulos %}
                                 <div class="pos-product-card {% if articulo.stock_actual <= 0 %}disabled{% endif %} {% if articulo.oferta_pos_activa %}en-oferta{% endif %}"
-                                    title="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id|unlocalize }}"
+                                    data-nombre="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id|unlocalize }}"
                                     data-precio="{{ articulo.precio_pos_calculado|unlocalize }}"
                                     data-precio-neto="{{ articulo.precio_neto_pos|unlocalize }}"
                                     data-stock="{{ articulo.stock_actual|default:0 }}"
@@ -1930,7 +1969,7 @@
                             <div class="pos-products-grid" id="pos-offers-grid">
                                 {% for articulo in ofertas %}
                                 <div class="pos-product-card{% if articulo.stock_actual <= 0 %} disabled{% endif %}{% if articulo.oferta_pos_activa %} en-oferta{% endif %}"
-                                    title="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id|unlocalize }}"
+                                    data-nombre="{{ articulo.nombre }}" data-articulo-id="{{ articulo.id|unlocalize }}"
                                     data-precio="{{ articulo.precio_pos_calculado|unlocalize }}"
                                     data-precio-neto="{{ articulo.precio_neto_pos|unlocalize }}"
                                     data-stock="{{ articulo.stock_actual|default:0 }}"
@@ -3223,6 +3262,8 @@
                             if (data.success) {
                                 console.log('[OK] Sesion POS cargada exitosamente');
                                 document.getElementById('estacion-nombre').textContent = data.estacion_nombre;
+                                var tEst = document.getElementById('titulo-estacion-nombre');
+                                if (tEst && data.nombre_estacion) tEst.textContent = data.nombre_estacion;
                                 document.getElementById('vendedor-nombre').textContent = data.vendedor_nombre;
 
                                 window.currentEstacionId = data.estacion_id;
@@ -3241,6 +3282,8 @@
                                             if (data2.success) {
                                                 console.log('[OK] Sesion POS cargada en segundo intento');
                                                 document.getElementById('estacion-nombre').textContent = data2.estacion_nombre;
+                                                var tEst2 = document.getElementById('titulo-estacion-nombre');
+                                                if (tEst2 && data2.nombre_estacion) tEst2.textContent = data2.nombre_estacion;
                                                 document.getElementById('vendedor-nombre').textContent = data2.vendedor_nombre;
                                                 window.currentEstacionId = data2.estacion_id;
                                                 window.currentVendedorId = data2.vendedor_id;
@@ -5417,7 +5460,9 @@
             const precioVenta = Number.parseFloat(articulo.precio || 0);
             const porcentajeAhorro = Number.parseFloat(articulo.porcentaje_ahorro || 0);
             const card = document.createElement('div');
+            const nombreArt = articulo.nombre || articulo.descripcion || articulo.codigo || '';
             card.className = `pos-product-card${enOferta ? ' en-oferta' : ''}`;
+            card.dataset.nombre = nombreArt;
             card.dataset.articuloId = articulo.id;
             card.dataset.categoria = articulo.categoria_nombre || 'sin-categoria';
             card.dataset.dinamico = 'true';
@@ -5451,6 +5496,49 @@
             // Insertar al inicio del grid para que sea visible de inmediato
             grid.insertBefore(card, grid.firstChild);
         }
+
+        (function posTooltipNombreArt() {
+            let tip = document.getElementById('pos-tip-nombre');
+            if (!tip) {
+                tip = document.createElement('div');
+                tip.id = 'pos-tip-nombre';
+                tip.className = 'pos-tip-nombre';
+                document.body.appendChild(tip);
+            }
+            function ocultar() { tip.classList.remove('is-on'); }
+            function nombreDe(card) {
+                return (card.getAttribute('data-nombre')
+                    || (card.querySelector('.pos-product-name') || {}).textContent
+                    || '').trim();
+            }
+            function mostrar(card) {
+                const nombre = nombreDe(card);
+                if (!nombre) { ocultar(); return; }
+                tip.textContent = nombre;
+                tip.classList.add('is-on');
+                const r = card.getBoundingClientRect();
+                const tw = tip.offsetWidth;
+                const th = tip.offsetHeight;
+                let left = r.left + (r.width / 2) - (tw / 2);
+                left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+                let top = r.bottom + 6;
+                if (top + th > window.innerHeight - 8) top = r.top - th - 6;
+                tip.style.left = left + 'px';
+                tip.style.top = top + 'px';
+            }
+            document.addEventListener('mouseover', function (e) {
+                const card = e.target.closest('.pos-product-card');
+                if (!card || !card.closest('#pos-products-grid, #pos-offers-grid')) return;
+                mostrar(card);
+            });
+            document.addEventListener('mouseout', function (e) {
+                const card = e.target.closest('.pos-product-card');
+                if (!card) return;
+                if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+                ocultar();
+            });
+            document.addEventListener('scroll', ocultar, true);
+        })();
 
         // Mostrar mensaje de "sin resultados" en el grid
         function posMostrarMensajeNoResultados() {
@@ -7407,6 +7495,8 @@
                     if (data.success) {
                         // Actualizar información en el header
                         document.getElementById('estacion-nombre').textContent = data.estacion_nombre;
+                        var tEstC = document.getElementById('titulo-estacion-nombre');
+                        if (tEstC && data.nombre_estacion) tEstC.textContent = data.nombre_estacion;
 
                         // Actualizar variables globales
                         window.currentEstacionId = data.estacion.id;
@@ -7429,6 +7519,8 @@
                                 .then(sessionData => {
                                     if (sessionData.success) {
                                         document.getElementById('estacion-nombre').textContent = sessionData.estacion_nombre;
+                                        var tEstS = document.getElementById('titulo-estacion-nombre');
+                                        if (tEstS && sessionData.nombre_estacion) tEstS.textContent = sessionData.nombre_estacion;
                                         document.getElementById('vendedor-nombre').textContent = sessionData.vendedor_nombre;
                                         window.currentEstacionId = sessionData.estacion_id;
                                         window.currentVendedorId = sessionData.vendedor_id;

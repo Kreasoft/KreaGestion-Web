@@ -396,14 +396,29 @@ def generar_esc_pos_ticket(venta, detalles=None):
         folio = dte.folio
     else:
         planeado = (getattr(venta, 'tipo_documento_planeado', '') or '').lower()
-        tipo_doc = (venta.tipo_documento or 'vale').upper()
-        if tipo_doc in ('TICKET', 'VALE') or planeado == 'vale':
-            tipo_doc = "NOTA DE VENTA"
+        tipo_real = (venta.tipo_documento or 'vale').lower()
+        if tipo_real == 'ticket':
+            tipo_doc = "TICKET FACTURABLE"
+        elif tipo_real == 'vale' or planeado == 'vale':
+            tipo_doc = "VALE INTERNO"
+        else:
+            tipo_doc = tipo_real.upper()
         folio = venta.numero_venta
         
     lineas.append(f"{tipo_doc} NRO: {folio}")
     lineas.append(SIZE_NORMAL)
     lineas.append(BOLD_OFF)
+    if not dte and (getattr(venta, 'tipo_documento', '') or '').lower() == 'ticket':
+        destino = (getattr(venta, 'tipo_documento_planeado', '') or '').lower()
+        destino_txt = {
+            'boleta': 'BOLETA',
+            'factura': 'FACTURA',
+            'guia': 'GUIA DE DESPACHO',
+            'vale': 'VALE INTERNO',
+            'cotizacion': 'COTIZACION',
+        }.get(destino, (destino or '').upper())
+        if destino_txt:
+            lineas.append(f"Se facturara como: {destino_txt}")
     
     # DATOS DE VENTA
     lineas.append(ALIGN_LEFT)
@@ -417,6 +432,13 @@ def generar_esc_pos_ticket(venta, detalles=None):
         lineas.append(f"Vence: {venc_txt}")
     if venta.vendedor:
         lineas.append(f"Atendido por: {(venta.vendedor.nombre or '')[:20]}")
+    estacion_imp = getattr(venta, 'estacion_trabajo', None)
+    if estacion_imp:
+        est_txt = ' · '.join(
+            part for part in (str(estacion_imp.numero or '').strip(), str(estacion_imp.nombre or '').strip()) if part
+        )
+        if est_txt:
+            lineas.append(f"Estacion: {est_txt[:width - 10]}")
     if dte and venta.numero_venta:
         lineas.append(f"VALE REF: {venta.numero_venta}")
     if dte and getattr(dte, 'tipo_dte', '') == '52':
@@ -455,22 +477,32 @@ def generar_esc_pos_ticket(venta, detalles=None):
     tipo_dte = str(getattr(dte, 'tipo_dte', '') or '') if dte else ''
     es_guia_o_factura = tipo_doc in ('factura', 'factura_electronica', 'guia') or tipo_dte in ('33', '34', '52')
     cliente = getattr(venta, 'cliente', None)
+    bodega_txt = ''
+    try:
+        from facturacion_electronica.views_dte import resolver_bodega_documento
+        bodega_txt = resolver_bodega_documento(venta=venta, dte=dte)
+    except Exception:
+        bodega_txt = ''
     if es_guia_o_factura or (cliente and cliente.nombre != "Cliente Genérico"):
         try:
-            from facturacion_electronica.views_dte import _build_receptor_display, resolver_bodega_documento
+            from facturacion_electronica.views_dte import _build_receptor_display
             receptor = _build_receptor_display(dte, fallback_cliente=cliente)
             _escpos_campo(lineas, "Cliente", receptor.nombre, width)
             _escpos_campo(lineas, "RUT", receptor.rut, width)
             _escpos_campo(lineas, "Direccion", receptor.direccion, width)
             _escpos_campo(lineas, "Comuna", receptor.comuna, width)
             _escpos_campo(lineas, "Ciudad", receptor.ciudad, width)
-            _escpos_campo(lineas, "Bodega", resolver_bodega_documento(venta=venta, dte=dte), width)
+            _escpos_campo(lineas, "Bodega", bodega_txt, width)
         except Exception:
             if cliente:
                 lineas.append(f"Cliente: {cliente.nombre[:width]}")
                 rut_cli = getattr(cliente, 'rut', '') or ''
                 if rut_cli:
                     lineas.append(f"RUT: {rut_cli[:width]}")
+            if bodega_txt:
+                _escpos_campo(lineas, "Bodega", bodega_txt, width)
+    elif bodega_txt:
+        _escpos_campo(lineas, "Bodega", bodega_txt, width)
     
     name_w = width - 4 - 10 - 2
     lineas.append("-" * width)
@@ -569,12 +601,33 @@ def generar_esc_pos_ticket(venta, detalles=None):
     return contenido_unico * copias
 
 
-def resolver_caja_cola_impresion(empresa, estacion=None, sucursal=None):
+def resolver_caja_cola_impresion(empresa, estacion=None, sucursal=None, tipo_documento=None):
     """
-    Destino de la cola: caja del agente de esa sucursal.
-    El agente ya sabe en qué impresora imprimir; no se usa la estación.
+    Destino de la cola de impresión.
+    Vales/tickets: impresora de la estación (propia o compartida).
+    DTE de caja: caja de cobro / vínculo / caja abierta.
     """
     from caja.models import AperturaCaja, Caja, CodigoVinculoImpresion
+    from ventas.models import ensure_estacion_caja_impresion
+
+    ensure_estacion_caja_impresion()
+
+    tipo = (tipo_documento or '').lower()
+    es_dte = tipo in ('dte', 'factura', 'boleta', 'guia', 'nota_credito', 'nota_debito')
+    if not es_dte and estacion is not None:
+        imp_vales = getattr(estacion, 'impresora_vales', None)
+        if imp_vales is None and getattr(estacion, 'impresora_vales_id', None):
+            from caja.models import ImpresoraAgente
+            imp_vales = ImpresoraAgente.objects.select_related('caja').filter(
+                pk=estacion.impresora_vales_id
+            ).first()
+        if imp_vales is not None and getattr(imp_vales, 'caja', None) and getattr(imp_vales.caja, 'activo', True):
+            return imp_vales.caja
+        caja_est = getattr(estacion, 'caja_impresion', None)
+        if caja_est is None and getattr(estacion, 'caja_impresion_id', None):
+            caja_est = Caja.objects.filter(pk=estacion.caja_impresion_id, activo=True).first()
+        if caja_est and getattr(caja_est, 'activo', True):
+            return caja_est
 
     qs_base = Caja.objects.filter(empresa=empresa, activo=True)
     qs_sucursal = qs_base.filter(sucursal=sucursal) if sucursal is not None else qs_base
@@ -620,6 +673,7 @@ def encolar_impresion_agente(empresa, venta, estacion=None, dte=None, tipo_docum
         empresa,
         estacion or getattr(venta, 'estacion_trabajo', None),
         getattr(venta, 'sucursal', None),
+        tipo_documento=tipo_documento,
     )
     if not caja:
         logger.warning(
@@ -635,6 +689,14 @@ def encolar_impresion_agente(empresa, venta, estacion=None, dte=None, tipo_docum
     empresa_id = empresa.pk if empresa is not None else None
     dte_id = dte.pk if dte is not None else None
     tipo = tipo_documento or ('dte' if dte else 'vale')
+    estacion_job = estacion or getattr(venta, 'estacion_trabajo', None)
+    nombre_impresora = ''
+    if (tipo or '').lower() not in ('dte', 'factura', 'boleta', 'guia', 'nota_credito', 'nota_debito'):
+        imp_vales = getattr(estacion_job, 'impresora_vales', None) if estacion_job is not None else None
+        if imp_vales is not None:
+            nombre_impresora = imp_vales.nombre or ''
+        elif estacion_job is not None:
+            nombre_impresora = (estacion_job.info_impresora().get('nombre') or '')
 
     def _crear_trabajo():
         try:
@@ -657,6 +719,7 @@ def encolar_impresion_agente(empresa, venta, estacion=None, dte=None, tipo_docum
                 tipo_documento=tipo,
                 documento_id=dte_id or venta_id,
                 contenido_raw=contenido,
+                nombre_impresora=nombre_impresora,
                 estado="pendiente",
             )
             print(f"[IMPRESION] Encolado venta={venta_id} caja={caja_id} tipo={tipo}")

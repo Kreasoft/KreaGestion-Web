@@ -13,6 +13,9 @@ urlpatterns = [
     path('ajax/crear/', views.ajax_cliente_create, name='ajax_cliente_create'),
     path('ajax/vendedores/', views.ajax_vendedores, name='ajax_vendedores'),
     path('ajax/<int:pk>/contactos/', views.ajax_cliente_contactos, name='ajax_cliente_contactos'),
+    path('ajax/<int:pk>/contactos/crear/', views.ajax_contacto_save, name='ajax_contacto_create'),
+    path('ajax/<int:pk>/contactos/<int:contacto_id>/editar/', views.ajax_contacto_save, name='ajax_contacto_update'),
+    path('ajax/<int:pk>/contactos/<int:contacto_id>/eliminar/', views.ajax_contacto_delete, name='ajax_contacto_delete'),
     path('ajax/<int:pk>/', views.ajax_cliente_detail, name='ajax_cliente_detail'),
     path('ajax/<int:pk>/editar/', views.ajax_cliente_update, name='ajax_cliente_update'),
     

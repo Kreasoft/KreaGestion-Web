@@ -299,17 +299,88 @@
                             </div>
                         </div>
 
-                        <!-- Pestaña: Contactos (Personas) -->
+                        <!-- Pestaña: Contactos (Personas) — sin name= para no chocar con el form del cliente -->
                         <div class="tab-pane fade" id="modal-datos-contacto" role="tabpanel">
-                            <div class="text-center py-4">
-                                <i class="fas fa-users-cog fa-2x text-muted mb-3"></i>
-                                <h5>Contactos de la Empresa</h5>
-                                <p class="text-muted small">Aquí podrá gestionar las personas de contacto vinculadas a esta empresa cliente.</p>
-                                <div id="lista-contactos-cliente" class="mt-3">
-                                    <!-- Se cargará dinámicamente o placeholder -->
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
-                                        <i class="fas fa-plus me-1"></i>Añadir Contacto (Próximamente)
+                            <div id="avisoContactosNuevo" class="text-center py-4">
+                                <i class="fas fa-users-cog fa-2x mb-3" style="color:#8B7355;"></i>
+                                <h5 class="mb-2" style="color:#5D4037;font-weight:600;font-family:'Poppins',sans-serif;">Guarde el cliente primero</h5>
+                                <p class="mb-0" style="color:#8B7355;font-size:0.82rem;">Para agregar personas de contacto debe guardar la ficha del cliente.</p>
+                            </div>
+                            <div id="panelContactosActivo" class="d-none">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <p class="mb-0" style="color:#8B7355;font-size:0.72rem;">Personas de contacto de este cliente.</p>
+                                    <button type="button" id="btnNuevoContacto" class="btn btn-sm btn-contacto-add">
+                                        <i class="fas fa-plus me-1"></i>Añadir
                                     </button>
+                                </div>
+                                <div id="lista-contactos-cliente"></div>
+                                <div id="formContactoPanel" class="d-none">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <h6 id="formContactoTitulo" class="mb-0">
+                                            <i class="fas fa-user-plus me-1"></i>Nuevo contacto
+                                        </h6>
+                                        <div class="form-check mb-0">
+                                            <input type="checkbox" class="form-check-input" id="c_principal" form="formContactoOrphan">
+                                            <label class="form-check-label" for="c_principal">Principal</label>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="c_id" form="formContactoOrphan" value="">
+                                    <div class="row g-1">
+                                        <div class="col-4">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-user"></i></span>
+                                                <input type="text" id="c_nombre" form="formContactoOrphan" class="form-control" placeholder="Nombre *" aria-label="Nombre" autocomplete="off">
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-id-badge"></i></span>
+                                                <input type="text" id="c_cargo" form="formContactoOrphan" class="form-control" placeholder="Cargo" aria-label="Cargo" autocomplete="off">
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-tags"></i></span>
+                                                <select id="c_tipo" form="formContactoOrphan" class="form-select form-select-sm" aria-label="Tipo">
+                                                    <option value="principal">Principal</option>
+                                                    <option value="comercial">Comercial</option>
+                                                    <option value="administrativo">Administrativo</option>
+                                                    <option value="tecnico">Técnico</option>
+                                                    <option value="otro" selected>Otro</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-phone"></i></span>
+                                                <input type="text" id="c_telefono" form="formContactoOrphan" class="form-control" placeholder="Teléfono" aria-label="Teléfono" autocomplete="off">
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-mobile-alt"></i></span>
+                                                <input type="text" id="c_celular" form="formContactoOrphan" class="form-control" placeholder="Celular" aria-label="Celular" autocomplete="off">
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-envelope"></i></span>
+                                                <input type="email" id="c_email" form="formContactoOrphan" class="form-control" placeholder="Email" aria-label="Email" autocomplete="off">
+                                            </div>
+                                        </div>
+                                        <div class="col-7">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white"><i class="fas fa-comment-alt"></i></span>
+                                                <input type="text" id="c_obs" form="formContactoOrphan" class="form-control" placeholder="Observaciones" aria-label="Observaciones" autocomplete="off">
+                                            </div>
+                                        </div>
+                                        <div class="col-5 d-flex align-items-center justify-content-end gap-1">
+                                            <button type="button" id="btnCancelarContacto" class="btn btn-sm btn-contacto-cancel">Cancelar</button>
+                                            <button type="button" id="btnGuardarContacto" class="btn btn-sm btn-contacto-save">
+                                                <i class="fas fa-save me-1"></i>Guardar
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -380,6 +451,7 @@
         </div>
     </div>
 </div>
+<form id="formContactoOrphan" hidden></form>
 
 <style>
 /* Estilos para pestañas clásicas */
@@ -420,6 +492,88 @@
 
 #modalCliente .input-group-text {
     border-color: #D4C4A8;
+}
+
+#modalCliente .btn-contacto-add {
+    background: #8B8B3A;
+    border: 1px solid #6F6F2E;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+#modalCliente .btn-contacto-save {
+    background: #8B8B3A;
+    border: 1px solid #6F6F2E;
+    color: #fff;
+    font-weight: 600;
+}
+#modalCliente .btn-contacto-cancel {
+    background: rgba(93, 64, 55, 0.1);
+    border: 1px solid rgba(93, 64, 55, 0.28);
+    color: #5D4037;
+    font-weight: 600;
+}
+#modalCliente .badge-principal {
+    background: #C76F43;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    vertical-align: middle;
+}
+#modalCliente .btn-contacto-ico {
+    background: none;
+    border: none;
+    padding: 2px 6px;
+    line-height: 1;
+}
+#modalCliente .form-check-input:checked {
+    background-color: #C76F43;
+    border-color: #C76F43;
+}
+#modalCliente .form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(199, 111, 67, 0.25);
+    border-color: #C76F43;
+}
+#modalCliente .contacto-fila {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    background: #fff;
+    border: 1px solid #E8DCC8;
+    border-radius: 6px;
+}
+#modalCliente #modalTabContent {
+    padding: 8px 10px !important;
+}
+#modalCliente #formContactoPanel {
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: #F5F1E8;
+    border: 1px solid #E8DCC8;
+    border-radius: 6px;
+}
+#modalCliente #formContactoTitulo {
+    color: #5D4037;
+    font-weight: 700;
+    font-size: 0.78rem;
+    font-family: 'Poppins', sans-serif;
+}
+#modalCliente #formContactoTitulo i {
+    color: #8B7355;
+}
+#modalCliente #formContactoPanel .form-label {
+    margin-bottom: 1px;
+    font-size: 0.64rem;
+}
+#modalCliente #formContactoPanel .form-check-label {
+    color: #5D4037;
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+#modalCliente #formContactoPanel .form-check-input {
+    width: 14px;
+    height: 14px;
+    margin-top: 0.15em;
 }
 </style>
 
@@ -506,16 +660,14 @@ window.abrirModalNuevoCliente = function(rut = "") {
     // Resetear a la primera pestaña
     const firstTab = document.querySelector('#modalClienteTabs button[data-bs-target="#modal-datos-basicos"]');
     if (firstTab) bootstrap.Tab.getOrCreateInstance(firstTab).show();
-    
-    // Limpiar lista de contactos
-    const container = document.getElementById('lista-contactos-cliente');
-    if (container) container.innerHTML = '<div class="text-muted p-3">Guarde el cliente primero para gestionar sus contactos.</div>';
+
+    resetPanelContactosModal(false);
     
     modal.show();
 };
 
-// Abrir para EDITAR cliente
-window.abrirModalEditarCliente = function(id) {
+// Abrir para EDITAR cliente (tabDestino opcional: 'contactos')
+window.abrirModalEditarCliente = function(id, tabDestino) {
     const modalEl = document.getElementById('modalCliente');
     if (!modalEl) return;
     
@@ -559,48 +711,216 @@ window.abrirModalEditarCliente = function(id) {
                 if (el) el.value = (fields[fId] !== null && fields[fId] !== undefined) ? fields[fId] : "";
             }
             
+            resetPanelContactosModal(true);
             cargarContactosModal(id);
+            if (tabDestino === 'contactos') {
+                const tabContactos = document.querySelector('#modalClienteTabs button[data-bs-target="#modal-datos-contacto"]');
+                if (tabContactos) bootstrap.Tab.getOrCreateInstance(tabContactos).show();
+            } else {
+                const firstTab = document.querySelector('#modalClienteTabs button[data-bs-target="#modal-datos-basicos"]');
+                if (firstTab) bootstrap.Tab.getOrCreateInstance(firstTab).show();
+            }
             modal.show();
         }
     })
     .catch(err => {
-        if (window.Swal) Swal.fire('Error', 'No se pudieron cargar los datos del cliente', 'error');
+        if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudieron cargar los datos del cliente', confirmButtonColor: '#C76F43' });
     });
 };
 
-// Cargar lista de contactos
+function csrfClienteModal() {
+    const el = document.querySelector('#formNuevoCliente [name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function escHtmlContacto(s) {
+    return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function resetFormContactoModal() {
+    const idEl = document.getElementById('c_id');
+    if (idEl) idEl.value = '';
+    ['c_nombre', 'c_cargo', 'c_telefono', 'c_celular', 'c_email', 'c_obs'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if (el) el.value = '';
+    });
+    const tipo = document.getElementById('c_tipo');
+    if (tipo) tipo.value = 'otro';
+    const principal = document.getElementById('c_principal');
+    if (principal) principal.checked = false;
+    const titulo = document.getElementById('formContactoTitulo');
+    if (titulo) titulo.innerHTML = '<i class="fas fa-user-plus me-1" style="color:#8B7355;"></i>Nuevo contacto';
+}
+
+function mostrarFormContactoModal(contacto) {
+    const panel = document.getElementById('formContactoPanel');
+    if (!panel) return;
+    resetFormContactoModal();
+    if (contacto) {
+        document.getElementById('c_id').value = contacto.id || '';
+        document.getElementById('c_nombre').value = contacto.nombre || '';
+        document.getElementById('c_cargo').value = contacto.cargo || '';
+        document.getElementById('c_tipo').value = contacto.tipo_contacto || 'otro';
+        document.getElementById('c_telefono').value = contacto.telefono || '';
+        document.getElementById('c_celular').value = contacto.celular || '';
+        document.getElementById('c_email').value = contacto.email || '';
+        document.getElementById('c_obs').value = contacto.observaciones || '';
+        document.getElementById('c_principal').checked = !!contacto.es_contacto_principal;
+        const titulo = document.getElementById('formContactoTitulo');
+        if (titulo) titulo.innerHTML = '<i class="fas fa-user-edit me-1" style="color:#8B7355;"></i>Editar contacto';
+    }
+    panel.classList.remove('d-none');
+    document.getElementById('c_nombre')?.focus();
+}
+
+function ocultarFormContactoModal() {
+    const panel = document.getElementById('formContactoPanel');
+    if (panel) panel.classList.add('d-none');
+    resetFormContactoModal();
+}
+
+function resetPanelContactosModal(activo) {
+    const aviso = document.getElementById('avisoContactosNuevo');
+    const panel = document.getElementById('panelContactosActivo');
+    if (aviso) aviso.classList.toggle('d-none', !!activo);
+    if (panel) panel.classList.toggle('d-none', !activo);
+    ocultarFormContactoModal();
+    window._contactosClienteCache = [];
+    const container = document.getElementById('lista-contactos-cliente');
+    if (container && !activo) container.innerHTML = '';
+}
+
 window.cargarContactosModal = function(clienteId) {
     const container = document.getElementById('lista-contactos-cliente');
     if (!container) return;
-    
-    container.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
-    
+
+    container.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm" style="color:#8B7355;"></div></div>';
+
     fetch(`/clientes/ajax/${clienteId}/contactos/`)
     .then(r => r.json())
     .then(data => {
-        if (data.success && data.contactos.length > 0) {
-            let html = '<div class="table-responsive"><table class="table table-sm table-hover align-middle" style="font-size: 0.85rem;">';
-            html += '<thead class="table-light"><tr><th>Nombre</th><th>Cargo</th><th>Teléfono</th><th>Email</th></tr></thead><tbody>';
-            data.contactos.forEach(c => {
-                html += `<tr>
-                    <td class="fw-bold text-start">${c.nombre} ${c.es_contacto_principal ? '<span class="badge bg-primary ms-1" style="font-size: 0.6rem;">Principal</span>' : ''}</td>
-                    <td class="text-start">${c.cargo || '-'}</td>
-                    <td class="text-start">${c.celular || c.telefono || '-'}</td>
-                    <td class="text-start">${c.email || '-'}</td>
-                </tr>`;
-            });
-            html += '</tbody></table></div>';
-            html += `<button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="Swal.fire('Gestión de Contactos','Esta funcionalidad se habilitará en la próxima actualización.','info')"><i class="fas fa-plus me-1"></i>Añadir Contacto</button>`;
-            container.innerHTML = html;
-        } else {
-            container.innerHTML = `
-                <div class="text-muted p-3">No hay contactos registrados.</div>
-                <button type="button" class="btn btn-sm btn-outline-primary" onclick="Swal.fire('Gestión de Contactos','Esta funcionalidad se habilitará en la próxima actualización.','info')"><i class="fas fa-plus me-1"></i>Añadir Primer Contacto</button>
-            `;
+        if (!data.success) {
+            container.innerHTML = `<div class="small p-3" style="color:#C76F43;">${escHtmlContacto(data.message || 'No se pudieron cargar los contactos.')}</div>`;
+            return;
+        }
+        const contactos = data.contactos || [];
+        window._contactosClienteCache = contactos;
+        if (contactos.length === 0) {
+            container.innerHTML = '<div class="py-1" style="color:#8B7355;font-size:0.74rem;">No hay contactos registrados.</div>';
+            return;
+        }
+        let html = '';
+        contactos.forEach(c => {
+            const tel = c.celular || c.telefono || '';
+            const meta = [c.cargo, c.tipo_contacto_display || c.tipo_contacto].filter(Boolean).join(' · ');
+            const datos = [tel, c.email].filter(Boolean).join(' · ');
+            html += `<div class="contacto-fila d-flex justify-content-between align-items-center gap-2">
+                <div class="min-w-0 text-truncate" style="color:#5D4037;font-size:0.76rem;">
+                    <span class="fw-bold">${escHtmlContacto(c.nombre)}</span>
+                    ${c.es_contacto_principal ? '<span class="badge badge-principal ms-1">Principal</span>' : ''}
+                    <span style="color:#8B7355;"> · ${escHtmlContacto(meta || 'Sin cargo')}</span>
+                    ${datos ? '<span> · ' + escHtmlContacto(datos) + '</span>' : ''}
+                </div>
+                <div class="text-nowrap">
+                    <button type="button" class="btn-contacto-ico" title="Editar" onclick="editarContactoModal(${c.id})"><i class="fas fa-edit" style="color:#C49A52;"></i></button>
+                    <button type="button" class="btn-contacto-ico" title="Eliminar" onclick="eliminarContactoModal(${c.id})"><i class="fas fa-trash" style="color:#C76F43;"></i></button>
+                </div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    })
+    .catch(() => { container.innerHTML = '<div class="small p-3" style="color:#C76F43;">Error al cargar contactos.</div>'; });
+};
+
+window.editarContactoModal = function(contactoId) {
+    const contacto = (window._contactosClienteCache || []).find(c => String(c.id) === String(contactoId));
+    if (!contacto) return;
+    mostrarFormContactoModal(contacto);
+};
+
+window.eliminarContactoModal = function(contactoId) {
+    const clienteId = document.getElementById('m_cliente_id')?.value;
+    if (!clienteId || !contactoId) return;
+    const contacto = (window._contactosClienteCache || []).find(c => String(c.id) === String(contactoId));
+    const nombre = contacto ? contacto.nombre : 'este contacto';
+    const confirmar = () => {
+        fetch(`/clientes/ajax/${clienteId}/contactos/${contactoId}/eliminar/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfClienteModal() }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (window.Swal) Swal.fire({ icon: 'success', title: 'Eliminado', text: data.message, timer: 1400, showConfirmButton: false, confirmButtonColor: '#8B7355' });
+                ocultarFormContactoModal();
+                cargarContactosModal(clienteId);
+            } else if (window.Swal) {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'No se pudo eliminar.', confirmButtonColor: '#C76F43' });
+            }
+        })
+        .catch(() => { if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo comunicar con el servidor', confirmButtonColor: '#C76F43' }); });
+    };
+    if (window.Swal) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Eliminar contacto',
+            text: `¿Eliminar a ${nombre}?`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#C76F43',
+            cancelButtonColor: '#8B7355'
+        }).then(res => { if (res.isConfirmed) confirmar(); });
+    } else if (confirm(`¿Eliminar a ${nombre}?`)) {
+        confirmar();
+    }
+};
+
+function guardarContactoModal() {
+    const clienteId = document.getElementById('m_cliente_id')?.value;
+    if (!clienteId) return;
+    const nombre = (document.getElementById('c_nombre')?.value || '').trim();
+    if (nombre.length < 2) {
+        if (window.Swal) Swal.fire({ icon: 'warning', title: 'Nombre requerido', text: 'Ingrese el nombre del contacto (mínimo 2 caracteres).', confirmButtonColor: '#C76F43' });
+        document.getElementById('c_nombre')?.focus();
+        return;
+    }
+    const contactoId = (document.getElementById('c_id')?.value || '').trim();
+    const fd = new FormData();
+    fd.append('nombre', nombre);
+    fd.append('cargo', document.getElementById('c_cargo')?.value || '');
+    fd.append('tipo_contacto', document.getElementById('c_tipo')?.value || 'otro');
+    fd.append('telefono', document.getElementById('c_telefono')?.value || '');
+    fd.append('celular', document.getElementById('c_celular')?.value || '');
+    fd.append('email', document.getElementById('c_email')?.value || '');
+    fd.append('observaciones', document.getElementById('c_obs')?.value || '');
+    if (document.getElementById('c_principal')?.checked) fd.append('es_contacto_principal', 'on');
+
+    const url = contactoId
+        ? `/clientes/ajax/${clienteId}/contactos/${contactoId}/editar/`
+        : `/clientes/ajax/${clienteId}/contactos/crear/`;
+    const btn = document.getElementById('btnGuardarContacto');
+    const original = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...'; }
+
+    fetch(url, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-CSRFToken': csrfClienteModal() }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            if (window.Swal) Swal.fire({ icon: 'success', title: 'Guardado', text: data.message, timer: 1400, showConfirmButton: false, confirmButtonColor: '#8B7355' });
+            ocultarFormContactoModal();
+            cargarContactosModal(clienteId);
+        } else if (window.Swal) {
+            Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Revise los datos del contacto.', confirmButtonColor: '#C76F43' });
         }
     })
-    .catch(() => { container.innerHTML = '<div class="text-danger small p-3">Error al cargar contactos.</div>'; });
-};
+    .catch(() => { if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo comunicar con el servidor', confirmButtonColor: '#C76F43' }); })
+    .finally(() => { if (btn) { btn.disabled = false; btn.innerHTML = original; } });
+}
 
 // Eventos al cargar el DOM
 document.addEventListener('DOMContentLoaded', function() {
@@ -680,6 +1000,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    document.getElementById('btnNuevoContacto')?.addEventListener('click', function() {
+        mostrarFormContactoModal(null);
+    });
+    document.getElementById('btnCancelarContacto')?.addEventListener('click', ocultarFormContactoModal);
+    document.getElementById('btnGuardarContacto')?.addEventListener('click', guardarContactoModal);
 
     // Formateo de RUT
     const rutInput = document.getElementById('m_cliente_rut');

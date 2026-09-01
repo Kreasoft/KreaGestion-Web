@@ -7,6 +7,7 @@ import time
 import json
 import os
 import sys
+from urllib.parse import urlencode
 
 CONFIG_FILE = "config_impresora.json"
 DEFAULT_API_BASE_URL = "http://127.0.0.1:8000/caja/api/impresion"
@@ -47,6 +48,28 @@ def get_app_dir():
     if getattr(sys, "frozen", False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
+
+
+def _comando_inicio_windows():
+    if getattr(sys, "frozen", False):
+        return f'"{sys.executable}"'
+    return f'"{sys.executable}" "{os.path.abspath(__file__)}"'
+
+
+def _registrar_inicio_windows():
+    """Se abre solo al encender el PC. No cambia cómo imprime."""
+    try:
+        import winreg
+        clave = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_SET_VALUE,
+        )
+        winreg.SetValueEx(clave, "GestionCloudImpresora", 0, winreg.REG_SZ, _comando_inicio_windows())
+        winreg.CloseKey(clave)
+    except Exception:
+        pass
 
 
 CONFIG_PATHS = [
@@ -155,6 +178,11 @@ class AgenteImpresionApp:
         self.btn_detener.pack(fill="x", pady=4)
         self.btn_detener.state(["disabled"])
         ttk.Button(self.frm_trabajo, text="Probar impresión", command=self.probar_impresion).pack(fill="x", pady=4)
+        ttk.Label(
+            self.frm_trabajo,
+            text="Se abrirá solo al encender el computador.",
+            foreground="#8B7355",
+        ).pack(pady=(8, 0))
         ttk.Button(self.frm_trabajo, text="Usar otro código", command=self.desvincular).pack(pady=(10, 0))
 
     def _mostrar_pantalla(self):
@@ -303,13 +331,34 @@ class AgenteImpresionApp:
 
         while self.servicio_corriendo:
             try:
+                try:
+                    impresoras = [
+                        p[2] for p in win32print.EnumPrinters(
+                            win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+                        )
+                    ]
+                except Exception:
+                    impresoras = []
+                impresora_actual = (
+                    self.combo_impresoras.get()
+                    if hasattr(self, "combo_impresoras")
+                    else impresora
+                ) or impresora
+                query = urlencode({
+                    "empresa_id": empresa_id,
+                    "sucursal_id": sucursal_id,
+                    "caja_id": caja_id,
+                    "impresora": impresora_actual or "",
+                    "impresoras": json.dumps(impresoras, ensure_ascii=False),
+                })
                 response = requests.get(
-                    f"{api_base_url}/pendientes/?empresa_id={empresa_id}&sucursal_id={sucursal_id}&caja_id={caja_id}",
+                    f"{api_base_url}/pendientes/?{query}",
                     timeout=5,
                 )
                 if response.status_code == 200:
                     for trabajo in response.json().get("pendientes", []):
-                        exito, error_msg = self.imprimir_raw(impresora, trabajo.get("contenido_raw"))
+                        destino = (trabajo.get("nombre_impresora") or "").strip() or impresora_actual
+                        exito, error_msg = self.imprimir_raw(destino, trabajo.get("contenido_raw"))
                         requests.post(
                             f"{api_base_url}/marcar-impreso/",
                             json={
@@ -337,6 +386,7 @@ class AgenteImpresionApp:
             )
             return
         self.guardar_config({"impresora": impresora})
+        _registrar_inicio_windows()
         self.servicio_corriendo = True
         self.btn_iniciar.state(["disabled"])
         self.btn_detener.state(["!disabled"])

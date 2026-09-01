@@ -69,6 +69,11 @@ def glosa_visible(value):
                 cambiado = True
     if texto.startswith('[MOVIL-ID:') or texto.startswith('[CIERRE]'):
         return ''
+    texto_up = texto.upper()
+    if texto_up.startswith('DTE RECIBIDO') or 'DATOS COINCIDEN CON LOS REGISTRADOS' in texto_up:
+        return ''
+    if texto_up.startswith('ENVIO PROCESADO') or texto_up.startswith('ENVÍO PROCESADO'):
+        return ''
     return texto
 
 

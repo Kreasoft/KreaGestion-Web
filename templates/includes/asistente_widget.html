@@ -1,0 +1,141 @@
+{% if user.is_authenticated and request.empresa and user.perfil %}
+{% if user.perfil.tipo_usuario != 'cajero' %}
+{% if '/pos/' not in request.path and '/movil/' not in request.path %}
+<style>
+    .gc-asist-fab {
+        position: relative; right: auto; bottom: auto;
+        width: 48px; height: 48px; flex: 0 0 48px;
+    }
+    .gc-asist-btn {
+        width: 48px; height: 48px; border-radius: 50%;
+        background: #C76F43; color: #FAFAF8; border: 0;
+        box-shadow: 0 6px 16px rgba(93,64,55,.22);
+        font-size: 1.1rem; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .gc-asist-btn:hover { background: #B8562F; }
+    .gc-asist-dismiss {
+        position: absolute; top: -7px; right: -7px;
+        width: 20px; height: 20px; border-radius: 50%;
+        background: #5D4037; color: #FAFAF8; border: 1px solid #E8DCC8;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .62rem; cursor: pointer; padding: 0; line-height: 1;
+        box-shadow: 0 2px 6px rgba(93,64,55,.25);
+    }
+    .gc-asist-dismiss:hover { background: #6F5B44; }
+    .gc-asist-box {
+        display: none; position: fixed; right: 16px; bottom: 76px; z-index: 10051;
+        width: min(360px, calc(100vw - 24px));
+        background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px;
+        box-shadow: 0 10px 28px rgba(93,64,55,.18); overflow: hidden;
+        flex: 0 0 auto;
+    }
+    .gc-asist-box.is-on { display: block; }
+    .gc-asist-hd {
+        background: #5D4037; color: #FAFAF8; padding: 10px 12px;
+        font-size: .82rem; font-weight: 650;
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    .gc-asist-hd small { display: block; font-weight: 400; opacity: .8; font-size: .68rem; }
+    .gc-asist-close {
+        flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+        background: transparent; color: #FAFAF8; border: 1px solid rgba(250,250,248,.35);
+        display: flex; align-items: center; justify-content: center;
+        font-size: .7rem; cursor: pointer; padding: 0;
+    }
+    .gc-asist-close:hover { background: rgba(250,250,248,.12); }
+    .gc-asist-bd { padding: 10px 12px; max-height: 280px; overflow-y: auto; font-size: .8rem; color: #5D4037; white-space: pre-wrap; line-height: 1.35; }
+    .gc-asist-ft { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid #E8DCC8; background: #F7F3EC; }
+    .gc-asist-ft input { flex: 1; height: 32px; border: 1px solid #D4C4A8; border-radius: 8px; padding: 0 8px; font-size: .78rem; color: #5D4037; }
+    .gc-asist-ft button { background: #C76F43; color: #fff; border: 0; border-radius: 8px; padding: 0 10px; font-size: .72rem; font-weight: 700; }
+    .gc-asist-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 8px; }
+    .gc-asist-chips button { border: 1px solid #D4C4A8; background: #fff; color: #6F5B44; border-radius: 999px; font-size: .65rem; padding: 3px 8px; }
+    @media print {
+        .gc-asist-fab, .gc-asist-box { display: none !important; }
+    }
+</style>
+<div class="gc-asist-fab" id="gcAsistFab">
+    <button type="button" class="gc-asist-btn" id="gcAsistBtn" title="Preguntar a la empresa"><i class="fas fa-comments"></i></button>
+    <button type="button" class="gc-asist-dismiss" id="gcAsistDismiss" title="Cerrar asistente" aria-label="Cerrar asistente"><i class="fas fa-times"></i></button>
+</div>
+<div class="gc-asist-box" id="gcAsistBox">
+    <div class="gc-asist-hd">
+        <div>Asistente · {{ request.empresa.nombre }}<small>Datos de su empresa, no de internet</small></div>
+        <button type="button" class="gc-asist-close" id="gcAsistClose" title="Cerrar" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="gc-asist-bd" id="gcAsistBd">Pregunte: ¿cuánto vendí hoy? ¿quién me debe? ¿hay stock bajo?</div>
+    <div class="gc-asist-chips">
+        <button type="button" data-q="¿cuánto vendí hoy?">Hoy</button>
+        <button type="button" data-q="¿quién me debe?">Deudas</button>
+        <button type="button" data-q="¿qué stock está bajo?">Stock</button>
+        <button type="button" data-q="¿hay DTE rechazados?">SII</button>
+    </div>
+    <form class="gc-asist-ft" id="gcAsistForm">
+        {% csrf_token %}
+        <input type="text" name="pregunta" placeholder="Escriba su pregunta" autocomplete="off">
+        <button type="submit">Ir</button>
+    </form>
+</div>
+<script>
+(function () {
+    var KEY = 'gc_asistente_oculto';
+    var fab = document.getElementById('gcAsistFab');
+    var btn = document.getElementById('gcAsistBtn');
+    var box = document.getElementById('gcAsistBox');
+    var form = document.getElementById('gcAsistForm');
+    var bd = document.getElementById('gcAsistBd');
+    var dismiss = document.getElementById('gcAsistDismiss');
+    var closeBtn = document.getElementById('gcAsistClose');
+    if (!btn || !box || !form) return;
+    function hideAsistente() {
+        box.classList.remove('is-on');
+        if (fab) fab.style.display = 'none';
+        document.body.classList.remove('gc-asist-on');
+        try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+    }
+    function restoreHidden() {
+        var oculto = false;
+        try { oculto = sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+        if (oculto) {
+            if (fab) fab.style.display = 'none';
+            box.classList.remove('is-on');
+            document.body.classList.remove('gc-asist-on');
+        } else {
+            document.body.classList.add('gc-asist-on');
+        }
+    }
+    restoreHidden();
+    btn.addEventListener('click', function () { box.classList.toggle('is-on'); });
+    if (closeBtn) closeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        box.classList.remove('is-on');
+    });
+    if (dismiss) dismiss.addEventListener('click', function (e) {
+        e.stopPropagation();
+        hideAsistente();
+    });
+    function ask(q) {
+        var fd = new FormData(form);
+        fd.set('pregunta', q);
+        bd.textContent = 'Consultando…';
+        fetch('{% url "asistente_preguntar" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': fd.get('csrfmiddlewaretoken') },
+            body: fd
+        }).then(function (r) { return r.json(); })
+          .then(function (d) { bd.textContent = d.respuesta || ''; })
+          .catch(function () { bd.textContent = 'No se pudo consultar.'; });
+    }
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var q = (form.pregunta.value || '').trim();
+        if (q) ask(q);
+    });
+    box.querySelectorAll('[data-q]').forEach(function (b) {
+        b.addEventListener('click', function () { ask(b.getAttribute('data-q')); });
+    });
+})();
+</script>
+{% endif %}
+{% endif %}
+{% endif %}

@@ -235,6 +235,7 @@ CKEDITOR_CONFIGS = {
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 LOGIN_URL = '/accounts/login/'
+CSRF_FAILURE_VIEW = 'gestioncloud.views_errores.csrf_invalido'
 
 AUTHENTICATION_BACKENDS = [
 	'axes.backends.AxesStandaloneBackend',

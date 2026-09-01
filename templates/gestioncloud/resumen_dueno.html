@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load format_filters %}
+
+{% block title %}Resumen · {{ snap.empresa }}{% endblock %}
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_head %}
+<style>
+    .dueno-wrap { max-width: 920px; margin: 0 auto; padding: 12px 14px 28px; color: #5D4037; font-family: 'Poppins', sans-serif; }
+    .dueno-kicker { font-size: .66rem; letter-spacing: .16em; text-transform: uppercase; color: #8B7355; font-weight: 700; }
+    .dueno-h { margin: 2px 0 4px; font-weight: 300; font-size: 1.55rem; letter-spacing: -.03em; }
+    .dueno-h strong { font-weight: 650; }
+    .dueno-sub { margin: 0 0 12px; font-size: .78rem; color: #8B7355; }
+    .dueno-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .dueno-kpi { border-radius: 12px; padding: 10px 12px; color: #FAFAF8; min-height: 78px; }
+    .dueno-kpi span { display: block; font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; opacity: .88; font-weight: 650; }
+    .dueno-kpi b { display: block; margin-top: 4px; font-size: 1.25rem; font-weight: 600; letter-spacing: -.03em; }
+    .dueno-kpi small { display: block; margin-top: 2px; font-size: .7rem; opacity: .9; }
+    .k1 { background: #C76F43; } .k2 { background: #8B8B3A; } .k3 { background: #C49A52; } .k4 { background: #5F8D62; }
+    .dueno-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dueno-card { background: #FAFAF8; border: 1px solid #E8DCC8; border-radius: 12px; padding: 12px 14px; }
+    .dueno-card h3 { margin: 0 0 8px; font-size: .82rem; font-weight: 700; }
+    .dueno-row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px solid #F0E6D6; font-size: .8rem; }
+    .dueno-row:last-child { border-bottom: 0; }
+    .dueno-ok { color: #5F8D62; font-weight: 700; } .dueno-off { color: #C76F43; font-weight: 700; }
+    .dueno-wa { color: #5F8D62; font-weight: 650; font-size: .72rem; text-decoration: none; }
+    .dueno-wa:hover { color: #47794d; }
+    .dueno-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+    .dueno-chip { border: 1px solid #D4C4A8; background: #fff; color: #5D4037; border-radius: 999px; padding: 5px 10px; font-size: .72rem; font-weight: 650; cursor: pointer; }
+    .dueno-chip:hover { background: #E8DCC8; }
+    .dueno-ask { display: flex; gap: 6px; margin-top: 10px; }
+    .dueno-ask input { flex: 1; height: 36px; border: 1px solid #D4C4A8; border-radius: 8px; padding: 0 10px; color: #5D4037; }
+    .dueno-ask button { background: #C76F43; color: #fff; border: 0; border-radius: 8px; padding: 0 14px; font-weight: 700; font-size: .78rem; }
+    .dueno-ans { margin-top: 10px; white-space: pre-wrap; font-size: .82rem; line-height: 1.4; min-height: 2.4em; }
+    @media (max-width: 800px) { .dueno-grid, .dueno-cols { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 520px) { .dueno-grid, .dueno-cols { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dueno-wrap">
+    <div class="dueno-kicker">Dueño · {{ snap.hoy|date:"d/m/Y" }}</div>
+    <h1 class="dueno-h">Resumen de <strong>{{ snap.empresa }}</strong></h1>
+    <p class="dueno-sub">{% if sucursal %}{{ sucursal.nombre }}{% else %}Todas las sucursales{% endif %} · lo importante en un vistazo</p>
+
+    <div class="dueno-grid">
+        <div class="dueno-kpi k1"><span>Hoy</span><b>{{ snap.ventas_hoy|format_miles }}</b><small>{{ snap.cant_hoy }} documentos</small></div>
+        <div class="dueno-kpi k2"><span>Ayer</span><b>{{ snap.ventas_ayer|format_miles }}</b><small>{{ snap.cant_ayer }} documentos</small></div>
+        <div class="dueno-kpi k3"><span>Este mes</span><b>{{ snap.ventas_mes|format_miles }}</b><small>{{ snap.cant_mes }} documentos</small></div>
+        <div class="dueno-kpi k4"><span>Por cobrar</span><b>{{ snap.por_cobrar|format_miles }}</b><small>{{ snap.docs_vencidos }} vencidos</small></div>
+    </div>
+
+    <div class="dueno-cols">
+        <div class="dueno-card">
+            <h3>Quién debe</h3>
+            {% for d in snap.deudores %}
+            <div class="dueno-row">
+                <span>{{ d.cliente__nombre }}</span>
+                <span>
+                    ${{ d.saldo|floatformat:0 }}
+                    {% if d.wa %}
+                    <a class="dueno-wa" target="_blank" rel="noopener" href="{{ d.wa }}">WhatsApp</a>
+                    {% endif %}
+                </span>
+            </div>
+            {% empty %}
+            <div class="dueno-row">Nadie tiene saldo pendiente.</div>
+            {% endfor %}
+        </div>
+        <div class="dueno-card">
+            <h3>Lo que duele</h3>
+            <div class="dueno-row">
+                <span>Impresora</span>
+                <span class="{% if snap.impresora_ok %}dueno-ok{% else %}dueno-off{% endif %}">{% if snap.impresora_ok %}en línea{% else %}sin conexión{% endif %}</span>
+            </div>
+            <div class="dueno-row">
+                <span>Caja</span>
+                <span>{% if snap.caja_abierta %}{{ snap.caja_abierta }}{% else %}sin apertura{% endif %}</span>
+            </div>
+            <div class="dueno-row"><span>DTE con problema</span><span>{{ snap.dte_rechazados }}</span></div>
+            <div class="dueno-row"><span>Stock bajo mínimo</span><span>{{ snap.stock_bajos|length }}</span></div>
+            {% for s in snap.stock_bajos %}
+            <div class="dueno-row"><span>{{ s.nombre }}</span><span>{{ s.cantidad }} / mín {{ s.minimo }}</span></div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="dueno-card" style="margin-top:10px;">
+        <h3>Pregunte a su empresa</h3>
+        <div class="dueno-chips">
+            <button type="button" class="dueno-chip" data-q="¿cuánto vendí hoy?">¿cuánto vendí hoy?</button>
+            <button type="button" class="dueno-chip" data-q="¿quién me debe?">¿quién me debe?</button>
+            <button type="button" class="dueno-chip" data-q="¿qué stock está bajo?">¿qué stock está bajo?</button>
+            <button type="button" class="dueno-chip" data-q="¿hay DTE rechazados?">¿hay DTE rechazados?</button>
+        </div>
+        <form class="dueno-ask" id="duenoAsk">
+            {% csrf_token %}
+            <input type="text" name="pregunta" placeholder="Ej. ¿cuánto vendí ayer?" autocomplete="off">
+            <button type="submit">Preguntar</button>
+        </form>
+        <div class="dueno-ans" id="duenoAns">Los números de arriba son de esta empresa. Escriba o toque una pregunta.</div>
+    </div>
+</div>
+<script>
+(function () {
+    var form = document.getElementById('duenoAsk');
+    var ans = document.getElementById('duenoAns');
+    if (!form) return;
+    function ask(q) {
+        var fd = new FormData(form);
+        fd.set('pregunta', q);
+        ans.textContent = 'Consultando…';
+        fetch('{% url "asistente_preguntar" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': fd.get('csrfmiddlewaretoken') },
+            body: fd
+        }).then(function (r) { return r.json(); })
+          .then(function (d) { ans.textContent = d.respuesta || ''; })
+          .catch(function () { ans.textContent = 'No se pudo consultar.'; });
+    }
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var q = (form.pregunta.value || '').trim();
+        if (q) ask(q);
+    });
+    document.querySelectorAll('.dueno-chip').forEach(function (b) {
+        b.addEventListener('click', function () { form.pregunta.value = b.getAttribute('data-q'); ask(b.getAttribute('data-q')); });
+    });
+})();
+</script>
+{% endblock %}

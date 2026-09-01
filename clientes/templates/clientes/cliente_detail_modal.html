@@ -149,6 +149,12 @@
         border-radius: 8px;
         padding: 7px 16px;
     }
+    #modalDetalleCliente .badge-principal {
+        background: #C76F43;
+        color: #fff;
+        font-size: 0.62rem;
+        font-weight: 700;
+    }
     #modalDetalleCliente.modal.fade .modal-dialog {
         transform: scale(0.94) translateY(24px);
         transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -179,6 +185,11 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="det-general-tab" data-bs-toggle="tab" data-bs-target="#det-general" type="button" role="tab">
                             <i class="fas fa-id-card me-2"></i>Identificación
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="det-contactos-tab" data-bs-toggle="tab" data-bs-target="#det-contactos" type="button" role="tab">
+                            <i class="fas fa-users me-2"></i>Contactos
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -220,6 +231,16 @@
                                 <div class="det-value" id="det_cliente_giro">---</div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="det-contactos" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <p class="mb-0" style="color:#8B7355;font-size:0.78rem;">Personas de contacto de este cliente.</p>
+                            <button type="button" class="btn btn-sm btn-detalle-editar" id="btn_gestionar_contactos">
+                                <i class="fas fa-user-cog me-1"></i>Gestionar contactos
+                            </button>
+                        </div>
+                        <div id="det_lista_contactos"></div>
                     </div>
 
                     <div class="tab-pane fade" id="det-comercial" role="tabpanel">
@@ -328,12 +349,40 @@
                 setDetalleValor('det_cliente_ruta', c.ruta_nombre, 'Sin ruta');
                 setDetalleValor('det_cliente_obs', c.observaciones, 'Sin observaciones.');
 
+                const irAEditar = function (tabDestino) {
+                    modal.hide();
+                    setTimeout(() => window.abrirModalEditarCliente && abrirModalEditarCliente(id, tabDestino), 350);
+                };
                 const btnEditar = document.getElementById('btn_ir_a_editar');
-                if (btnEditar) {
-                    btnEditar.onclick = function () {
-                        modal.hide();
-                        setTimeout(() => window.abrirModalEditarCliente && abrirModalEditarCliente(id), 350);
-                    };
+                if (btnEditar) btnEditar.onclick = function () { irAEditar(); };
+                const btnContactos = document.getElementById('btn_gestionar_contactos');
+                if (btnContactos) btnContactos.onclick = function () { irAEditar('contactos'); };
+
+                const lista = document.getElementById('det_lista_contactos');
+                if (lista) {
+                    lista.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm" style="color:#8B7355;"></div></div>';
+                    fetch(`/clientes/ajax/${id}/contactos/`)
+                        .then(r => r.json())
+                        .then(cdata => {
+                            const contactos = (cdata.success && cdata.contactos) ? cdata.contactos : [];
+                            if (!contactos.length) {
+                                lista.innerHTML = '<div class="text-center py-3" style="color:#8B7355;font-size:0.82rem;">No hay contactos registrados.</div>';
+                                return;
+                            }
+                            let html = '';
+                            contactos.forEach(ct => {
+                                const tel = ct.celular || ct.telefono || '';
+                                const meta = [ct.cargo, ct.tipo_contacto_display || ct.tipo_contacto].filter(Boolean).join(' · ');
+                                const datos = [tel, ct.email].filter(Boolean).join(' · ');
+                                html += `<div class="mb-2 p-2" style="background:#fff;border:1px solid #E8DCC8;border-radius:8px;">
+                                    <div class="fw-bold" style="color:#5D4037;font-size:0.84rem;">${String(ct.nombre || '').replace(/</g,'')} ${ct.es_contacto_principal ? '<span class="badge badge-principal ms-1">Principal</span>' : ''}</div>
+                                    <div style="color:#8B7355;font-size:0.74rem;">${String(meta || 'Sin cargo').replace(/</g,'')}</div>
+                                    <div style="color:#5D4037;font-size:0.74rem;">${String(datos || 'Sin teléfono ni email').replace(/</g,'')}</div>
+                                </div>`;
+                            });
+                            lista.innerHTML = html;
+                        })
+                        .catch(() => { lista.innerHTML = '<div class="small p-2" style="color:#C76F43;">No se pudieron cargar los contactos.</div>'; });
                 }
                 modal.show();
             })

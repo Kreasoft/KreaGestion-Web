@@ -165,7 +165,7 @@ class ClienteSII:
             'SOAPAction': ''
         }
         
-        resp = self._request_with_dns_fallback('POST', url, data=envelope, headers=headers, timeout=10)
+        resp = self._request_with_dns_fallback('POST', url, data=envelope, headers=headers, timeout=25)
         resp.raise_for_status()
         return resp.text
     
@@ -174,7 +174,10 @@ class ClienteSII:
         return m.group(1) if m else xml_str
         
     def _extract_tag(self, xml_str, tag):
-        m = re.search(rf'<{tag}>(.*?)</{tag}>', xml_str, re.DOTALL)
+        if not xml_str:
+            return None
+        patron = rf'<(?:\w+:)?{re.escape(tag)}(?:\s[^>]*)?>(.*?)</(?:\w+:)?{re.escape(tag)}>'
+        m = re.search(patron, str(xml_str), re.DOTALL | re.IGNORECASE)
         return m.group(1).strip() if m else None
 
     def get_seed(self):
@@ -644,26 +647,23 @@ class ClienteSII:
 
         return None
 
-    def consultar_estado_por_folio(self, rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total):
-        if not self.token:
-            self.get_token()
-            
-        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
-        rut_receptor_num, rut_receptor_dv = _split_rut(rut_receptor)
-        
-        # Formatear fecha a DDMMYYYY
-        from datetime import datetime
+    def _fecha_dte_sii(self, fecha_emision):
         try:
             if isinstance(fecha_emision, str):
-                dt = datetime.strptime(fecha_emision, "%Y-%m-%d")
+                dt = datetime.strptime(fecha_emision[:10], '%Y-%m-%d')
             else:
                 dt = fecha_emision
-            fecha_str = dt.strftime("%d%m%Y")
-        except:
-            fecha_str = str(fecha_emision)
-            
-        body = (
-            '<def:getEstDte soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
+            return dt.strftime('%d%m%Y')
+        except Exception:
+            return str(fecha_emision or '')
+
+    def _cuerpo_consulta_folio(self, metodo, rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total):
+        rut_emisor_num, rut_emisor_dv = _split_rut(rut_emisor)
+        rut_receptor_num, rut_receptor_dv = _split_rut(rut_receptor)
+        fecha_str = self._fecha_dte_sii(fecha_emision)
+        monto = int(monto_total or 0)
+        return (
+            f'<def:{metodo} soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'
             f'<RutConsultante xsi:type="xsd:string">{rut_emisor_num}</RutConsultante>'
             f'<DvConsultante xsi:type="xsd:string">{rut_emisor_dv}</DvConsultante>'
             f'<RutCompania xsi:type="xsd:string">{rut_emisor_num}</RutCompania>'
@@ -673,25 +673,84 @@ class ClienteSII:
             f'<TipoDte xsi:type="xsd:string">{tipo_dte}</TipoDte>'
             f'<FolioDte xsi:type="xsd:string">{folio}</FolioDte>'
             f'<FechaEmisionDte xsi:type="xsd:string">{fecha_str}</FechaEmisionDte>'
-            f'<MontoDte xsi:type="xsd:string">{int(monto_total)}</MontoDte>'
+            f'<MontoDte xsi:type="xsd:string">{monto}</MontoDte>'
             f'<Token xsi:type="xsd:string">{self.token}</Token>'
-            '</def:getEstDte>'
+            f'</def:{metodo}>'
         )
-        
-        url_query_dte = "https://palena.sii.cl/DTEWS/QueryEstDte.jws" if self.ambiente == 'PRODUCCION' else "https://maullin.sii.cl/DTEWS/QueryEstDte.jws"
-        
+
+    def consultar_estado_por_folio(self, rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total):
+        if not self.token:
+            self.get_token()
+
+        body = self._cuerpo_consulta_folio(
+            'getEstDte', rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total
+        )
+        url_query_dte = (
+            'https://palena.sii.cl/DTEWS/QueryEstDte.jws'
+            if self.ambiente == 'PRODUCCION'
+            else 'https://maullin.sii.cl/DTEWS/QueryEstDte.jws'
+        )
         resp_xml = self._soap_call(url_query_dte, body)
         inner = self._extract_tag(resp_xml, 'getEstDteReturn') or self._extract_cdata(resp_xml)
-        decoded = inner.replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
-        
+        decoded = (inner or resp_xml).replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+        decoded = decoded.replace('&#xd;', '\n')
+
         estado = self._extract_tag(decoded, 'ESTADO')
-        glosa = self._extract_tag(decoded, 'GLOSA_ESTADO') or self._extract_tag(decoded, 'GLOSA')
-        
+        glosa = (
+            self._extract_tag(decoded, 'GLOSA_ESTADO')
+            or self._extract_tag(decoded, 'GLOSA_ERR')
+            or self._extract_tag(decoded, 'GLOSA')
+        )
+        glosa_err = self._extract_tag(decoded, 'GLOSA_ERR')
+        if glosa_err and glosa_err not in (glosa or ''):
+            glosa = f'{glosa} {glosa_err}'.strip() if glosa else glosa_err
         return {
-            'success': estado in ['DTE Aceptado', 'DTE Recibido', 'DTE Aceptado con Reparos'],
+            'success': bool(estado or glosa),
             'estado': estado,
             'glosa': glosa,
-            'xml_respuesta': resp_xml
+            'xml_respuesta': resp_xml,
+        }
+
+    def consultar_estado_dte_avanzado(self, rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total):
+        """QueryEstDteAv: estado comercial del DTE (aceptado / reparos / rechazado)."""
+        if not self.token:
+            self.get_token()
+
+        body = self._cuerpo_consulta_folio(
+            'getEstDteAv', rut_emisor, rut_receptor, tipo_dte, folio, fecha_emision, monto_total
+        )
+        url_av = (
+            'https://palena.sii.cl/DTEWS/QueryEstDteAv.jws'
+            if self.ambiente == 'PRODUCCION'
+            else 'https://maullin.sii.cl/DTEWS/QueryEstDteAv.jws'
+        )
+        resp_xml = self._soap_call(url_av, body)
+        inner = self._extract_tag(resp_xml, 'getEstDteAvReturn') or self._extract_cdata(resp_xml)
+        decoded = (inner or resp_xml).replace('&lt;', '<').replace('&gt;', '>').replace('&amp;', '&')
+        decoded = decoded.replace('&#xd;', '\n')
+
+        estadodte = self._extract_tag(decoded, 'ESTADODTE')
+        estado_tag = self._extract_tag(decoded, 'ESTADO')
+        desc = self._extract_tag(decoded, 'DESC_ESTADODTE') or self._extract_tag(decoded, 'GLOSA_ESTADO')
+        glosa = desc or self._extract_tag(decoded, 'GLOSA_ERR') or self._extract_tag(decoded, 'GLOSA')
+        codigo = str(estadodte or '').strip()
+        mapa = {
+            '1': ('DOK', 'DTE Recibido'),
+            '2': ('EOK', 'DTE Aceptado'),
+            '3': ('RPR', 'DTE Aceptado con reparos'),
+            '4': ('RCH', 'DTE Rechazado'),
+        }
+        if codigo in mapa:
+            codigo_sii, glosa_codigo = mapa[codigo]
+        else:
+            codigo_sii = str(estado_tag or codigo or '').strip().upper()
+            glosa_codigo = glosa
+        return {
+            'success': bool(codigo or glosa),
+            'estado': codigo_sii,
+            'estadodte': codigo,
+            'glosa': glosa or glosa_codigo,
+            'xml_respuesta': resp_xml,
         }
 
     # Compatibility with the previous GestionCloud client API.

@@ -21,6 +21,15 @@
             <span class="nav-text">Dashboard</span>
         </a>
     </div>
+    {% if request.user.perfil.tipo_usuario != 'cajero' %}
+    <div class="nav-item">
+        <a href="{% url 'resumen_dueno' %}"
+            class="nav-link {% if request.resolver_match.url_name == 'resumen_dueno' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-pie"></i>
+            <span class="nav-text">Resumen</span>
+        </a>
+    </div>
+    {% endif %}
 
     <!-- Submenú de Artículos -->
     {% if request.user.perfil.tipo_usuario != 'cajero' %}
@@ -212,9 +221,14 @@
                 {% endif %}
                 {% if perms.ventas.view_estaciontrabajo or user.is_superuser %}
                 <a href="{% url 'ventas:estaciontrabajo_list' %}"
-                    class="nav-link submenu-link {% if 'estaciones-trabajo' in request.path %}active{% endif %}">
+                    class="nav-link submenu-link {% if 'estaciones-trabajo' in request.path and 'conectar-impresora' not in request.path and 'descargar' not in request.path %}active{% endif %}">
                     <i class="fas fa-desktop me-2" style="color: #D4A574;"></i>
                     <span>Estaciones de Trabajo</span>
+                </a>
+                <a href="{% url 'ventas:conectar_impresora_estacion' %}"
+                    class="nav-link submenu-link {% if 'conectar-impresora' in request.path %}active{% endif %}">
+                    <i class="fas fa-print me-2" style="color: #D4A574;"></i>
+                    <span>Conectar impresora</span>
                 </a>
                 {% endif %}
 
@@ -459,6 +473,9 @@
                         class="nav-link submenu-link {% if 'caf' in request.path %}active{% endif %}">
                         <i class="fas fa-key me-2" style="color: #D4A574;"></i>
                         <span>Folios CAF</span>
+                        {% if GLOBAL_CAF_ALERTS %}
+                        <span class="gc-folio-badge" title="Alertas de folios">{{ GLOBAL_CAF_ALERTS|length }}</span>
+                        {% endif %}
                     </a>
                     {% endif %}
                     {% if perms.documentos.view_tipodocumento or user.is_superuser %}
@@ -489,9 +506,16 @@
                 <div class="submenu-items">
                     {% if perms.caja.view_aperturacaja or user.is_superuser %}
                     <a href="{% url 'caja:apertura_list' %}"
-                        class="nav-link submenu-link {% if 'apertura' in request.path %}active{% endif %}">
+                        class="nav-link submenu-link {% if 'apertura' in request.path and request.resolver_match.url_name != 'apertura_cerrar' %}active{% endif %}">
                         <i class="fas fa-cash-register me-2" style="color: #8B7355;"></i>
                         <span>Aperturas de Caja</span>
+                    </a>
+                    {% endif %}
+                    {% if perms.caja.change_aperturacaja or user.is_superuser %}
+                    <a href="{% url 'caja:cierre_caja' %}"
+                        class="nav-link submenu-link {% if request.resolver_match.url_name == 'cierre_caja' or request.resolver_match.url_name == 'apertura_cerrar' %}active{% endif %}">
+                        <i class="fas fa-lock me-2" style="color: #C76F43;"></i>
+                        <span>Cerrar Caja</span>
                     </a>
                     {% endif %}
                     {% if perms.caja.view_caja or user.is_superuser %}

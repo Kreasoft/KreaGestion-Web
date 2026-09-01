@@ -372,61 +372,47 @@ class Empresa(models.Model):
         verbose_name="Impresora para Cotizaciones",
         help_text="Tipo de impresora a usar para imprimir cotizaciones"
     )
-    
-    # NOTA: Campos de "nombres físicos" eliminados del sistema
-    # Ya no se detectan impresoras físicas, solo se configura el TIPO de formato
-    # Los campos están comentados para mantener compatibilidad con BD existente
-    
-    # impresora_factura_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora facturas",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    # impresora_boleta_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora boletas",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    # impresora_guia_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora guías",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    # impresora_nota_credito_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora notas crédito",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    # impresora_nota_debito_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora notas débito",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    # impresora_vale_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora vales",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    # impresora_cotizacion_nombre = models.CharField(
-    #     max_length=200,
-    #     blank=True,
-    #     null=True,
-    #     verbose_name="Nombre físico impresora cotizaciones",
-    #     help_text="Nombre de la impresora física instalada en el sistema"
-    # )
-    
+    copias_factura = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias factura"
+    )
+    copias_boleta = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias boleta"
+    )
+    copias_guia = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias guía"
+    )
+    copias_nota_credito = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias nota de crédito"
+    )
+    copias_nota_debito = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias nota de débito"
+    )
+    copias_vale = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias vale/ticket"
+    )
+    copias_cotizacion = models.PositiveSmallIntegerField(
+        default=1, verbose_name="Copias cotización"
+    )
+
+    def get_copias_impresion(self, tipo_slug):
+        """Copias por tipo de documento (configuración de la empresa)."""
+        t = str(tipo_slug or '').strip().lower()
+        campo = {
+            'factura': 'copias_factura',
+            'boleta': 'copias_boleta',
+            'guia': 'copias_guia',
+            'notacredito': 'copias_nota_credito',
+            'notadebito': 'copias_nota_debito',
+            'vale': 'copias_vale',
+            'cotizacion': 'copias_cotizacion',
+        }.get(t)
+        if not campo:
+            return 1
+        try:
+            return max(1, min(10, int(getattr(self, campo, 1) or 1)))
+        except (TypeError, ValueError):
+            return 1
+
     # Estado y auditoría
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activa')
     fecha_creacion = models.DateTimeField(auto_now_add=True)

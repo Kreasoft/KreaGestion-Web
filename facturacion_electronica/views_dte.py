@@ -45,7 +45,8 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
         if referer:
             # Evitar bucles si el referer es la misma página de acción o el detalle del documento
             excluded_patterns = [
-                '/enviar/', '/enviar-email/', '/consultar-estado/', '/descargar-pdf/',
+                '/enviar/', '/enviar-email/', '/consultar-estado/', '/consultar-estados/',
+                '/sincronizar-pendientes/', '/descargar-pdf/',
                 '/descargar-xml/', '/regenerar-xml/', '/ver-factura/',
                 '/ver-notacredito/', '/ver-notadebito/', '/dte/'
             ]
@@ -162,6 +163,37 @@ def resolver_bodega_documento(venta=None, dte=None):
     except Exception:
         pass
 
+    try:
+        from caja.models import Caja
+        from bodegas.models import Bodega
+
+        empresa = getattr(venta, 'empresa', None) or getattr(dte, 'empresa', None)
+        estacion = getattr(venta, 'estacion_trabajo', None)
+        sucursal = getattr(venta, 'sucursal', None) or getattr(estacion, 'sucursal', None)
+        if empresa and estacion:
+            caja = Caja.objects.filter(
+                empresa=empresa, estacion_trabajo=estacion, activo=True
+            ).select_related('bodega').first()
+            if caja and caja.bodega:
+                return _format_bodega_display(caja.bodega)
+        if empresa and sucursal:
+            caja = Caja.objects.filter(
+                empresa=empresa, sucursal=sucursal, estacion_trabajo__isnull=True, activo=True
+            ).select_related('bodega').first()
+            if caja and caja.bodega:
+                return _format_bodega_display(caja.bodega)
+        if empresa:
+            qs = Bodega.objects.filter(empresa=empresa, activa=True)
+            if sucursal:
+                suc_qs = qs.filter(Q(sucursal=sucursal) | Q(sucursal__isnull=True))
+                if suc_qs.exists():
+                    qs = suc_qs
+            bodega = qs.order_by('nombre').first()
+            if bodega:
+                return _format_bodega_display(bodega)
+    except Exception:
+        pass
+
     return ''
 
 
@@ -261,7 +293,6 @@ def enviar_dte_sii(request, dte_id):
         return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
     if dte.permite_reenvio_xml_corregido:
-        from .dte_service import DTEService
         servicio = DTEService(request.empresa)
         try:
             servicio.procesar_dte_existente(dte)
@@ -327,13 +358,28 @@ def consultar_estado_dte(request, dte_id):
         
         estado = dte_service.consultar_estado_dte(dte)
         dte.refresh_from_db()
-        glosa = (estado.get('glosa') or '').strip()
-        if glosa:
-            messages.success(request, f'{dte.get_estado_sii_real_display()}: {glosa}')
+        estado_real = dte.get_estado_sii_real()
+        etiqueta = dte.get_estado_sii_real_display()
+        glosa = (estado.get('glosa') or dte.glosa_sii or '').strip()
+        detalle = str(estado.get('detalle_estado') or '').strip().upper()
+        recibido_sin_resolucion = estado_real == 'enviado' and (
+            detalle == 'DOK' or 'DTE RECIBIDO' in glosa.upper()
+        )
+        if recibido_sin_resolucion:
+            messages.info(
+                request,
+                'El SII recibió el documento (DOK). Aún no informa si fue aceptado o rechazado.'
+            )
+        elif estado_real == 'rechazado':
+            messages.error(request, f'{etiqueta}: {glosa}' if glosa else etiqueta)
+        elif estado_real == 'aceptado_reparos':
+            messages.warning(request, f'{etiqueta}: {glosa}' if glosa else etiqueta)
+        elif glosa:
+            messages.success(request, f'{etiqueta}: {glosa}')
         else:
             messages.success(
                 request,
-                f'Estado SII: {dte.get_estado_sii_real_display()} ({estado.get("estado") or "-"})'
+                f'Estado SII: {etiqueta} ({estado.get("estado") or "-"})'
             )
         
     except Exception as e:
@@ -433,6 +479,26 @@ def _tipo_impresora_dte(empresa, dte):
     if tipo == '56':
         return getattr(empresa, 'impresora_nota_debito', 'laser') or 'laser'
     return 'laser'
+
+
+def n_copias_impresion(empresa, dte=None, estacion=None, tipo_slug=None, request=None):
+    """Estación (POS) si existe; si no, copias de la empresa. PDF fuerza 1."""
+    if request is not None and str(request.GET.get('pdf') or '') == '1':
+        return 1
+    slug = tipo_slug
+    if not slug and dte is not None:
+        slug = dte.get_tipo_slug()
+    slug = str(slug or 'guia').strip().lower()
+    if estacion is not None:
+        try:
+            n = int(estacion.get_copias_por_tipo(slug) or 0)
+            if n:
+                return max(1, min(10, n))
+        except Exception:
+            pass
+    if empresa is not None and hasattr(empresa, 'get_copias_impresion'):
+        return empresa.get_copias_impresion(slug)
+    return 1
 
 
 def _pdf_link_callback(uri, rel):
@@ -665,8 +731,8 @@ def dte_detail(request, pk):
 
 def _generar_pdf_tributario_bytes(request, dte):
     """Genera el PDF de la copia tributaria. Lanza ValueError si no se puede."""
-    if not dte.puede_emitir_documento_tributario:
-        raise ValueError(dte.get_mensaje_no_emitible())
+    if not dte.puede_compartir_pdf_correo_whatsapp:
+        raise ValueError(dte.get_mensaje_no_compartible())
 
     original_get = request.GET
     query = original_get.copy()
@@ -712,8 +778,8 @@ def descargar_pdf_dte(request, dte_id):
         pk=dte_id,
         empresa=request.empresa,
     )
-    if not dte.puede_emitir_documento_tributario:
-        messages.error(request, dte.get_mensaje_no_emitible())
+    if not dte.puede_compartir_pdf_correo_whatsapp:
+        messages.error(request, dte.get_mensaje_no_compartible())
         return redirect('facturacion_electronica:dte_detail', pk=dte.pk)
 
     try:
@@ -749,8 +815,8 @@ def enviar_dte_email(request, dte_id):
     if request.method != 'POST':
         return destino
 
-    if not dte.puede_emitir_documento_tributario:
-        messages.error(request, dte.get_mensaje_no_emitible())
+    if not dte.puede_compartir_pdf_correo_whatsapp:
+        messages.error(request, dte.get_mensaje_no_compartible())
         return destino
 
     email = (request.POST.get('email') or '').strip() or _email_receptor_dte(dte)
@@ -1080,13 +1146,13 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
                     'monto': condicion_pago_display['monto']
                 })
     
-    # Obtener configuración de copias de la estación (prioritario)
-    n_copias = 1
-    estacion = getattr(venta, 'estacion_trabajo', None)
-    if estacion:
-        n_copias = estacion.get_copias_por_tipo(dte.get_tipo_slug())
-    if request.GET.get('pdf') == '1':
-        n_copias = 1
+    # Copias: estación POS si hay, si no las de la empresa (Configurar impresoras).
+    n_copias = n_copias_impresion(
+        empresa,
+        dte=dte,
+        estacion=getattr(venta, 'estacion_trabajo', None) if venta else None,
+        request=request,
+    )
     
     receptor_display = _build_receptor_display(dte, fallback_cliente=cliente_display)
     bodega_display = resolver_bodega_documento(venta=venta, dte=dte)
@@ -1365,6 +1431,9 @@ def sincronizar_pendientes_sii(request):
 
     sender = get_background_sender()
     dtes_pendientes = obtener_dtes_pendientes_envio(request.empresa)
+    tipo_dte = (request.GET.get('tipo_dte') or request.POST.get('tipo_dte') or '').strip()
+    if tipo_dte:
+        dtes_pendientes = dtes_pendientes.filter(tipo_dte=tipo_dte)
     dtes_ids = list(dtes_pendientes.values_list('id', flat=True))
     count = sender.enviar_multiples(dtes_ids, request.empresa.id) if dtes_ids else 0
 
@@ -1378,5 +1447,53 @@ def sincronizar_pendientes_sii(request):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'success': True, 'message': msg, 'count': 0})
         messages.info(request, msg)
+
+    return redirect_to_dte_list(request)
+
+
+@login_required
+@requiere_empresa
+def consultar_estados_pendientes_sii(request):
+    """Consulta en el SII el estado de DTEs ya enviados (con Track) que aún no son finales."""
+    tipo_dte = (request.GET.get('tipo_dte') or request.POST.get('tipo_dte') or '').strip()
+    qs = DocumentoTributarioElectronico.objects.filter(
+        empresa=request.empresa,
+    ).exclude(
+        Q(track_id__isnull=True) | Q(track_id='')
+    ).exclude(
+        estado_sii__in=['aceptado', 'aceptado_reparos', 'anulado']
+    )
+    if tipo_dte:
+        qs = qs.filter(tipo_dte=tipo_dte)
+    qs = qs.select_related('empresa').order_by('-fecha_emision', '-folio')[:80]
+
+    pendientes = []
+    for documento in qs:
+        if documento.requiere_consulta_estado_sii():
+            pendientes.append(documento)
+        if len(pendientes) >= 20:
+            break
+
+    consultados = 0
+    errores = 0
+    if pendientes:
+        servicio = DTEService(request.empresa)
+        for documento in pendientes:
+            try:
+                servicio.consultar_estado_dte(documento)
+                consultados += 1
+            except Exception:
+                errores += 1
+
+    etiqueta = 'guías' if tipo_dte == '52' else 'documentos'
+    if consultados:
+        msg = f'Se consultó el estado de {consultados} {etiqueta} en el SII.'
+        if errores:
+            msg += f' {errores} no se pudieron consultar.'
+        messages.success(request, msg)
+    elif errores:
+        messages.error(request, f'No se pudo consultar el estado de {errores} {etiqueta}.')
+    else:
+        messages.info(request, f'No hay {etiqueta} pendientes de consulta SII.')
 
     return redirect_to_dte_list(request)

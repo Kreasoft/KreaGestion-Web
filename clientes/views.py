@@ -417,12 +417,90 @@ def ajax_vendedores(request):
     vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).values('id', 'nombre')
     return JsonResponse({'success': True, 'vendedores': list(vendedores)})
 
+def _serialize_contacto(contacto):
+    return {
+        'id': contacto.id,
+        'nombre': contacto.nombre,
+        'cargo': contacto.cargo or '',
+        'tipo_contacto': contacto.tipo_contacto,
+        'tipo_contacto_display': contacto.get_tipo_contacto_display(),
+        'telefono': contacto.telefono or '',
+        'celular': contacto.celular or '',
+        'email': contacto.email or '',
+        'observaciones': contacto.observaciones or '',
+        'es_contacto_principal': contacto.es_contacto_principal,
+    }
+
+
 @login_required
 def ajax_cliente_contactos(request, pk):
     """Obtener lista de contactos de un cliente"""
-    cliente = get_object_or_404(Cliente, id=pk)
-    contactos = cliente.contactos.all().values('id', 'nombre', 'cargo', 'tipo_contacto', 'telefono', 'celular', 'email', 'es_contacto_principal')
-    return JsonResponse({'success': True, 'contactos': list(contactos)})
+    if not request.user.has_perm('clientes.view_cliente'):
+        return JsonResponse({'success': False, 'message': 'No tiene permiso para ver contactos.'}, status=403)
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    contactos = [_serialize_contacto(c) for c in cliente.contactos.all().order_by('-es_contacto_principal', 'nombre')]
+    return JsonResponse({'success': True, 'contactos': contactos})
+
+
+@login_required
+def ajax_contacto_save(request, pk, contacto_id=None):
+    """Crear o editar un contacto vía AJAX."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+
+    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    if contacto_id:
+        if not request.user.has_perm('clientes.change_contactocliente'):
+            return JsonResponse({'success': False, 'message': 'No tiene permiso para editar contactos.'}, status=403)
+        contacto = get_object_or_404(ContactoCliente, id=contacto_id, cliente=cliente)
+        form = ContactoClienteForm(request.POST, instance=contacto)
+    else:
+        if not request.user.has_perm('clientes.add_contactocliente'):
+            return JsonResponse({'success': False, 'message': 'No tiene permiso para crear contactos.'}, status=403)
+        form = ContactoClienteForm(request.POST)
+        form.instance.cliente = cliente
+
+    if form.is_valid():
+        contacto = form.save(commit=False)
+        contacto.cliente = cliente
+        contacto.save()
+        return JsonResponse({
+            'success': True,
+            'message': 'Contacto actualizado.' if contacto_id else 'Contacto agregado.',
+            'contacto': _serialize_contacto(contacto),
+        })
+
+    errores = []
+    for field, field_errors in form.errors.items():
+        label = form.fields[field].label if field in form.fields else field
+        errores.append(f"{label}: {', '.join(field_errors)}")
+    return JsonResponse({'success': False, 'message': '\n'.join(errores) or 'Revise los datos del contacto.'}, status=400)
+
+
+@login_required
+def ajax_contacto_delete(request, pk, contacto_id):
+    """Eliminar un contacto vía AJAX."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    if not request.user.has_perm('clientes.delete_contactocliente'):
+        return JsonResponse({'success': False, 'message': 'No tiene permiso para eliminar contactos.'}, status=403)
+
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+
+    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    contacto = get_object_or_404(ContactoCliente, id=contacto_id, cliente=cliente)
+    nombre = contacto.nombre
+    contacto.delete()
+    return JsonResponse({'success': True, 'message': f'Contacto "{nombre}" eliminado.'})
 
 @login_required
 def ajax_cliente_create(request):

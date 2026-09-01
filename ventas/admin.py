@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
-    Vendedor, FormaPago, EstacionTrabajo, Venta, VentaDetalle, Devolucion, DevolucionDetalle, 
-    PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle, DispositivoMovil
+    Vendedor, FormaPago, EstacionTrabajo, TerminalPOS, Venta, VentaDetalle, Devolucion, DevolucionDetalle, 
+    PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle, DispositivoMovil,
+    ensure_terminalpos_table,
 )
 
 
@@ -57,7 +58,7 @@ class EstacionTrabajoAdmin(admin.ModelAdmin):
             'fields': ('empresa', 'sucursal', 'numero', 'nombre', 'descripcion')
         }),
         ('Configuración POS', {
-            'fields': ('modo_pos',)
+            'fields': ('modo_pos', 'caja_impresion', 'impresora_vales')
         }),
         ('Tipos de Documentos Permitidos', {
             'fields': ('puede_facturar', 'puede_boletar', 'puede_guia', 'puede_cotizar', 'puede_vale')
@@ -67,6 +68,31 @@ class EstacionTrabajoAdmin(admin.ModelAdmin):
         }),
         ('Estado', {
             'fields': ('activo',)
+        }),
+    )
+
+
+@admin.register(TerminalPOS)
+class TerminalPOSAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nombre', 'estacion', 'vendedor', 'bodega', 'sucursal', 'activo', 'ultimo_acceso', 'empresa']
+
+    def get_queryset(self, request):
+        ensure_terminalpos_table()
+        return super().get_queryset(request)
+    list_filter = ['activo', 'empresa', 'sucursal']
+    search_fields = ['codigo', 'nombre']
+    ordering = ['nombre']
+    readonly_fields = ['token', 'ultimo_acceso', 'fecha_creacion', 'fecha_modificacion']
+
+    fieldsets = (
+        ('Equipo', {
+            'fields': ('empresa', 'sucursal', 'codigo', 'nombre', 'activo')
+        }),
+        ('Perfil de venta', {
+            'fields': ('estacion', 'vendedor', 'bodega')
+        }),
+        ('Identidad', {
+            'fields': ('token', 'ultimo_acceso', 'fecha_creacion', 'fecha_modificacion')
         }),
     )
 

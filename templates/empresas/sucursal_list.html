@@ -317,11 +317,20 @@
     document.addEventListener('DOMContentLoaded', function() {
         sucursalModal = new bootstrap.Modal(document.getElementById('sucursalModal'));
         
-        // Limpiar iframe al cerrar
+        // Limpiar iframe al cerrar (about:blank evita "conexión rechazada" de Chrome)
         document.getElementById('sucursalModal').addEventListener('hidden.bs.modal', function () {
-            document.getElementById('modal-iframe').src = '';
+            document.getElementById('modal-iframe').src = 'about:blank';
             document.getElementById('modalLoader').style.display = 'block';
             document.getElementById('modal-iframe').style.display = 'none';
+        });
+
+        window.addEventListener('message', function (event) {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || (event.data.type !== 'sucursalGuardada' && event.data.type !== 'sucursalCerrar')) return;
+            if (sucursalModal) sucursalModal.hide();
+            if (event.data.type === 'sucursalGuardada') {
+                window.location.reload();
+            }
         });
     });
 
@@ -348,12 +357,15 @@
         
         try {
             // Acceder al documento del iframe
+            if (!iframe.src || iframe.src === 'about:blank') return;
             var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
             var currentPath = iframe.contentWindow.location.pathname;
+            if (!currentPath || currentPath === 'blank') return;
             
-            // Si el iframe redirige a la lista (éxito al guardar), recargar página padre
-            // La URL de lista depende de tu configuración, ajusta si es necesario
-            if (currentPath.includes('lista') || currentPath === "{% url 'empresas:sucursal_list' %}") {
+            // Si el iframe volvió a la lista, cerrar y recargar
+            var esLista = currentPath === "{% url 'empresas:sucursal_list' %}"
+                || /\/sucursales\/?$/.test(currentPath);
+            if (esLista) {
                 sucursalModal.hide();
                 window.location.reload();
                 return;

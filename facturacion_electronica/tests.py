@@ -2,6 +2,7 @@ from django.test import SimpleTestCase
 
 from facturacion_electronica.clasificacion_sii import (
     contiene_codigo_estado,
+    conteos_envio_sii,
     es_espera_reintento_sii,
     es_falso_rechazo_sii,
     es_glosa_envio_procesado,
@@ -60,11 +61,57 @@ class ClasificacionSiiTests(SimpleTestCase):
         self.assertEqual(dte.get_estado_sii_real_display(), 'Pendiente SII')
         self.assertFalse(dte.puede_enviarse_al_sii)
 
+    def test_envio_procesado_con_rechazados_es_rechazo(self):
+        xml = (
+            '<SII:RESP_BODY><ACEPTADOS>0</ACEPTADOS>'
+            '<RECHAZADOS>1</RECHAZADOS><REPAROS>0</REPAROS></SII:RESP_BODY>'
+            '<GLOSA>Envio Procesado</GLOSA>'
+        )
+        xml_escapado = xml.replace('<', '&lt;').replace('>', '&gt;')
+        self.assertEqual(conteos_envio_sii(xml)['rechazados'], 1)
+        self.assertEqual(conteos_envio_sii(xml_escapado)['rechazados'], 1)
+        self.assertFalse(es_falso_rechazo_sii(xml, 'Envio Procesado', estado_sii='rechazado', track_id='1'))
+        dte = self._dte(
+            estado_sii='enviado',
+            glosa_sii='Envio Procesado',
+            track_id='0257001450',
+            respuesta_sii=xml,
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'rechazado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Rechazada')
+
     def test_glosa_vacia_con_track_no_es_rechazo(self):
         dte = self._dte(track_id='256736750')
         self.assertEqual(dte.get_estado_sii_real(), 'enviado')
         self.assertFalse(dte.puede_enviarse_al_sii)
         self.assertTrue(dte.puede_emitir_documento_tributario)
+
+    def test_pendiente_envio_no_comparte_pdf_correo_whatsapp(self):
+        dte = self._dte(estado_sii='pendiente', track_id='')
+        self.assertTrue(dte.puede_enviarse_al_sii)
+        self.assertTrue(dte.puede_emitir_documento_tributario)
+        self.assertFalse(dte.puede_compartir_pdf_correo_whatsapp)
+
+    def test_rechazado_no_comparte_pdf_correo_whatsapp(self):
+        dte = self._dte(
+            estado_sii='rechazado',
+            track_id='1',
+            glosa_sii='DTE rechazado. RCH: RUT del receptor invalido',
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'rechazado')
+        self.assertFalse(dte.puede_emitir_documento_tributario)
+        self.assertFalse(dte.puede_compartir_pdf_correo_whatsapp)
+
+    def test_aceptado_si_comparte_pdf_correo_whatsapp(self):
+        dte = self._dte(estado_sii='aceptado', track_id='256736750')
+        self.assertTrue(dte.puede_compartir_pdf_correo_whatsapp)
+        reparos = self._dte(estado_sii='aceptado_reparos', track_id='256736750')
+        self.assertTrue(reparos.puede_compartir_pdf_correo_whatsapp)
+
+    def test_enviado_pendiente_sii_no_comparte_pdf_correo_whatsapp(self):
+        dte = self._dte(estado_sii='enviado', track_id='256736750')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Pendiente SII')
+        self.assertFalse(dte.puede_compartir_pdf_correo_whatsapp)
 
     def test_helpers_ignoran_respuesta_sii_deferred(self):
         dte = self._dte(glosa_sii=self.GLOSA_ESPERA)
@@ -100,7 +147,15 @@ class ClasificacionSiiTests(SimpleTestCase):
         self.assertTrue(dte.tiene_track_sii)
         self.assertTrue(dte.requiere_consulta_estado_sii())
 
-    def test_fau_permite_subir_xml_corregido(self):
+    def test_con_estado_final_oculta_consulta_sii(self):
+        aceptado = self._dte(estado_sii='aceptado', track_id='256736750')
+        self.assertFalse(aceptado.requiere_consulta_estado_sii())
+        rechazado = self._dte(
+            estado_sii='rechazado',
+            track_id='1',
+            glosa_sii='DTE rechazado. RCH: RUT del receptor invalido',
+        )
+        self.assertFalse(rechazado.requiere_consulta_estado_sii())
         from facturacion_electronica.clasificacion_sii import es_dte_no_recibido_sii
 
         self.assertTrue(es_dte_no_recibido_sii('FAU', 'DTE No Recibido'))
@@ -108,6 +163,77 @@ class ClasificacionSiiTests(SimpleTestCase):
         self.assertTrue(dte.tiene_track_sii)
         self.assertFalse(dte.puede_enviarse_al_sii)
         self.assertTrue(dte.permite_reenvio_xml_corregido)
+
+    def test_dok_dte_recibido_no_es_aceptado(self):
+        dte = self._dte(
+            tipo_dte='33',
+            estado_sii='aceptado',
+            track_id='0257001450',
+            glosa_sii='DTE Recibido. El SII aún no informa aceptación ni rechazo.',
+            respuesta_sii='<ESTADO>DOK</ESTADO><GLOSA_ESTADO>DTE Recibido</GLOSA_ESTADO>',
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'enviado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Pendiente SII')
+        self.assertTrue(dte.requiere_consulta_estado_sii())
+        self.assertFalse(dte.puede_compartir_pdf_correo_whatsapp)
+
+    def test_guia_dte_recibido_es_aceptada(self):
+        dte = self._dte(
+            tipo_dte='52',
+            estado_sii='enviado',
+            track_id='0257007050',
+            glosa_sii='DTE Recibido',
+            respuesta_sii=(
+                '<ACEPTADOS>1</ACEPTADOS><RECHAZADOS>0</RECHAZADOS>'
+                '<ESTADO>DNK</ESTADO><GLOSA_ESTADO>DTE Recibido</GLOSA_ESTADO>'
+            ),
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'aceptado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Aceptada')
+        self.assertFalse(dte.requiere_consulta_estado_sii())
+
+    def test_guia_epr_aceptados_es_aceptada(self):
+        xml = (
+            '<SII:RESP_BODY><ACEPTADOS>1</ACEPTADOS>'
+            '<RECHAZADOS>0</RECHAZADOS><REPAROS>0</REPAROS></SII:RESP_BODY>'
+            '<ESTADO>EPR</ESTADO><GLOSA>Envio Procesado</GLOSA>'
+        )
+        dte = self._dte(
+            tipo_dte='52',
+            estado_sii='enviado',
+            track_id='0257007050',
+            glosa_sii='Envio Procesado',
+            respuesta_sii=xml,
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'aceptado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Aceptada')
+
+    def test_monto_consulta_guia_interna_usa_xml_cero(self):
+        from facturacion_electronica.dte_service import DTEService
+
+        class Dte:
+            tipo_dte = '52'
+            tipo_traslado = '5'
+            rut_receptor = '77117239-3'
+            monto_total = 154300
+            xml_firmado = '<Documento><MntTotal>0</MntTotal><MNT>0</MNT></Documento>'
+            xml_dte = ''
+
+        svc = DTEService.__new__(DTEService)
+        svc.empresa = type('E', (), {'rut': '77117239-3'})()
+        self.assertEqual(svc._monto_consulta_sii(Dte()), 0)
+
+    def test_eok_dte_aceptado_es_aceptado(self):
+        dte = self._dte(
+            estado_sii='enviado',
+            track_id='0257001450',
+            glosa_sii='DTE Aceptado',
+            respuesta_sii='<ESTADODTE>2</ESTADODTE><ESTADO>EOK</ESTADO>',
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'aceptado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Aceptada')
+        self.assertFalse(dte.requiere_consulta_estado_sii())
+        self.assertTrue(dte.puede_compartir_pdf_correo_whatsapp)
 
     def test_con_track_muestra_consulta_aunque_parezca_rechazo(self):
         dte = self._dte(

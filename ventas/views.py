@@ -15,7 +15,7 @@ from datetime import datetime, time, timedelta
 from core.decorators import requiere_empresa
 from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
 from facturacion_electronica.ind_traslado import TIPO_DESPACHO_SII_CHOICES
-from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TIPO_DOCUMENTO_CHOICES, DispositivoMovil
+from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TerminalPOS, TIPO_DOCUMENTO_CHOICES, DispositivoMovil, ensure_terminalpos_table, ensure_estacion_caja_impresion
 from .telefono_app import (
     AUTH_OFFLINE_HOURS,
     emitir_token_app,
@@ -53,6 +53,122 @@ def _sincronizar_config_estacion(request, estacion):
     request.session.modified = True
 
 
+COOKIE_TERMINAL_POS = 'gc_pos_terminal'
+COOKIE_TERMINAL_MAX_AGE = 60 * 60 * 24 * 400
+
+
+def _token_terminal_request(request):
+    return (request.COOKIES.get(COOKIE_TERMINAL_POS) or '').strip()
+
+
+def _aplicar_sesion_pos(request, estacion, vendedor, bodega=None, nombre_estacion=None):
+    request.session['pos_estacion_id'] = int(estacion.id)
+    request.session['pos_estacion_nombre'] = str(estacion.nombre)
+    request.session['pos_vendedor_id'] = int(vendedor.id)
+    request.session['pos_vendedor_nombre'] = str(vendedor.nombre)
+    if nombre_estacion:
+        request.session['pos_nombre_estacion'] = str(nombre_estacion).strip()
+    if bodega:
+        request.session['pos_bodega_id'] = int(bodega.id)
+        request.session['dashboard_bodega_id'] = int(bodega.id)
+    _sincronizar_config_estacion(request, estacion)
+    request.session.modified = True
+
+
+def _buscar_terminal_pos(request):
+    ensure_terminalpos_table()
+    ensure_estacion_caja_impresion()
+    token = _token_terminal_request(request)
+    if not token:
+        return None
+    return TerminalPOS.objects.filter(
+        empresa=request.empresa, token=token, activo=True
+    ).select_related('estacion', 'vendedor', 'bodega', 'sucursal').first()
+
+
+def _siguiente_codigo_terminal(empresa):
+    n = TerminalPOS.objects.filter(empresa=empresa).count() + 1
+    codigo = f'TER-{n:03d}'
+    while TerminalPOS.objects.filter(empresa=empresa, codigo=codigo).exists():
+        n += 1
+        codigo = f'TER-{n:03d}'
+    return codigo
+
+
+def _guardar_cookie_terminal(response, token):
+    response.set_cookie(
+        COOKIE_TERMINAL_POS,
+        token,
+        max_age=COOKIE_TERMINAL_MAX_AGE,
+        httponly=True,
+        samesite='Lax',
+        path='/',
+    )
+    return response
+
+
+def _registrar_o_actualizar_terminal(request, estacion, vendedor, bodega=None, nombre=''):
+    import secrets
+
+    ensure_terminalpos_table()
+    token = _token_terminal_request(request)
+    terminal = None
+    if token:
+        terminal = TerminalPOS.objects.filter(empresa=request.empresa, token=token).first()
+        if not terminal and TerminalPOS.objects.filter(token=token).exists():
+            token = None
+    if not token:
+        token = secrets.token_urlsafe(32)
+    sucursal = getattr(estacion, 'sucursal', None) or getattr(request, 'sucursal_activa', None)
+    if terminal:
+        terminal.estacion = estacion
+        terminal.vendedor = vendedor
+        terminal.bodega = bodega
+        terminal.sucursal = sucursal
+        if nombre:
+            terminal.nombre = nombre[:120]
+        terminal.activo = True
+        terminal.ultimo_acceso = timezone.now()
+        terminal.save()
+    else:
+        terminal = TerminalPOS.objects.create(
+            empresa=request.empresa,
+            sucursal=sucursal,
+            estacion=estacion,
+            bodega=bodega,
+            vendedor=vendedor,
+            codigo=_siguiente_codigo_terminal(request.empresa),
+            nombre=(nombre or f'Equipo {estacion.nombre}')[:120],
+            token=token,
+            activo=True,
+            ultimo_acceso=timezone.now(),
+        )
+    return terminal
+
+
+def _bodega_para_venta(request, sucursal=None, estacion=None):
+    """Bodega elegida en el equipo/POS, o la de la caja/sucursal."""
+    from gestioncloud.views import bodegas_para_rebaja
+    from caja.models import Caja
+
+    caja = None
+    if estacion is not None:
+        caja = Caja.objects.filter(
+            empresa=request.empresa, estacion_trabajo=estacion, activo=True
+        ).first()
+    if caja is None and sucursal is not None:
+        caja = Caja.objects.filter(
+            empresa=request.empresa, sucursal=sucursal, estacion_trabajo__isnull=True, activo=True
+        ).first()
+    bodega_id = request.session.get('pos_bodega_id') or request.session.get('dashboard_bodega_id')
+    if not bodega_id:
+        terminal = _buscar_terminal_pos(request)
+        if terminal and terminal.bodega_id:
+            bodega_id = terminal.bodega_id
+    _, bodega = bodegas_para_rebaja(request, sucursal=sucursal, caja=caja, bodega_id=bodega_id)
+    return bodega
+
+
 def _apertura_caja_estacion(empresa, estacion, sucursal=None):
     """Apertura activa de la estación y sucursal; no toma cajas de otra sucursal ni de otra estación."""
     from caja.models import AperturaCaja, Caja
@@ -80,6 +196,7 @@ def _apertura_caja_estacion(empresa, estacion, sucursal=None):
 
 
 def _estaciones_operativas(request, sucursal=None):
+    ensure_estacion_caja_impresion()
     qs = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
     if sucursal is not None:
         qs = qs.filter(Q(sucursal=sucursal) | Q(sucursal__isnull=True))
@@ -1004,6 +1121,7 @@ def pos_detalles_venta(request, venta_id):
 @permission_required('ventas.add_venta', raise_exception=True)
 def pos_view(request):
     """Vista principal del Punto de Venta"""
+    ensure_estacion_caja_impresion()
     from articulos.models import Articulo, CategoriaArticulo
     from clientes.models import Cliente
     from caja.models import Caja
@@ -1022,9 +1140,25 @@ def pos_view(request):
     vendedor_id = request.session.get('pos_vendedor_id')
     
     if not estacion_id or not vendedor_id:
-        print("[ERROR] Sesion POS perdida - Redirigiendo a seleccion")
-        messages.warning(request, 'Sesión POS perdida. Por favor, seleccione estación y vendedor nuevamente.')
-        return redirect('ventas:pos_seleccion')
+        terminal = _buscar_terminal_pos(request)
+        if (
+            terminal
+            and terminal.estacion_id
+            and terminal.vendedor_id
+            and terminal.estacion.activo
+            and terminal.vendedor.activo
+        ):
+            _aplicar_sesion_pos(
+                request, terminal.estacion, terminal.vendedor, terminal.bodega,
+                nombre_estacion=terminal.nombre,
+            )
+            request.session.save()
+            estacion_id = terminal.estacion_id
+            vendedor_id = terminal.vendedor_id
+        else:
+            print("[ERROR] Sesion POS perdida - Redirigiendo a seleccion")
+            messages.warning(request, 'Sesión POS perdida. Por favor, seleccione estación y vendedor nuevamente.')
+            return redirect('ventas:pos_seleccion')
     
     print(f"[OK] Sesion POS valida - Estacion ID: {estacion_id}, Vendedor ID: {vendedor_id}")
     
@@ -1209,6 +1343,7 @@ def pos_view(request):
         'form_apertura': form_apertura,
         'modo_pos': modo_pos,
         'estacion_activa': estacion_activa,
+        'nombre_estacion_pos': (request.session.get('pos_nombre_estacion') or '').strip(),
         'kits': kits_disponibles,
         'max_descuento_lineal': request.empresa.max_descuento_lineal,
         'max_descuento_total': request.empresa.max_descuento_total,
@@ -1221,14 +1356,48 @@ def pos_view(request):
 @requiere_empresa
 def pos_seleccion_estacion(request):
     """Vista para seleccionar estación de trabajo y vendedor"""
+    from bodegas.models import Bodega
     from empresas.middleware import resolver_sucursal_operativa
     sucursal_activa = resolver_sucursal_operativa(request)
+    terminal = _buscar_terminal_pos(request)
+    cambiar = request.GET.get('cambiar') == '1'
+
+    if (
+        terminal
+        and terminal.estacion_id
+        and terminal.vendedor_id
+        and terminal.estacion.activo
+        and terminal.vendedor.activo
+        and not cambiar
+    ):
+        _aplicar_sesion_pos(
+            request, terminal.estacion, terminal.vendedor, terminal.bodega,
+            nombre_estacion=terminal.nombre,
+        )
+        request.session.save()
+        terminal.ultimo_acceso = timezone.now()
+        terminal.save(update_fields=['ultimo_acceso'])
+        response = redirect('ventas:pos_view')
+        return _guardar_cookie_terminal(response, terminal.token)
+
     estaciones = _estaciones_operativas(request, sucursal_activa)
     vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
-    
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).select_related('sucursal').order_by('nombre')
+    if sucursal_activa:
+        bodegas_sucursal = bodegas.filter(Q(sucursal=sucursal_activa) | Q(sucursal__isnull=True))
+        if bodegas_sucursal.exists():
+            bodegas = bodegas_sucursal
+
     context = {
         'estaciones': estaciones,
         'vendedores': vendedores,
+        'bodegas': bodegas,
+        'sucursal_activa': sucursal_activa,
+        'terminal': terminal,
+        'nombre_equipo': (terminal.nombre if terminal else '') or '',
+        'estacion_seleccionada_id': terminal.estacion_id if terminal else None,
+        'vendedor_seleccionado_id': terminal.vendedor_id if terminal else None,
+        'bodega_seleccionada_id': terminal.bodega_id if terminal else None,
     }
     
     return render(request, 'ventas/pos_seleccion.html', context)
@@ -1247,6 +1416,7 @@ def pos_iniciar(request):
     if request.method == 'POST':
         estacion_id = request.POST.get('estacion_id')
         vendedor_id = request.POST.get('vendedor_id')
+        bodega_id = (request.POST.get('bodega_id') or '').strip()
         
         print(f"[DEBUG] POST - Estacion ID: {estacion_id}")
         print(f"[DEBUG] POST - Vendedor ID: {vendedor_id}")
@@ -1267,11 +1437,15 @@ def pos_iniciar(request):
             print(f"[DEBUG] Vendedor encontrado: {vendedor.nombre}")
             
             # Guardar en sesión CON CICLO ASEGURADO
-            request.session['pos_estacion_id'] = int(estacion.id)
-            request.session['pos_vendedor_id'] = int(vendedor.id)
-            request.session['pos_estacion_nombre'] = str(estacion.nombre)
-            request.session['pos_vendedor_nombre'] = str(vendedor.nombre)
-            _sincronizar_config_estacion(request, estacion)
+            bodega = None
+            if bodega_id:
+                from bodegas.models import Bodega
+                bodega = Bodega.objects.filter(pk=bodega_id, empresa=request.empresa, activa=True).first()
+            nombre_equipo = (request.POST.get('nombre_equipo') or '').strip()
+            _aplicar_sesion_pos(request, estacion, vendedor, bodega, nombre_estacion=nombre_equipo)
+            terminal = _registrar_o_actualizar_terminal(
+                request, estacion, vendedor, bodega=bodega, nombre=nombre_equipo
+            )
             
             # TRIPLE GUARDADO FORZADO (evitar race conditions)
             request.session.modified = True
@@ -1286,7 +1460,7 @@ def pos_iniciar(request):
             print(f"[DEBUG] Session Key DESPUES: {request.session.session_key}")
             print("[OK] Sesion guardada exitosamente")
             
-            return JsonResponse({
+            response = JsonResponse({
                 'success': True, 
                 'message': f'POS iniciado - Estación: {estacion.nombre}, Vendedor: {vendedor.nombre}',
                 'redirect_url': reverse('ventas:pos_view'),
@@ -1296,6 +1470,7 @@ def pos_iniciar(request):
                     'vendedor_id': vendedor.id
                 }
             })
+            return _guardar_cookie_terminal(response, terminal.token)
             
         except (EstacionTrabajo.DoesNotExist, Vendedor.DoesNotExist) as e:
             print(f"[ERROR] Estacion o vendedor no encontrados: {e}")
@@ -1333,6 +1508,14 @@ def pos_cambiar_estacion(request):
             
             request.session.modified = True
             request.session.save()
+
+            terminal = _buscar_terminal_pos(request)
+            if terminal:
+                terminal.estacion = estacion
+                if estacion.sucursal_id:
+                    terminal.sucursal = estacion.sucursal
+                terminal.ultimo_acceso = timezone.now()
+                terminal.save(update_fields=['estacion', 'sucursal', 'ultimo_acceso'])
             
             # Obtener información completa de la estación para el frontend
             from facturacion_electronica.models import ArchivoCAF
@@ -1489,6 +1672,7 @@ def pos_session_info(request):
                 'estacion_id': estacion.id,
                 'vendedor_id': vendedor.id,
                 'estacion_nombre': estacion_nombre,
+                'nombre_estacion': (request.session.get('pos_nombre_estacion') or '').strip(),
                 'vendedor_nombre': vendedor_nombre,
                 'cierre_directo': bool(estacion.cierre_directo),
                 'enviar_sii_directo': bool(estacion.enviar_sii_directo),
@@ -2550,6 +2734,7 @@ def pos_procesar_preventa(request):
                 
                 ticket_vale = Venta.objects.create(
                     empresa=request.empresa,
+                    sucursal=sucursal_activa,
                     numero_venta=numero_vale,
                     fecha=fecha_documento_caja(_apertura_caja_estacion(request.empresa, estacion, sucursal_activa)),
                     cliente=cliente,
@@ -3117,9 +3302,199 @@ def pos_procesar_preventa(request):
 @login_required
 @requiere_empresa
 @permission_required('ventas.view_estaciontrabajo', raise_exception=True)
+def descargar_agente_impresion(request):
+    """Baja el programa de impresión (exe) para el PC de la estación."""
+    from caja.views_impresion import descargar_agente
+    return descargar_agente(request)
+
+
+def _etiqueta_modalidad_estacion(estacion):
+    if estacion is None:
+        return ''
+    modo = 'Cliente al inicio' if estacion.modo_pos == 'con_cliente' else 'Cliente al final'
+    partes = [estacion.numero, modo]
+    if estacion.cierre_directo:
+        partes.append(
+            'RUT al inicio' if estacion.flujo_cierre_directo == 'rut_inicio' else 'RUT al final'
+        )
+    emits = []
+    if estacion.puede_vale:
+        emits.append('Vale')
+    if estacion.puede_ticket:
+        emits.append('Ticket')
+    if emits:
+        partes.append('emite ' + ' / '.join(emits))
+    return ' · '.join(str(p) for p in partes if p)
+
+
+def _resolver_estacion_conectar(request, pk=None):
+    """Estación de esta pantalla: URL, POST, GET o la abierta en el POS."""
+    empresa = request.empresa
+    qs = EstacionTrabajo.objects.filter(empresa=empresa).select_related(
+        'sucursal', 'caja_impresion', 'impresora_vales'
+    )
+    if request.GET.get('elegir') == '1' and request.method != 'POST':
+        return None
+    estacion_id = pk or request.POST.get('estacion_id') or request.GET.get('estacion_id')
+    if not estacion_id:
+        estacion_id = request.session.get('pos_estacion_id')
+    if not estacion_id:
+        return None
+    return qs.filter(id=estacion_id).first()
+
+
+def _tomar_impresora_agente_vivo(estacion):
+    """Si el programa ya corre, usa esa impresora. No pide descargar de nuevo."""
+    from caja.models import Caja, ImpresoraAgente, asignar_impresora_estacion_desde_agente, caja_cola_para_estacion
+
+    if estacion is None:
+        return
+    caja = getattr(estacion, 'caja_impresion', None) or caja_cola_para_estacion(estacion)
+    if caja:
+        asignar_impresora_estacion_desde_agente(caja)
+    limite = timezone.now() - timedelta(seconds=180)
+    qs = ImpresoraAgente.objects.filter(
+        empresa_id=estacion.empresa_id,
+        ultimo_reporte__gte=limite,
+    ).select_related('caja')
+    if estacion.sucursal_id:
+        qs = qs.filter(sucursal_id=estacion.sucursal_id)
+    ultima = qs.order_by('-en_uso', '-ultimo_reporte').first()
+    if ultima is None:
+        caja_viva = (
+            Caja.objects.filter(
+                empresa_id=estacion.empresa_id,
+                activo=True,
+                agente_ultimo_ping__gte=limite,
+            )
+            .order_by('-agente_ultimo_ping')
+            .first()
+        )
+        if caja_viva and estacion.sucursal_id:
+            caja_viva = (
+                Caja.objects.filter(
+                    pk=caja_viva.pk, sucursal_id=estacion.sucursal_id
+                ).first() or caja_viva
+            )
+        if caja_viva:
+            asignar_impresora_estacion_desde_agente(caja_viva)
+        return
+    if estacion.caja_impresion_id != ultima.caja_id:
+        estacion.caja_impresion = ultima.caja
+        estacion.save(update_fields=['caja_impresion'])
+    asignar_impresora_estacion_desde_agente(ultima.caja, ultima.nombre)
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_estaciontrabajo', raise_exception=True)
+def conectar_impresora_estacion(request, pk=None):
+    """Conecta el programa de impresión a una estación, no a una caja de cobro."""
+    from caja.models import CodigoVinculoImpresion, caja_cola_para_estacion
+    from caja.views_impresion import _nuevo_codigo, _url_api_impresion
+
+    empresa = request.empresa
+    estaciones = (
+        EstacionTrabajo.objects.filter(empresa=empresa, activo=True)
+        .select_related('sucursal')
+        .order_by('numero', 'nombre')
+    )
+    estacion = _resolver_estacion_conectar(request, pk)
+    estacion_abierta_id = request.session.get('pos_estacion_id')
+    codigo_mostrado = None
+    error = None
+    agente_en_linea = False
+
+    if request.method == 'POST':
+        post_id = request.POST.get('estacion_id')
+        if post_id:
+            estacion = EstacionTrabajo.objects.filter(
+                empresa=empresa, id=post_id
+            ).select_related('sucursal', 'caja_impresion', 'impresora_vales').first()
+        if not estacion:
+            error = 'Elija la estación de este computador.'
+        elif not estacion.sucursal_id:
+            error = 'Esta estación no tiene sucursal. Ábrala y asígnele una sucursal.'
+        else:
+            caja = caja_cola_para_estacion(estacion)
+            if not caja:
+                error = 'No se pudo preparar la impresión de esta estación.'
+            else:
+                codigo_mostrado = _nuevo_codigo()
+                CodigoVinculoImpresion.objects.create(
+                    codigo=codigo_mostrado,
+                    empresa=empresa,
+                    sucursal=estacion.sucursal,
+                    caja=caja,
+                    api_base_url=_url_api_impresion(request),
+                    creado_por=request.user,
+                    fecha_expiracion=timezone.now() + timedelta(hours=24),
+                )
+                estacion.refresh_from_db()
+
+    if estacion and request.method != 'POST':
+        _tomar_impresora_agente_vivo(estacion)
+        estacion = EstacionTrabajo.objects.filter(pk=estacion.pk).select_related(
+            'sucursal', 'caja_impresion', 'impresora_vales'
+        ).first() or estacion
+
+    if estacion:
+        ping = getattr(getattr(estacion, 'caja_impresion', None), 'agente_ultimo_ping', None)
+        if ping and (timezone.now() - ping).total_seconds() < 180:
+            agente_en_linea = True
+        elif estacion.sucursal_id:
+            from caja.models import Caja
+            agente_en_linea = Caja.objects.filter(
+                empresa=estacion.empresa,
+                sucursal_id=estacion.sucursal_id,
+                activo=True,
+                agente_ultimo_ping__gte=timezone.now() - timedelta(seconds=180),
+            ).exists()
+
+    info_imp = estacion.info_impresora() if estacion else {
+        'nombre': '', 'en_linea': False, 'conectada': False,
+    }
+    if request.GET.get('estado') == '1':
+        if estacion:
+            _tomar_impresora_agente_vivo(estacion)
+            estacion = EstacionTrabajo.objects.filter(pk=estacion.pk).select_related(
+                'sucursal', 'caja_impresion', 'impresora_vales'
+            ).first() or estacion
+            info_imp = estacion.info_impresora()
+            ping = getattr(estacion.caja_impresion, 'agente_ultimo_ping', None) if estacion.caja_impresion_id else None
+            agente_en_linea = bool(ping and (timezone.now() - ping).total_seconds() < 180)
+        return JsonResponse({
+            'ok': bool(estacion),
+            'agente_en_linea': agente_en_linea,
+            'nombre': info_imp.get('nombre') or '',
+            'conectada': bool(info_imp.get('conectada') or agente_en_linea),
+            'en_linea': bool(info_imp.get('en_linea') or agente_en_linea),
+        })
+
+    return render(request, 'ventas/conectar_impresora.html', {
+        'empresa': empresa,
+        'estaciones': estaciones,
+        'estacion': estacion,
+        'estacion_abierta': bool(estacion and estacion_abierta_id == estacion.id),
+        'modalidad': _etiqueta_modalidad_estacion(estacion),
+        'codigo': codigo_mostrado,
+        'agente_en_linea': agente_en_linea,
+        'info_impresora': info_imp,
+        'error': error,
+    })
+
+
+@login_required
+@requiere_empresa
+@permission_required('ventas.view_estaciontrabajo', raise_exception=True)
 def estaciontrabajo_list(request):
     """Lista de estaciones de trabajo"""
-    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa).select_related('sucursal').order_by('numero')
+    ensure_estacion_caja_impresion()
+    from caja.models import ensure_impresoras_agente
+    ensure_impresoras_agente()
+    estaciones = EstacionTrabajo.objects.filter(empresa=request.empresa).select_related(
+        'sucursal', 'caja_impresion', 'impresora_vales'
+    ).prefetch_related('caja_impresion__impresoras_agente').order_by('numero')
     
     # Búsqueda
     search = request.GET.get('search', '')
@@ -3135,10 +3510,26 @@ def estaciontrabajo_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    estacion_actual = None
+    estacion_id = request.session.get('pos_estacion_id')
+    if estacion_id:
+        estacion_actual = EstacionTrabajo.objects.filter(pk=estacion_id, empresa=request.empresa).first()
+    if not estacion_actual:
+        terminal = _buscar_terminal_pos(request)
+        if terminal and terminal.estacion_id:
+            estacion_actual = terminal.estacion
+
+    from caja.impresion_utils import agente_impresion_en_linea
+    from empresas.middleware import resolver_sucursal_operativa
+
     context = {
         'page_obj': page_obj,
         'search': search,
         'form_crear': EstacionTrabajoForm(auto_id='crear_%s', empresa=request.empresa),
+        'estacion_actual': estacion_actual,
+        'alerta_agente_impresion': not agente_impresion_en_linea(
+            request.empresa, resolver_sucursal_operativa(request)
+        ),
     }
     
     return render(request, 'ventas/estaciontrabajo_list.html', context)
@@ -3172,7 +3563,9 @@ def estaciontrabajo_create(request):
 def estaciontrabajo_detail(request, pk):
     """Detalle de estación de trabajo"""
     try:
-        estacion = EstacionTrabajo.objects.get(pk=pk, empresa=request.empresa)
+        estacion = EstacionTrabajo.objects.select_related(
+            'caja_impresion', 'caja_impresion__sucursal', 'impresora_vales'
+        ).get(pk=pk, empresa=request.empresa)
         return render(request, 'ventas/estaciontrabajo_detail.html', {'estacion': estacion})
     except EstacionTrabajo.DoesNotExist:
         return JsonResponse({'success': False, 'message': 'Estación de trabajo no encontrada'})
@@ -3857,6 +4250,32 @@ def cotizacion_html(request, pk):
     return render(request, template, context)
 
 
+def _resolver_dte_de_venta(venta):
+    """DTE oficial de la venta (relación directa, caja o búsqueda por folio)."""
+    from django.core.exceptions import ObjectDoesNotExist
+    from facturacion_electronica.models import DocumentoTributarioElectronico
+    from caja.models import VentaProcesada
+
+    try:
+        dte = venta.dte
+        if dte:
+            return dte
+    except (ObjectDoesNotExist, AttributeError):
+        pass
+
+    vp = (
+        VentaProcesada.objects.filter(Q(venta_final=venta) | Q(venta_preventa=venta))
+        .exclude(dte_generado_id__isnull=True)
+        .select_related('dte_generado')
+        .order_by('-id')
+        .first()
+    )
+    if vp and vp.dte_generado_id:
+        return vp.dte_generado
+
+    return DocumentoTributarioElectronico.objects.filter(venta=venta).order_by('-id').first()
+
+
 @login_required
 def venta_html(request, pk):
     """Vista HTML de venta (detecta automáticamente el tipo de documento)"""
@@ -3875,66 +4294,18 @@ def venta_html(request, pk):
     
     # Cargar relaciones necesarias para evitar consultas adicionales
     venta = Venta.objects.select_related(
-        'cliente', 'vendedor', 'empresa', 'estacion_trabajo', 'forma_pago'
+        'cliente', 'vendedor', 'empresa', 'estacion_trabajo', 'forma_pago', 'sucursal'
     ).get(pk=venta.pk)
     
     detalles = VentaDetalle.objects.filter(venta=venta).select_related('articulo')
     
-    # Verificar si existe DTE asociado (para facturas/boletas/guías electrónicas)
-    dte = None
-    if venta.tipo_documento in ['factura', 'factura_electronica', 'boleta', 'boleta_electronica', 'guia']:
-        try:
-            from facturacion_electronica.models import DocumentoTributarioElectronico
-            
-            # Buscar DTE directamente asociado a la venta
-            if hasattr(venta, 'dte'):
-                dte = venta.dte
-                print(f"[OK] DTE encontrado directamente en venta: Tipo {dte.tipo_dte}, Folio {dte.folio}")
-            else:
-                # Buscar por relación en VentaProcesada
-                from caja.models import VentaProcesada
-                venta_procesada = VentaProcesada.objects.filter(venta_final=venta).first()
-                if venta_procesada and hasattr(venta_procesada, 'dte_generado'):
-                    dte = venta_procesada.dte_generado
-                    print(f"[OK] DTE encontrado en VentaProcesada: Tipo {dte.tipo_dte}, Folio {dte.folio}")
-                    print(f"   Timbre PDF417: {'SI' if dte.timbre_pdf417 else 'NO'}")
-            
-            # Si no se encontró DTE, buscar directamente en DocumentoTributarioElectronico
-            if not dte:
-                tipo_dte_map = {'factura': '33', 'factura_electronica': '33', 'boleta': '39', 'boleta_electronica': '39', 'guia': '52'}
-                tipo_dte_codigo = tipo_dte_map.get(venta.tipo_documento)
-                dte = DocumentoTributarioElectronico.objects.filter(
-                    venta=venta,
-                    tipo_dte=tipo_dte_codigo
-                ).first()
-                if dte:
-                    print(f"[OK] DTE encontrado por búsqueda directa: Tipo {dte.tipo_dte}, Folio {dte.folio}")
-        except Exception as e:
-            print(f"[WARN] Error al buscar DTE: {str(e)}")
-            pass
-
-    forzar_a4 = (request.GET.get('formato') or '').strip().lower() in ('a4', 'carta', 'laser')
-    if forzar_a4 and not dte:
-        try:
-            from facturacion_electronica.models import DocumentoTributarioElectronico
-            dte = DocumentoTributarioElectronico.objects.filter(venta=venta).order_by('-id').first()
-            if not dte:
-                from caja.models import VentaProcesada
-                vp = (
-                    VentaProcesada.objects.filter(Q(venta_final=venta) | Q(venta_preventa=venta))
-                    .exclude(dte_generado__isnull=True)
-                    .select_related('dte_generado')
-                    .order_by('-id')
-                    .first()
-                )
-                if vp:
-                    dte = vp.dte_generado
-        except Exception:
-            dte = None
-    if forzar_a4 and dte:
+    dte = _resolver_dte_de_venta(venta)
+    if dte:
         q = request.GET.urlencode()
         destino = reverse('facturacion_electronica:ver_factura_electronica', args=[dte.pk])
         return redirect(f'{destino}?{q}' if q else destino)
+
+    forzar_a4 = (request.GET.get('formato') or '').strip().lower() in ('a4', 'carta', 'laser')
     
     # Determinar el template según el tipo de documento Y tipo de impresora configurado
     empresa = venta.empresa
@@ -3989,14 +4360,20 @@ def venta_html(request, pk):
             print(f"[PRINT] Guia Manual -> Formato estandar")
     
     else:
-        # Otros documentos (vale, cotización, NC, ND)
-        # Obtener impresora configurada según tipo
-        # Obtener impresora configurada según tipo (o tipo planeado para tickets)
+        # Otros documentos (vale, cotización, NC, ND).
+        # Un ticket facturable NO se imprime como boleta/factura: solo indica el destino.
         tipo_final = venta.tipo_documento
-        if tipo_final == 'ticket' and venta.tipo_documento_planeado:
-            tipo_final = venta.tipo_documento_planeado
 
-        if tipo_final == 'vale':
+        if tipo_final == 'ticket':
+            tipo_impresora = getattr(empresa, 'impresora_vale', 'termica_80')
+            nombre_impresora = getattr(empresa, 'impresora_vale_nombre', None)
+            if tipo_impresora in ['termica_80', 'termica_58', 'termica']:
+                template_name = 'ventas/vale_termica.html'
+                print(f"[PRINT] Ticket facturable -> Formato TERMICO 80mm")
+            else:
+                template_name = 'ventas/vale_html.html'
+                print(f"[PRINT] Ticket facturable -> Formato LASER A4")
+        elif tipo_final == 'vale':
             tipo_impresora = getattr(empresa, 'impresora_vale', 'laser')
             nombre_impresora = getattr(empresa, 'impresora_vale_nombre', None)
             
@@ -4017,10 +4394,6 @@ def venta_html(request, pk):
             else:
                 template_name = 'ventas/cotizacion_html.html'
                 print(f"[PRINT] Cotizacion -> Formato LASER A4")
-        elif tipo_final == 'ticket':
-            # Default para tickets sin destino claro (ej. ticket facturable genérico)
-            template_name = 'ventas/vale_termica.html'
-            print(f"[PRINT] Ticket Genérico -> Formato TERMICO 80mm")
         else:
             # Default para otros tipos
             template_name = 'ventas/boleta_html.html'
@@ -4033,6 +4406,8 @@ def venta_html(request, pk):
                 template_name = 'inventario/guia_despacho_electronica_html.html'
             elif venta.tipo_documento in ['boleta', 'boleta_electronica'] or (dte and str(getattr(dte, 'tipo_dte', '')) in ['39', '41']):
                 template_name = 'ventas/factura_electronica_html.html'
+            elif venta.tipo_documento in ('ticket', 'vale'):
+                template_name = 'ventas/vale_html.html'
             else:
                 template_name = 'ventas/boleta_html.html'
     
@@ -4085,7 +4460,7 @@ def venta_html(request, pk):
         # Alias para compatibilidad con templates específicos
         'boleta': venta if venta.tipo_documento == 'boleta' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'boleta') else None,
         'factura': venta if venta.tipo_documento == 'factura' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'factura') else None,
-        'vale': venta if venta.tipo_documento == 'vale' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'vale') else None,
+        'vale': venta if venta.tipo_documento in ('vale', 'ticket') or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'vale') else None,
         'cotizacion': venta if venta.tipo_documento == 'cotizacion' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'cotizacion') else None,
         'es_ticket': venta.tipo_documento == 'ticket',
     }
@@ -4093,6 +4468,11 @@ def venta_html(request, pk):
     from facturacion_electronica.views_dte import _build_receptor_display, resolver_bodega_documento
     context['receptor_display'] = _build_receptor_display(dte, fallback_cliente=getattr(venta, 'cliente', None))
     context['bodega_display'] = resolver_bodega_documento(venta=venta, dte=dte)
+    est_doc = getattr(venta, 'estacion_trabajo', None)
+    if est_doc:
+        context['estacion_display'] = str(est_doc.nombre or '').strip()
+    else:
+        context['estacion_display'] = ''
     
     # Para guías, pasar el DTE como 'guia' para compatibilidad con template de transferencias
     if venta.tipo_documento == 'guia' and dte:
@@ -4154,19 +4534,7 @@ def venta_imprimir_y_volver(request, pk):
     except Venta.DoesNotExist:
         raise Http404("Venta no encontrada")
 
-    # Intentar preferir la vista de DTE con timbre si existe
-    dte = None
-    try:
-        if venta.tipo_documento in ['factura', 'boleta', 'guia']:
-            if hasattr(venta, 'dte') and venta.dte:
-                dte = venta.dte
-            else:
-                from caja.models import VentaProcesada
-                venta_proc = VentaProcesada.objects.filter(venta_final=venta).first()
-                if venta_proc and getattr(venta_proc, 'dte_generado', None):
-                    dte = venta_proc.dte_generado
-    except Exception:
-        dte = None
+    dte = _resolver_dte_de_venta(venta)
 
     if dte:
         try:
@@ -6850,6 +7218,9 @@ def libro_guias(request):
         )
         documentos.append(d)
 
+    guias_sin_track = sum(1 for d in dtes_list if d.puede_enviarse_al_sii)
+    guias_por_consultar = sum(1 for d in dtes_list if d.requiere_consulta_estado_sii())
+
     documentos.sort(key=lambda doc: (doc.fecha_documento or hoy, doc.sort_folio), reverse=True)
 
     dtes_pendientes_sii = [
@@ -6878,6 +7249,8 @@ def libro_guias(request):
         'search': search,
         'vendedores': Vendedor.objects.filter(empresa=request.empresa, activo=True),
         'sucursal_activa': sucursal_activa,
+        'guias_sin_track': guias_sin_track,
+        'guias_por_consultar': guias_por_consultar,
         'estadisticas': {
             'total_documentos': len(documentos),
             'total_general': total_general,

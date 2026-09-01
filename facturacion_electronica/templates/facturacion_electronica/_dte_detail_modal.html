@@ -33,7 +33,7 @@
             <i class="fas fa-print"></i> Imprimir
         </a>
         {% endif %}
-        {% if dte.puede_emitir_documento_tributario %}
+        {% if dte.puede_compartir_pdf_correo_whatsapp %}
         <a href="{% url 'facturacion_electronica:descargar_pdf_dte' dte.pk %}" class="dte-modal-btn">
             <i class="fas fa-file-pdf"></i> PDF
         </a>
@@ -42,8 +42,18 @@
                 data-folio="{{ dte.folio }}"
                 data-tipo="{{ dte.get_tipo_dte_display }}"
                 data-receptor="{{ dte.razon_social_receptor|default:'' }}"
-                data-email="{% firstof email_receptor dte.venta.cliente.email '' %}">
+                data-email="{% firstof email_receptor dte.venta.cliente.email '' %}"
+                data-telefono="{{ dte.venta.cliente.telefono|default:'' }}">
             <i class="fas fa-envelope"></i> Correo
+        </button>
+        <button type="button" class="dte-modal-btn btn-dte-whatsapp"
+                data-folio="{{ dte.folio }}"
+                data-tipo="{{ dte.get_tipo_dte_display }}"
+                data-receptor="{{ dte.razon_social_receptor|default:'' }}"
+                data-total="{{ dte.monto_total|default:0 }}"
+                data-empresa="{{ dte.empresa.nombre }}"
+                data-telefono="{{ dte.venta.cliente.telefono|default:'' }}">
+            <i class="fab fa-whatsapp"></i> WhatsApp
         </button>
         {% endif %}
         {% if tiene_xml %}

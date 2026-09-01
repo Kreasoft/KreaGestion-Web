@@ -4,6 +4,7 @@ Formularios para el módulo de usuarios
 from django import forms
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.password_validation import validate_password
 from .models import PerfilUsuario
 from empresas.models import Empresa, Sucursal
 
@@ -200,6 +201,24 @@ class UsuarioUpdateForm(forms.ModelForm):
             'class': 'form-check-input'
         })
     )
+    password1 = forms.CharField(
+        required=False,
+        label='Nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Dejar vacío para no cambiar',
+            'autocomplete': 'new-password'
+        })
+    )
+    password2 = forms.CharField(
+        required=False,
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Repetir la nueva contraseña',
+            'autocomplete': 'new-password'
+        })
+    )
     
     class Meta:
         model = User
@@ -233,9 +252,22 @@ class UsuarioUpdateForm(forms.ModelForm):
                     ).order_by('nombre')
         else:
             self.fields['sucursal'].queryset = Sucursal.objects.none()
+
+    def clean_password2(self):
+        password1 = self.cleaned_data.get('password1')
+        password2 = self.cleaned_data.get('password2')
+        if password1 or password2:
+            if password1 != password2:
+                raise forms.ValidationError('Las contraseñas no coinciden.')
+            if password1:
+                validate_password(password1, self.instance)
+        return password2
                 
     def save(self, commit=True):
         user = super().save(commit=False)
+        nueva_password = self.cleaned_data.get('password1')
+        if nueva_password:
+            user.set_password(nueva_password)
         
         if commit:
             user.save()

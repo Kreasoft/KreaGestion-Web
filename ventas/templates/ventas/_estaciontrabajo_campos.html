@@ -14,6 +14,9 @@
     .est-sec-h { font-size: 0.72rem; font-weight: 700; color: #5D4037; letter-spacing: 0.02em; margin-bottom: 6px; text-transform: uppercase; }
     .est-hint { font-size: 0.65rem; color: #8B7355; line-height: 1.25; margin-top: 2px; }
     .est-err { font-size: 0.68rem; color: #C76F43; }
+    .est-imp-nom { color: #5D4037; font-weight: 600; font-size: 0.78rem; }
+    .est-imp-ok { color: #5F8D62; font-weight: 700; font-size: 0.68rem; }
+    .est-imp-off { color: #8B7355; font-size: 0.68rem; }
     .est-cierre { margin-top: 8px; padding: 6px 8px; background: #fff; border: 1px solid #E8DCC8; border-radius: 5px; }
     .est-cierre-extras.is-off { opacity: 0.45; }
     .est-docs { width: 100%; border-collapse: collapse; }
@@ -38,6 +41,7 @@
             <div class="col-4">
                 <label class="form-label">Nombre *</label>
                 {{ form.nombre }}
+                <div class="est-hint">Ej. Estación 1. Único en la sucursal. Las ventas van con estación + vendedor + sucursal.</div>
                 {% if form.nombre.errors %}<div class="est-err">{{ form.nombre.errors.0 }}</div>{% endif %}
             </div>
             <div class="col-2 d-flex align-items-end pb-1">
@@ -73,6 +77,30 @@
                 <label class="form-label">Código comodín</label>
                 {{ form.codigo_comodin }}
                 <div class="est-hint">Producto libre en el POS.</div>
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Impresora</label>
+                {% if form.instance.pk %}
+                    {% with info=form.instance.info_impresora %}
+                    <div>
+                        {% if info.en_linea %}
+                            <span class="est-imp-nom">{% if info.nombre %}{{ info.nombre }}{% else %}Lista{% endif %}</span>
+                            <span class="est-imp-ok">en línea</span>
+                        {% elif info.nombre %}
+                            <span class="est-imp-nom">{{ info.nombre }}</span>
+                            <span class="est-imp-off">sin conexión</span>
+                        {% else %}
+                            <span class="est-imp-off">Sin conectar</span>
+                        {% endif %}
+                        <a href="{% url 'ventas:conectar_impresora_estacion_pk' form.instance.pk %}" style="color:#C76F43;font-weight:600;margin-left:8px;">
+                            {% if info.conectada %}Ver{% else %}Conectar{% endif %}
+                        </a>
+                    </div>
+                    {% endwith %}
+                    <div class="est-hint">Si el programa está abierto en este PC, ya imprime. No hay que hacer más.</div>
+                {% else %}
+                    <div class="est-hint">Guarde la estación y luego conéctela. El programa elige la impresora.</div>
+                {% endif %}
             </div>
         </div>
         <div class="est-cierre">

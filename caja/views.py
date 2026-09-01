@@ -394,6 +394,18 @@ def apertura_cerrar(request, pk):
 
 @login_required
 @requiere_empresa
+@permission_required('caja.change_aperturacaja', raise_exception=True)
+def cierre_caja_activa(request):
+    """Abre el cierre de la caja operativa actual."""
+    apertura = _apertura_activa_empresa(request)
+    if not apertura:
+        messages.warning(request, 'No hay una caja abierta en esta sucursal para cerrar.')
+        return redirect('caja:apertura_list')
+    return redirect('caja:apertura_cerrar', pk=apertura.pk)
+
+
+@login_required
+@requiere_empresa
 @permission_required('caja.view_aperturacaja', raise_exception=True)
 def apertura_imprimir(request, pk):
     """Imprimir informe de cierre de caja"""
@@ -661,6 +673,7 @@ def procesar_venta_buscar(request):
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
         'alerta_agente_impresion': not agente_impresion_en_linea(request.empresa, sucursal_caja),
+        'alerta_agente_modal': True,
     }
     return render(request, 'caja/procesar_venta_buscar.html', context)
 
@@ -1228,6 +1241,7 @@ def procesar_venta(request, ticket_id):
                         fecha_cierre_caja = timezone.localdate()
                         venta_final = Venta.objects.create(
                         empresa=request.empresa,
+                        sucursal=ticket.sucursal,
                         numero_venta=numero_venta_temporal,  # Se actualizará con el folio CAF si se genera DTE
                         fecha=fecha_cierre_caja,
                         cliente=ticket.cliente,

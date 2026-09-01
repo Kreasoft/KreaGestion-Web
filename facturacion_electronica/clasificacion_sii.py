@@ -100,6 +100,47 @@ def es_glosa_envio_procesado(*partes):
     return 'ENVIO PROCESADO' in texto
 
 
+_RE_CONTEO_ENVIO = re.compile(
+    r'(?:<|&lt;)(ACEPTADOS|RECHAZADOS|REPAROS)(?:>|&gt;)\s*(\d+)\s*(?:</|&lt;/)\1(?:>|&gt;)',
+    re.I,
+)
+
+
+def conteos_envio_sii(*partes):
+    """Lee ACEPTADOS/RECHAZADOS/REPAROS del XML QueryEstUp (crudo o escapado)."""
+    texto = ' '.join(str(p or '') for p in partes)
+    conteos = {'aceptados': 0, 'rechazados': 0, 'reparos': 0}
+    for match in _RE_CONTEO_ENVIO.finditer(texto):
+        conteos[match.group(1).lower()] = int(match.group(2))
+    return conteos
+
+
+# La guía (52) no tiene aceptación comercial del receptor: DOK / EPR+ACEPTADOS es el estado final.
+TIPOS_SIN_ACEPTACION_COMERCIAL = frozenset({'52'})
+
+
+def es_dte_sin_aceptacion_comercial(tipo_dte):
+    return str(tipo_dte or '').strip() in TIPOS_SIN_ACEPTACION_COMERCIAL
+
+
+def es_recepcion_sii_documento(*partes):
+    """El SII tiene el DTE (DOK / DTE Recibido / Schema Validado)."""
+    texto = texto_sii_de(*partes)
+    if not texto:
+        return False
+    if contiene_codigo_estado(texto, ('DOK', 'SOK')):
+        return True
+    return 'DTE RECIBIDO' in texto or 'SCHEMA VALIDADO' in texto
+
+
+def es_consulta_datos_no_coinciden(*partes):
+    """getEstDte DNK: el DTE existe, pero folio/monto/fecha no calzan con lo enviado."""
+    texto = texto_sii_de(*partes)
+    if 'DATOS NO COINCIDEN' in texto:
+        return True
+    return 'DNK' in texto and 'DTE RECIBIDO' in texto
+
+
 def es_falso_rechazo_sii(*partes, estado_sii='', track_id=''):
     """
     estado_sii quedó en rechazado/error pero la glosa no es un RCH:
@@ -107,6 +148,8 @@ def es_falso_rechazo_sii(*partes, estado_sii='', track_id=''):
     """
     estado = str(estado_sii or '').strip().lower()
     if estado not in {'rechazado', 'error_envio', 'error'}:
+        return False
+    if conteos_envio_sii(*partes).get('rechazados', 0) > 0:
         return False
     if evidencia_rechazo_tributario(*partes):
         return False

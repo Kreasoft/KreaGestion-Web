@@ -9,7 +9,60 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from empresas.models import Empresa, Sucursal
-from .models import Caja, ColaImpresion
+from .models import (
+    Caja, ColaImpresion, ImpresoraAgente,
+    asignar_impresora_estacion_desde_agente, ensure_impresoras_agente,
+)
+
+_IMPRESORAS_VIRTUALES = (
+    'rustdesk', 'anydesk', 'teamviewer', 'pdf', 'xps', 'onenote', 'fax',
+    'microsoft print to pdf', 'microsoft pps', 'cutepdf', 'foxit', 'chrome',
+    'send to',
+)
+
+
+def _es_impresora_virtual(nombre):
+    n = (nombre or '').lower()
+    return any(token in n for token in _IMPRESORAS_VIRTUALES)
+
+
+def _parsear_impresoras(request):
+    raw = (request.GET.get('impresoras') or '').strip()
+    if not raw:
+        return []
+    if raw.startswith('['):
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                return [str(x).strip() for x in data if str(x).strip()]
+        except (TypeError, ValueError):
+            pass
+    return [p.strip() for p in raw.replace('||', '|').split('|') if p.strip()]
+
+
+def registrar_impresoras_agente(caja, nombres, seleccionada=''):
+    if caja is None:
+        return
+    ensure_impresoras_agente()
+    ahora = timezone.now()
+    nombres = [n for n in (nombres or []) if n and not _es_impresora_virtual(n)]
+    seleccionada = (seleccionada or '').strip()
+    if seleccionada and not _es_impresora_virtual(seleccionada) and seleccionada not in nombres:
+        nombres = list(nombres) + [seleccionada]
+    for nombre in nombres:
+        ImpresoraAgente.objects.update_or_create(
+            caja=caja,
+            nombre=nombre,
+            defaults={
+                'empresa': caja.empresa,
+                'sucursal': caja.sucursal,
+                'en_uso': nombre == seleccionada,
+                'ultimo_reporte': ahora,
+            },
+        )
+    if nombres:
+        ImpresoraAgente.objects.filter(caja=caja).exclude(nombre__in=nombres).update(en_uso=False)
+    asignar_impresora_estacion_desde_agente(caja, seleccionada)
 
 
 def _int_param(value):
@@ -83,28 +136,38 @@ def listar_destinos(request):
 @require_http_methods(["GET"])
 def obtener_pendientes(request):
     """
-    El agente imprime lo de su sucursal. La impresora la elige él;
-    no se filtra por caja de estación.
+    El agente de esa caja reporta sus impresoras Windows y solo toma
+    trabajos encolados a esa caja.
     """
     empresa_id = _int_param(request.GET.get('empresa_id'))
     sucursal_id = _int_param(request.GET.get('sucursal_id'))
     caja_id = _int_param(request.GET.get('caja_id'))
 
-    _caja, error = _resolver_caja_agente(empresa_id, sucursal_id, caja_id)
+    caja, error = _resolver_caja_agente(empresa_id, sucursal_id, caja_id)
     if error:
         return JsonResponse({'error': error}, status=400)
 
     ahora = timezone.now()
-    Caja.objects.filter(
-        empresa_id=empresa_id,
-        sucursal_id=sucursal_id,
-        activo=True,
-    ).update(agente_ultimo_ping=ahora)
+    if caja is not None:
+        Caja.objects.filter(pk=caja.pk).update(agente_ultimo_ping=ahora)
+        registrar_impresoras_agente(
+            caja,
+            _parsear_impresoras(request),
+            request.GET.get('impresora') or '',
+        )
+    else:
+        Caja.objects.filter(
+            empresa_id=empresa_id,
+            sucursal_id=sucursal_id,
+            activo=True,
+        ).update(agente_ultimo_ping=ahora)
 
     filtros = {
         'caja__empresa_id': empresa_id,
         'caja__sucursal_id': sucursal_id,
     }
+    if caja is not None:
+        filtros['caja_id'] = caja.id
 
     alcance_empresa = Q(empresa_id=empresa_id) | Q(empresa__isnull=True)
 
@@ -132,6 +195,7 @@ def obtener_pendientes(request):
         data.append({
             'id': p.id,
             'contenido_raw': p.contenido_raw,
+            'nombre_impresora': p.nombre_impresora or '',
             'fecha_creacion': p.fecha_creacion.isoformat(),
         })
 

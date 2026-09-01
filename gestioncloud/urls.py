@@ -8,6 +8,7 @@ from django.conf.urls.static import static
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from . import views
+from . import views_asistente
 from usuarios.views import CustomLoginView
 from ventas import views as ventas_views
 
@@ -34,6 +35,8 @@ urlpatterns = [
 	path('accounts/login/', CustomLoginView.as_view(), name='login'),
 	path('accounts/', include('django.contrib.auth.urls')),
 	path('', dashboard_view, name='dashboard'),
+	path('resumen/', views_asistente.resumen_dueno, name='resumen_dueno'),
+	path('asistente/preguntar/', views_asistente.asistente_preguntar, name='asistente_preguntar'),
 	path('dashboard/', dashboard_view, name='dashboard_alt'),
 	path('dashboard-nuevo/', dashboard_view, name='dashboard_moderno'),
 	path('dashboard-clasico/', dashboard_view, name='dashboard_clasico'),
@@ -61,6 +64,8 @@ urlpatterns = [
 	path('informes/', include('informes.urls')),
 	path('produccion/', include('produccion.urls')),
 ]
+
+handler403 = 'gestioncloud.views_errores.permiso_denegado'
 
 # Configuración para archivos estáticos y media en desarrollo
 if settings.DEBUG:

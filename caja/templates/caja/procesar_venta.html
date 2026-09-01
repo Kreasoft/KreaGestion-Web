@@ -378,14 +378,25 @@
                                         <span class="form-label-stone d-block">Vendedor</span>
                                         <select name="vendedor_id" id="vendedor_id" class="form-select form-control-stone" {% if not ticket.vendedor %}required{% endif %}>
                                             {% if ticket.vendedor %}
-                                            <option value="{{ ticket.vendedor.id }}" selected>{{ ticket.vendedor.nombre }} - {{ ticket.vendedor.codigo }}</option>
+                                            <option value="{{ ticket.vendedor.id|unlocalize }}" selected>{{ ticket.vendedor.nombre }} - {{ ticket.vendedor.codigo }}</option>
                                             {% else %}
                                             <option value="">-- Seleccionar --</option>
                                             {% endif %}
                                             {% for vendedor in vendedores %}
                                             {% if not ticket.vendedor or vendedor.id != ticket.vendedor.id %}
-                                            <option value="{{ vendedor.id }}">{{ vendedor.nombre }}</option>
+                                            <option value="{{ vendedor.id|unlocalize }}">{{ vendedor.nombre }}</option>
                                             {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <span class="form-label-stone d-block">Bodega (rebaja al facturar)</span>
+                                        <select name="bodega_id" id="bodega_id" class="form-select form-control-stone">
+                                            {% if not bodegas %}
+                                            <option value="">Sin bodegas activas</option>
+                                            {% endif %}
+                                            {% for b in bodegas %}
+                                            <option value="{{ b.id|unlocalize }}" {% if bodega_rebaja.id == b.id %}selected{% endif %}>{{ b.nombre }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
@@ -403,14 +414,14 @@
                                         <span class="form-label-stone d-block">Móvil/Vehículo <span id="vehiculo-required">*</span></span>
                                         <select name="vehiculo_id" id="vehiculo_id" class="form-select form-control-stone">
                                             <option value="">-- Seleccionar --</option>
-                                            {% for v in vehiculos %}<option value="{{ v.id }}" {% if ticket.vehiculo.id == v.id %}selected{% endif %}>[{{ v.patente }}] {{ v.descripcion }}</option>{% endfor %}
+                                            {% for v in vehiculos %}<option value="{{ v.id|unlocalize }}" {% if ticket.vehiculo_id == v.id %}selected{% endif %}>[{{ v.patente }}] {{ v.descripcion }}</option>{% endfor %}
                                         </select>
                                     </div>
                                     <div class="col-md-6">
                                         <span class="form-label-stone d-block">Chofer <span id="chofer-required">*</span></span>
                                         <select name="chofer_id" id="chofer_id" class="form-select form-control-stone">
                                             <option value="">-- Seleccionar --</option>
-                                            {% for c in choferes %}<option value="{{ c.id }}" {% if ticket.chofer.id == c.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
+                                            {% for c in choferes %}<option value="{{ c.id|unlocalize }}" {% if ticket.chofer_id == c.id %}selected{% endif %}>{{ c.nombre }}</option>{% endfor %}
                                         </select>
                                     </div>
                                     {% endif %}

@@ -318,14 +318,21 @@ def usuario_edit(request, user_id):
         form = UsuarioUpdateForm(request.POST, instance=usuario)
         if form.is_valid():
             try:
+                cambio_password = bool(form.cleaned_data.get('password1'))
                 usuario = form.save()
+                if cambio_password and usuario.pk == request.user.pk:
+                    from django.contrib.auth import update_session_auth_hash
+                    update_session_auth_hash(request, usuario)
+                mensaje = f'Usuario "{usuario.username}" actualizado exitosamente.'
+                if cambio_password:
+                    mensaje = f'Usuario "{usuario.username}" actualizado y contraseña cambiada.'
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': True,
-                        'message': f'Usuario "{usuario.username}" actualizado exitosamente.',
+                        'message': mensaje,
                         'redirect': False
                     })
-                messages.success(request, f'Usuario "{usuario.username}" actualizado exitosamente.')
+                messages.success(request, mensaje)
                 return redirect('usuarios:usuario_list')
             except Exception as e:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
