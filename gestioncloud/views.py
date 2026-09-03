@@ -193,15 +193,25 @@ def dashboard(request):
     variacion_ventas = float((ventas_30_total - ventas_anterior) * 100 / ventas_anterior) if ventas_anterior else (100.0 if ventas_30_total else 0.0)
 
     from pedidos.models import OrdenPedido
-    from pedidos.views import total_saldo_por_despachar
     from tesoreria.models import DocumentoCliente
-    OrdenPedido.sincronizar_estados_por_despacho(empresa=request.empresa)
+    sync_pedidos = getattr(OrdenPedido, 'sincronizar_estados_por_despacho', None)
+    if callable(sync_pedidos):
+        sync_pedidos(empresa=request.empresa)
     # Abiertos = con cantidad aún por despachar (incluye borrador si tiene saldo).
-    pedidos_pendientes_qs = OrdenPedido.con_saldo_pendiente(empresa=request.empresa)
+    if hasattr(OrdenPedido, 'con_saldo_pendiente'):
+        pedidos_pendientes_qs = OrdenPedido.con_saldo_pendiente(empresa=request.empresa)
+    else:
+        pedidos_pendientes_qs = OrdenPedido.objects.filter(
+            empresa=request.empresa,
+        ).exclude(estado__in=['completada', 'cancelada'])
     if bodega_seleccionada:
         pedidos_pendientes_qs = pedidos_pendientes_qs.filter(bodega=bodega_seleccionada)
     pedidos_pendientes = pedidos_pendientes_qs.count()
-    monto_pedidos_pendientes = total_saldo_por_despachar(pedidos_pendientes_qs)
+    totalizador_pedidos = getattr(OrdenPedido, 'total_saldo_por_despachar', None)
+    if callable(totalizador_pedidos):
+        monto_pedidos_pendientes = totalizador_pedidos(pedidos_pendientes_qs)
+    else:
+        monto_pedidos_pendientes = 0
     cuentas_cobrar_qs = DocumentoCliente.objects.filter(
         empresa=request.empresa,
         estado_pago__in=['pendiente', 'parcial', 'vencido'],

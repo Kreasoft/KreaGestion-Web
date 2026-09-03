@@ -8,7 +8,6 @@ from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime
-from decimal import Decimal
 
 from .models import OrdenPedido, ItemOrdenPedido #, DespachoPedido
 from .forms import OrdenPedidoForm, ItemOrdenPedidoFormSet, BusquedaPedidoForm #, DespachoPedidoForm, DespachoEstadoForm, BusquedaDespachoForm, ItemDespachoPedidoFormSet
@@ -30,18 +29,7 @@ def articulos_con_stock(empresa):
 
 def total_saldo_por_despachar(qs):
     """Suma el monto de unidades aún no despachadas (no el total del pedido)."""
-    total = 0
-    for pedido in qs.prefetch_related('items__despachos__orden_despacho'):
-        for item in pedido.items.all():
-            pendiente = item.cantidad_pendiente
-            if pendiente <= 0:
-                continue
-            subtotal = int(Decimal(str(pendiente)) * Decimal(str(item.precio_unitario)))
-            descuento = int(subtotal * Decimal(str(item.descuento_porcentaje or 0)) / Decimal('100'))
-            base = subtotal - descuento
-            impuesto = int(base * Decimal(str(item.impuesto_porcentaje or 0)) / Decimal('100'))
-            total += base + impuesto
-    return total
+    return OrdenPedido.total_saldo_por_despachar(qs)
 
 
 @login_required
