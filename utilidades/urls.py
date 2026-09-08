@@ -15,6 +15,7 @@ urlpatterns = [
     # URLs de mantenimiento
     path('mantenimiento/optimizar-tablas/', views.optimizar_tablas, name='optimizar_tablas'),
     path('mantenimiento/crear-backup/', views.crear_backup, name='crear_backup'),
+    path('mantenimiento/restaurar-backup/', views.restaurar_backup, name='restaurar_backup'),
     path('mantenimiento/verificar-integridad/', views.verificar_integridad, name='verificar_integridad'),
     path('mantenimiento/limpiar-sesiones/', views.limpiar_sesiones, name='limpiar_sesiones'),
     path('mantenimiento/detectar-duplicados/', views.detectar_duplicados, name='detectar_duplicados'),

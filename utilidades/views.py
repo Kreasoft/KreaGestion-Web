@@ -14,7 +14,7 @@ from articulos.models import Articulo, CategoriaArticulo, UnidadMedida
 
 # Importar funciones de mantenimiento
 from .mantenimiento_utils import (
-    optimizar_tablas, crear_backup, verificar_integridad,
+    optimizar_tablas, crear_backup, restaurar_backup, puede_gestionar_respaldos, verificar_integridad,
     limpiar_sesiones, detectar_duplicados, limpiar_archivos,
     ver_logs, exportar_logs, purgar_logs
 )
@@ -46,6 +46,7 @@ def mantenimiento_view(request):
     """Vista principal de mantenimiento"""
     context = {
         'title': 'Mantenimiento del Sistema',
+        'puede_gestionar_respaldos': puede_gestionar_respaldos(request.user),
     }
     return render(request, 'utilidades/mantenimiento.html', context)
 

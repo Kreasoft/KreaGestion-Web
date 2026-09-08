@@ -295,11 +295,21 @@
                     <div class="maintenance-card">
                         <i class="fas fa-save bg-icon"></i>
                         <div class="maintenance-icon"><i class="fas fa-save"></i></div>
-                        <h4 class="maintenance-title">Backup de Base de Datos</h4>
-                        <p class="maintenance-description">Crea un respaldo completo e inmediato de la base de datos en formato SQL para su resguardo.</p>
+                        <h4 class="maintenance-title">Respaldo de empresa activa</h4>
+                        <p class="maintenance-description">Respalda los datos de <strong>{{ request.empresa.nombre }}</strong> y su historial. No incluye adjuntos ni cuentas de acceso.</p>
+                        {% if puede_gestionar_respaldos %}
                         <button onclick="crearBackup()" class="btn-maintenance mt-auto">
-                            <i class="fas fa-download"></i> Crear Backup
+                            <i class="fas fa-download"></i> Crear respaldo
                         </button>
+                        <label for="archivo-respaldo" class="small mt-2">Restaurar respaldo de esta empresa (.json)</label>
+                        <input type="file" id="archivo-respaldo" accept=".json,application/json" class="form-control form-control-sm mb-2">
+                        <button onclick="restaurarBackup()" class="btn-maintenance">
+                            <i class="fas fa-upload"></i> Restaurar respaldo
+                        </button>
+                        <p class="small mt-2 mb-0">Recupera y actualiza los datos del archivo; conserva los registros posteriores. Solo admite respaldos por empresa de esta instalación, hasta 100 MB.</p>
+                        {% else %}
+                        <p class="small mb-0">Disponible para administradores.</p>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -441,37 +451,68 @@ function optimizarTablas() {
     });
 }
 
-function crearBackup() {
-    Swal.fire({
-        title: '¿Crear Backup?',
-        text: "Se generará un archivo SQL con el respaldo completo de la base de datos.",
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#8B7355',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Sí, crear backup'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            Swal.fire({
-                title: 'Generando Backup...',
-                text: 'Preparando descarga...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-            
-            // Redireccionar para iniciar descarga
-            window.location.href = '{% url "utilidades:crear_backup" %}';
-            
-            // Cerrar alerta después de un tiempo prudente
-            setTimeout(() => {
-                Swal.close();
-                const Toast = Swal.mixin({
-                    toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
-                });
-                Toast.fire({ icon: 'success', title: 'Descarga iniciada' });
-            }, 2000);
+async function crearBackup() {
+    Swal.fire({title: 'Generando respaldo de la empresa...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    try {
+        const response = await fetch('{% url "utilidades:crear_backup" %}?empresa_id={{ request.empresa.pk }}');
+        if (!response.ok || !response.headers.get('Content-Disposition')) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.message || 'No se pudo descargar el respaldo. Revise su sesión.');
         }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = response.headers.get('Content-Disposition').match(/filename="([^"]+)"/)[1];
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        const advertencias = Number(response.headers.get('X-Respaldo-Advertencias') || 0);
+        if (advertencias) {
+            Swal.fire('Respaldo descargado con observaciones', `Se detectaron ${advertencias} referencias incompletas o a otra empresa. El archivo conserva los datos propios y detalla las observaciones. Estas relaciones deben corregirse y se debe generar un nuevo respaldo antes de restaurar.`, 'warning');
+        } else {
+            Swal.fire('Respaldo generado', 'El archivo de la empresa activa está listo para guardar.', 'success');
+        }
+    } catch (error) {
+        Swal.fire('No se pudo respaldar', error.message, 'error');
+    }
+}
+
+async function restaurarBackup() {
+    const input = document.getElementById('archivo-respaldo');
+    const archivo = input.files[0];
+    if (!archivo) {
+        Swal.fire('Seleccione un archivo', 'Elija el respaldo de la empresa que desea restaurar.', 'info');
+        return;
+    }
+    if (archivo.size > 100 * 1024 * 1024) {
+        Swal.fire('Archivo demasiado grande', 'El límite es de 100 MB.', 'error');
+        return;
+    }
+    const result = await Swal.fire({
+        title: '¿Restaurar {{ request.empresa.nombre|escapejs }}?',
+        text: 'Se recuperarán los registros faltantes y se actualizarán los datos incluidos en el archivo. Se conservarán los registros posteriores al respaldo. Use esta opción cuando no haya otros usuarios operando.',
+        icon: 'warning', showCancelButton: true,
+        confirmButtonText: 'Restaurar esta empresa', cancelButtonText: 'Cancelar', confirmButtonColor: '#8B7355'
     });
+    if (!result.isConfirmed) return;
+    const form = new FormData();
+    form.append('archivo', archivo);
+    form.append('empresa_id', '{{ request.empresa.pk }}');
+    Swal.fire({title: 'Restaurando empresa...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    try {
+        const response = await fetch('{% url "utilidades:restaurar_backup" %}', {
+            method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}, body: form
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'No se pudo restaurar el respaldo.');
+        input.value = '';
+        await Swal.fire('Restauración completada', data.message, 'success');
+        window.location.reload();
+    } catch (error) {
+        Swal.fire('No se pudo restaurar', error.message || 'Revise su conexión y su sesión.', 'error');
+    }
 }
 
 function verificarIntegridad() {

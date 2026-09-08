@@ -43,54 +43,59 @@ def optimizar_tablas(request):
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
 
 
+def puede_gestionar_respaldos(user):
+    perfil = getattr(user, 'perfil', None)
+    return user.is_superuser or bool(perfil and perfil.es_administrador)
+
+
 @login_required
 @requiere_empresa
 def crear_backup(request):
-    """Crea un backup de la base de datos"""
+    """Descarga exclusivamente los datos de la empresa activa."""
+    from .respaldo_empresa import crear_respaldo, RespaldoError
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    if not puede_gestionar_respaldos(request.user):
+        return JsonResponse({'success': False, 'message': 'Solo los administradores pueden gestionar respaldos.'}, status=403)
+    if request.GET.get('empresa_id', str(request.empresa.pk)) != str(request.empresa.pk):
+        return JsonResponse({'success': False, 'message': 'La empresa activa cambió. Recargue la página.'}, status=400)
     try:
-        db_settings = connection.settings_dict
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        
-        if connection.vendor == 'postgresql':
-            # Backup PostgreSQL
-            filename = f"backup_postgres_{timestamp}.sql"
-            filepath = os.path.join('/tmp', filename)
-            
-            command = [
-                'pg_dump',
-                '-h', db_settings['HOST'] or 'localhost',
-                '-p', str(db_settings['PORT'] or 5432),
-                '-U', db_settings['USER'],
-                '-d', db_settings['NAME'],
-                '-f', filepath
-            ]
-            
-            env = os.environ.copy()
-            env['PGPASSWORD'] = db_settings['PASSWORD']
-            
-            subprocess.run(command, env=env, check=True)
-            
-        elif connection.vendor == 'sqlite':
-            # Backup SQLite
-            filename = f"backup_sqlite_{timestamp}.db"
-            filepath = os.path.join('/tmp', filename)
-            
-            import shutil
-            shutil.copy2(db_settings['NAME'], filepath)
-        
-        # Leer archivo y enviar como descarga
-        with open(filepath, 'rb') as f:
-            response = HttpResponse(f.read(), content_type='application/octet-stream')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
-        # Eliminar archivo temporal
-        os.remove(filepath)
-        
+        contenido = crear_respaldo(request.empresa)
+        filename = f"respaldo_empresa_{request.empresa.pk}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        response = HttpResponse(contenido, content_type='application/json')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Cache-Control'] = 'no-store'
+        import json
+        response['X-Respaldo-Advertencias'] = str(len(json.loads(contenido)['advertencias']))
         return response
-        
-    except Exception as e:
-        logger.error(f"Error al crear backup: {str(e)}")
-        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+    except RespaldoError as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+    except Exception:
+        logger.exception('Error al respaldar empresa %s', request.empresa.pk)
+        return JsonResponse({'success': False, 'message': 'No se pudo generar el respaldo. Revise el registro del sistema.'}, status=500)
+
+
+@login_required
+@requiere_empresa
+def restaurar_backup(request):
+    from .respaldo_empresa import restaurar_respaldo, RespaldoError, MAX_BYTES
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    if not puede_gestionar_respaldos(request.user):
+        return JsonResponse({'success': False, 'message': 'Solo los administradores pueden restaurar respaldos.'}, status=403)
+    archivo = request.FILES.get('archivo')
+    if request.POST.get('empresa_id') != str(request.empresa.pk):
+        return JsonResponse({'success': False, 'message': 'La empresa activa cambió. Recargue la página antes de restaurar.'}, status=400)
+    if not archivo or archivo.size > MAX_BYTES:
+        return JsonResponse({'success': False, 'message': 'Seleccione un respaldo válido de hasta 100 MB.'}, status=400)
+    try:
+        total = restaurar_respaldo(archivo.read(), request.empresa)
+        return JsonResponse({'success': True, 'message': f'Restauración completada: {total} registros recuperados. Se conservaron los registros posteriores al respaldo.'})
+    except RespaldoError as exc:
+        return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+    except Exception:
+        logger.exception('Error al restaurar empresa %s', request.empresa.pk)
+        return JsonResponse({'success': False, 'message': 'No se pudo restaurar por una incompatibilidad de datos. No se aplicaron cambios.'}, status=400)
 
 
 @login_required
