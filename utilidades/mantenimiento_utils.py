@@ -67,6 +67,7 @@ def crear_backup(request):
         response['Cache-Control'] = 'no-store'
         import json
         response['X-Respaldo-Advertencias'] = str(len(json.loads(contenido)['advertencias']))
+        response['X-Respaldo-Tablas'] = str(json.loads(contenido)['total_tablas'])
         return response
     except RespaldoError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
@@ -89,8 +90,13 @@ def restaurar_backup(request):
     if not archivo or archivo.size > MAX_BYTES:
         return JsonResponse({'success': False, 'message': 'Seleccione un respaldo válido de hasta 100 MB.'}, status=400)
     try:
-        total = restaurar_respaldo(archivo.read(), request.empresa)
-        return JsonResponse({'success': True, 'message': f'Restauración completada: {total} registros recuperados. Se conservaron los registros posteriores al respaldo.'})
+        resumen = {}
+        total = restaurar_respaldo(archivo.read(), request.empresa, resumen=resumen)
+        message = f'Restauración completada: {total} registros recuperados. Se conservaron los registros posteriores al respaldo.'
+        historicas = resumen.get('referencias_historicas_conservadas', 0)
+        if historicas:
+            message += f' Se conservaron {historicas} vínculos históricos existentes, sin copiar datos de otras empresas.'
+        return JsonResponse({'success': True, 'message': message, **resumen})
     except RespaldoError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
     except Exception:

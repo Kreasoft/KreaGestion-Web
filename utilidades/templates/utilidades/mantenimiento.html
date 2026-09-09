@@ -296,7 +296,7 @@
                         <i class="fas fa-save bg-icon"></i>
                         <div class="maintenance-icon"><i class="fas fa-save"></i></div>
                         <h4 class="maintenance-title">Respaldo de empresa activa</h4>
-                        <p class="maintenance-description">Respalda los datos de <strong>{{ request.empresa.nombre }}</strong> y su historial. No incluye adjuntos ni cuentas de acceso.</p>
+                        <p class="maintenance-description">Incluye todas las tablas con los datos de <strong>{{ request.empresa.nombre }}</strong>: historial, usuarios de la empresa, perfiles, permisos, catálogos y relaciones, incluso tablas vacías.</p>
                         {% if puede_gestionar_respaldos %}
                         <button onclick="crearBackup()" class="btn-maintenance mt-auto">
                             <i class="fas fa-download"></i> Crear respaldo
@@ -307,6 +307,7 @@
                             <i class="fas fa-upload"></i> Restaurar respaldo
                         </button>
                         <p class="small mt-2 mb-0">Recupera y actualiza los datos del archivo; conserva los registros posteriores. Solo admite respaldos por empresa de esta instalación, hasta 100 MB.</p>
+                        <p class="small mt-2 mb-0">Conserva las cuentas y los catálogos compartidos existentes. Las sesiones, los registros técnicos y las migraciones se guardan para consulta. No incluye archivos adjuntos ni credenciales de administradores globales.</p>
                         {% else %}
                         <p class="small mb-0">Disponible para administradores.</p>
                         {% endif %}
@@ -470,9 +471,10 @@ async function crearBackup() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         const advertencias = Number(response.headers.get('X-Respaldo-Advertencias') || 0);
         if (advertencias) {
-            Swal.fire('Respaldo descargado con observaciones', `Se detectaron ${advertencias} referencias incompletas o a otra empresa. El archivo conserva los datos propios y detalla las observaciones. Estas relaciones deben corregirse y se debe generar un nuevo respaldo antes de restaurar.`, 'warning');
+            Swal.fire('Respaldo descargado con observaciones', `Se detectaron ${advertencias} referencias incompletas o a otra empresa. El archivo conserva los datos propios y detalla las observaciones. Al restaurar solo se conservarán los vínculos históricos que sigan existiendo exactamente iguales; no se copiarán datos ajenos ni se crearán nuevos vínculos hacia otra empresa.`, 'warning');
         } else {
-            Swal.fire('Respaldo generado', 'El archivo de la empresa activa está listo para guardar.', 'success');
+            const tablas = response.headers.get('X-Respaldo-Tablas');
+            Swal.fire('Respaldo generado', `El archivo incluye ${tablas} tablas con el alcance de la empresa activa y está listo para guardar.`, 'success');
         }
     } catch (error) {
         Swal.fire('No se pudo respaldar', error.message, 'error');

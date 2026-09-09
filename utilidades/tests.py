@@ -1,15 +1,19 @@
 import json
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group, Permission
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.sessions.models import Session
 from django.core import signing
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 from django.test import RequestFactory, TransactionTestCase
 from django.utils import timezone
 
 from clientes.models import Cliente, ContactoCliente
-from empresas.models import Empresa, Sucursal
+from empresas.models import Empresa, Sucursal, PlanSaaS
+from usuarios.models import PerfilUsuario
 from .mantenimiento_utils import crear_backup, restaurar_backup
 from .respaldo_empresa import (
     SALT, RespaldoError, crear_respaldo, leer_respaldo, restaurar_respaldo,
@@ -34,12 +38,14 @@ class RespaldosEmpresaTests(TransactionTestCase):
         request.session = self.client.session
         return request
 
-    def test_exporta_solo_empresa_y_detalles_sin_usuarios(self):
+    def test_exporta_solo_empresa_y_detalles_sin_credenciales_globales(self):
         payload = leer_respaldo(crear_respaldo(self.a), self.a)
         registros = payload['registros']
         self.assertEqual([r['pk'] for r in registros if r['model'] == 'clientes.cliente'], [self.ca.pk])
         self.assertEqual([r['pk'] for r in registros if r['model'] == 'clientes.contactocliente'], [self.contacto.pk])
-        self.assertFalse(any(r['model'].startswith(('auth.', 'usuarios.', 'sessions.')) for r in registros))
+        self.assertFalse(any(r['model'] == 'auth.user' and r['pk'] == self.user.pk for r in registros))
+        self.assertFalse(any(r['model'] == 'sessions.session' for r in registros))
+        self.assertTrue(any(r['model'] == 'usuarios.perfilusuario' for r in registros))
 
     def test_restaura_faltantes_actualiza_y_conserva_historia_posterior(self):
         archivo = crear_respaldo(self.a)
@@ -71,8 +77,51 @@ class RespaldosEmpresaTests(TransactionTestCase):
         payload = leer_respaldo(archivo, self.a)
         self.assertTrue(payload['advertencias'])
         self.assertNotIn(self.cb.pk, [r['pk'] for r in payload['registros'] if r['model'] == 'clientes.cliente'])
+        resumen = {}
+        restaurar_respaldo(archivo, self.a, resumen=resumen)
+        self.assertEqual(Venta.objects.get(empresa=self.a, numero_venta='CRUCE').cliente_id, self.cb.pk)
+        self.assertEqual(resumen['referencias_historicas_conservadas'], 1)
+        self.assertEqual(Cliente.objects.filter(empresa=self.a).count(), 1)
+        self.cb.refresh_from_db()
+        self.assertEqual(self.cb.empresa_id, self.b.pk)
+        self.assertEqual(self.cb.nombre, 'Cliente B')
+
+    def test_no_crea_venta_faltante_con_cliente_ajeno(self):
+        from ventas.models import Venta
+        venta = Venta(empresa=self.a, cliente=self.cb, numero_venta='CRUCE', total=0)
+        Venta.objects.bulk_create([venta])
+        archivo = crear_respaldo(self.a)
+        venta.delete()
+        with self.assertRaisesMessage(RespaldoError, 'no se crearán vínculos'):
+            restaurar_respaldo(archivo, self.a)
+        self.assertFalse(Venta.objects.filter(empresa=self.a, numero_venta='CRUCE').exists())
+
+    def test_no_reintroduce_referencia_ajena_que_ya_fue_corregida(self):
+        from ventas.models import Venta
+        venta = Venta(empresa=self.a, cliente=self.cb, numero_venta='CRUCE', total=0)
+        Venta.objects.bulk_create([venta])
+        archivo = crear_respaldo(self.a)
+        Venta.objects.filter(pk=venta.pk).update(cliente=self.ca)
+        with self.assertRaisesMessage(RespaldoError, 'no se crearán vínculos'):
+            restaurar_respaldo(archivo, self.a)
+        venta.refresh_from_db()
+        self.assertEqual(venta.cliente_id, self.ca.pk)
+
+    def test_archivo_incompleto_de_empresa_propia_no_es_excepcion_historica(self):
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        payload['registros'] = [r for r in payload['registros'] if not (
+            r['model'] == 'clientes.cliente' and r['pk'] == self.ca.pk)]
+        archivo = json.dumps({'respaldo_firmado': signing.dumps(payload, salt=SALT)}).encode()
         with self.assertRaisesMessage(RespaldoError, 'Relación incompleta'):
             restaurar_respaldo(archivo, self.a)
+
+    def test_error_de_version_indica_formatos_admitidos(self):
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        for version in (3, '2', None, True):
+            payload['version'] = version
+            archivo = json.dumps({'respaldo_firmado': signing.dumps(payload, salt=SALT)}).encode()
+            with self.assertRaisesMessage(RespaldoError, 'admite las versiones 1 y 2'):
+                leer_respaldo(archivo, self.a)
 
     def test_restaura_relaciones_multiples_de_documentos(self):
         from facturacion_electronica.models import ArchivoCAF, DocumentoTributarioElectronico, EnvioDTE
@@ -145,3 +194,151 @@ class RespaldosEmpresaTests(TransactionTestCase):
         upload = SimpleUploadedFile('respaldo.json', response.content, content_type='application/json')
         response = restaurar_backup(self.request('post', {'empresa_id': self.a.pk, 'archivo': upload}))
         self.assertEqual(response.status_code, 200, response.content)
+
+    def crear_usuario_empresa(self, empresa, nombre):
+        user = User.objects.create_user(username=nombre, password='solo-prueba-local')
+        PerfilUsuario.objects.filter(usuario=user).update(empresa=empresa)
+        return user
+
+    def test_inventario_cubre_todas_las_tablas_y_vacias(self):
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        self.assertEqual(payload['version'], 2)
+        self.assertEqual({t['tabla'] for t in payload['tablas']}, set(connection.introspection.table_names()))
+        self.assertTrue(all(t['columnas'] for t in payload['tablas']))
+        tablas = {t['tabla']: t for t in payload['tablas']}
+        self.assertEqual(tablas['auth_user_user_permissions']['cantidad'], 0)
+        self.assertEqual(tablas['django_session']['restauracion'], 'solo_consulta')
+        self.assertIn('pedidos_hojaruta_facturas', tablas)
+
+    def test_cuentas_grupos_perfiles_y_relaciones_solo_empresa_activa(self):
+        ua = self.crear_usuario_empresa(self.a, 'operador-a')
+        ub = self.crear_usuario_empresa(self.b, 'operador-b')
+        ga = Group.objects.create(name='Grupo A')
+        gb = Group.objects.create(name='Grupo B')
+        ua.groups.add(ga)
+        ub.groups.add(gb)
+        permiso = Permission.objects.first()
+        ga.permissions.add(permiso)
+        ua.user_permissions.add(permiso)
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        rows = payload['registros']
+        self.assertEqual([r['pk'] for r in rows if r['model'] == 'auth.user'], [ua.pk])
+        self.assertEqual([r['pk'] for r in rows if r['model'] == 'auth.group'], [ga.pk])
+        self.assertFalse(any(r['model'] == 'usuarios.perfilusuario' and r['fields']['usuario'] == ub.pk for r in rows))
+        puentes = {t['tabla']: t['filas'] for t in payload['relaciones']}
+        self.assertEqual(puentes['auth_user_groups'][0]['fields'], {'user': ua.pk, 'group': ga.pk})
+        self.assertEqual(puentes['auth_user_user_permissions'][0]['fields']['permission'], permiso.pk)
+
+    def test_recupera_usuario_y_grupo_faltantes_con_permisos(self):
+        ua = self.crear_usuario_empresa(self.a, 'recuperar-a')
+        grupo = Group.objects.create(name='Grupo recuperable')
+        permiso = Permission.objects.first()
+        grupo.permissions.add(permiso)
+        ua.groups.add(grupo)
+        ua.user_permissions.add(permiso)
+        pk, gid = ua.pk, grupo.pk
+        archivo = crear_respaldo(self.a)
+        ua.delete()
+        grupo.delete()
+        restaurar_respaldo(archivo, self.a)
+        user = User.objects.get(pk=pk)
+        self.assertEqual(user.perfil.empresa_id, self.a.pk)
+        self.assertTrue(user.check_password('solo-prueba-local'))
+        self.assertEqual(list(user.groups.values_list('pk', flat=True)), [gid])
+        self.assertEqual(list(user.user_permissions.values_list('pk', flat=True)), [permiso.pk])
+        self.assertEqual(list(Group.objects.get(pk=gid).permissions.values_list('pk', flat=True)), [permiso.pk])
+
+    def test_conserva_credenciales_y_permisos_existentes(self):
+        ua = self.crear_usuario_empresa(self.a, 'conservar-a')
+        grupo = Group.objects.create(name='Compartido')
+        ua.groups.add(grupo)
+        archivo = crear_respaldo(self.a)
+        ua.set_password('clave-actual')
+        ua.save()
+        ua.groups.clear()
+        permiso = Permission.objects.first()
+        grupo.permissions.add(permiso)
+        restaurar_respaldo(archivo, self.a)
+        ua.refresh_from_db()
+        self.assertTrue(ua.check_password('clave-actual'))
+        self.assertFalse(ua.groups.exists())
+        self.assertTrue(grupo.permissions.filter(pk=permiso.pk).exists())
+
+    def test_catalogos_compartidos_no_sobrescriben_otras_empresas(self):
+        plan = PlanSaaS.objects.create(nombre='Plan compartido', precio_mensual=100)
+        Empresa.objects.filter(pk__in=[self.a.pk, self.b.pk]).update(plan=plan)
+        archivo = crear_respaldo(self.a)
+        PlanSaaS.objects.filter(pk=plan.pk).update(precio_mensual=250)
+        restaurar_respaldo(archivo, self.a)
+        plan.refresh_from_db()
+        self.b.refresh_from_db()
+        self.assertEqual(plan.precio_mensual, 250)
+        self.assertEqual(self.b.plan_id, plan.pk)
+
+    def test_recupera_catalogo_faltante(self):
+        plan = PlanSaaS.objects.create(nombre='Plan recuperable', precio_mensual=100)
+        Empresa.objects.filter(pk=self.a.pk).update(plan=plan)
+        pid = plan.pk
+        archivo = crear_respaldo(self.a)
+        plan.delete()
+        restaurar_respaldo(archivo, self.a)
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.plan_id, pid)
+        self.assertEqual(PlanSaaS.objects.get(pk=pid).precio_mensual, 100)
+
+    def test_rechaza_cuenta_trasladada_a_otra_empresa(self):
+        ua = self.crear_usuario_empresa(self.a, 'movido-a')
+        archivo = crear_respaldo(self.a)
+        PerfilUsuario.objects.filter(usuario=ua).update(empresa=self.b)
+        with self.assertRaisesMessage(RespaldoError, 'otra empresa'):
+            restaurar_respaldo(archivo, self.a)
+
+    def test_sesiones_informativas_filtradas_no_se_reactivan(self):
+        ua = self.crear_usuario_empresa(self.a, 'sesion-a')
+        ub = self.crear_usuario_empresa(self.b, 'sesion-b')
+        keys = []
+        for user, empresa in ((ua, self.a), (ub, self.b), (ua, self.b)):
+            session = SessionStore()
+            session['_auth_user_id'] = str(user.pk)
+            session['empresa_activa_id'] = empresa.pk
+            session.save()
+            keys.append(session.session_key)
+        archivo = crear_respaldo(self.a)
+        payload = leer_respaldo(archivo, self.a)
+        filas = next(t['filas'] for t in payload['datos_tecnicos'] if t['tabla'] == 'django_session')
+        self.assertEqual([r['pk'] for r in filas], [keys[0]])
+        Session.objects.filter(session_key=keys[0]).delete()
+        restaurar_respaldo(archivo, self.a)
+        self.assertFalse(Session.objects.filter(session_key=keys[0]).exists())
+        self.assertEqual(Session.objects.filter(session_key__in=keys[1:]).count(), 2)
+
+    def test_log_admin_filtra_objeto_y_usuario(self):
+        from django.contrib.admin.models import LogEntry, CHANGE
+        ua = self.crear_usuario_empresa(self.a, 'log-a')
+        content_type = ContentType.objects.get_for_model(Cliente)
+        for cliente in (self.ca, self.cb):
+            LogEntry.objects.create(user=ua, content_type=content_type, object_id=str(cliente.pk),
+                                    object_repr=cliente.nombre, action_flag=CHANGE)
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        filas = next(t['filas'] for t in payload['datos_tecnicos'] if t['tabla'] == 'django_admin_log')
+        self.assertEqual([r['fields']['object_id'] for r in filas], [str(self.ca.pk)])
+
+    def test_inventario_incompleto_se_rechaza(self):
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        payload['tablas'].pop()
+        archivo = json.dumps({'respaldo_firmado': signing.dumps(payload, salt=SALT)}).encode()
+        with self.assertRaisesMessage(RespaldoError, 'tablas del respaldo'):
+            restaurar_respaldo(archivo, self.a)
+
+    def test_acepta_respaldo_anterior_version_uno(self):
+        payload = leer_respaldo(crear_respaldo(self.a), self.a)
+        payload['version'] = 1
+        payload['registros'] = [r for r in payload['registros'] if not r['model'].startswith(
+            ('auth.', 'contenttypes.', 'usuarios.')) and r['model'] != 'empresas.plansaas']
+        for key in ('tablas', 'relaciones', 'datos_tecnicos'):
+            payload.pop(key)
+        archivo = json.dumps({'respaldo_firmado': signing.dumps(payload, salt=SALT)}).encode()
+        Cliente.objects.filter(pk=self.ca.pk).update(nombre='Cambio')
+        restaurar_respaldo(archivo, self.a)
+        self.ca.refresh_from_db()
+        self.assertEqual(self.ca.nombre, 'Cliente A')
