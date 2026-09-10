@@ -64,7 +64,9 @@ def caja_cola_para_estacion(estacion):
         .first()
     )
     if caja is None and estacion.caja_impresion_id:
-        caja = Caja.objects.filter(pk=estacion.caja_impresion_id, activo=True).first()
+        caja = Caja.objects.filter(
+            pk=estacion.caja_impresion_id, empresa=estacion.empresa, activo=True
+        ).first()
 
     sucursal = getattr(estacion, 'sucursal', None)
     if caja is None:
@@ -132,6 +134,8 @@ def asignar_impresora_estacion_desde_agente(caja, seleccionada=''):
         return None
 
     estaciones = EstacionTrabajo.objects.filter(
+        empresa_id=caja.empresa_id
+    ).filter(
         Q(caja_impresion=caja) | Q(pk=caja.estacion_trabajo_id)
     ).distinct()
     for est in estaciones:

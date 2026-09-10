@@ -1,4 +1,5 @@
 from django.contrib import admin
+from empresas.models import Sucursal
 from .models import (
     Vendedor, FormaPago, EstacionTrabajo, TerminalPOS, Venta, VentaDetalle, Devolucion, DevolucionDetalle, 
     PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle, DispositivoMovil,
@@ -53,6 +54,21 @@ class EstacionTrabajoAdmin(admin.ModelAdmin):
     search_fields = ['numero', 'nombre']
     ordering = ['numero', 'nombre']
     
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        obj_id = request.resolver_match.kwargs.get('object_id') if request.resolver_match else None
+        empresa_id = None
+        if obj_id:
+            empresa_id = EstacionTrabajo.objects.filter(pk=obj_id).values_list('empresa_id', flat=True).first()
+        if db_field.name == 'sucursal' and empresa_id:
+            kwargs['queryset'] = Sucursal.objects.filter(empresa_id=empresa_id)
+        if db_field.name == 'caja_impresion' and empresa_id:
+            from caja.models import Caja
+            kwargs['queryset'] = Caja.objects.filter(empresa_id=empresa_id)
+        if db_field.name == 'impresora_vales' and empresa_id:
+            from caja.models import ImpresoraAgente
+            kwargs['queryset'] = ImpresoraAgente.objects.filter(empresa_id=empresa_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     fieldsets = (
         ('Información Básica', {
             'fields': ('empresa', 'sucursal', 'numero', 'nombre', 'descripcion')

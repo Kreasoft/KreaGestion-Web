@@ -76,9 +76,13 @@ class ArticuloForm(forms.ModelForm):
         if len(codigo.strip()) < 3:
             raise ValidationError('El código debe tener al menos 3 caracteres.')
         
-        # Verificar que el código sea único
-        if Articulo.objects.filter(codigo=codigo.strip()).exclude(pk=self.instance.pk if self.instance else None).exists():
-            raise ValidationError('Este código ya está siendo usado por otro artículo.')
+        # El código es único por empresa, no en todo el SaaS
+        empresa = getattr(self.instance, 'empresa', None)
+        qs = Articulo.objects.filter(codigo=codigo.strip())
+        if empresa:
+            qs = qs.filter(empresa=empresa)
+        if qs.exclude(pk=self.instance.pk if self.instance else None).exists():
+            raise ValidationError('Este código ya está siendo usado por otro artículo de esta empresa.')
         
         return codigo.strip().upper()
     
@@ -222,15 +226,13 @@ class ArticuloForm(forms.ModelForm):
         return cleaned_data
     
     def _string_to_decimal(self, value):
-        """Convierte string a Decimal manejando formato chileno"""
+        """Convierte string a Decimal: 1.190 miles, 1000.00 / 1000.000 decimal."""
         if not value:
             return Decimal('0')
-        
         try:
-            # Convertir formato chileno a decimal
-            value_str = str(value).replace('.', '').replace(',', '.')
-            return Decimal(value_str)
-        except:
+            from articulos.templatetags.articulo_filters import parse_chilean_decimal
+            return parse_chilean_decimal(value)
+        except Exception:
             return Decimal('0')
 
 

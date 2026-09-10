@@ -907,9 +907,29 @@ function removeLogoPreview() {
     }
 
     function parseChileanNumber(value) {
-        if (!value) return 0;
-        const cleanValue = value.toString().trim().replace(/\$/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-        return parseFloat(cleanValue) || 0;
+        if (value == null || value === '') return 0;
+        if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+        let text = String(value).trim().replace(/\$/g, '').replace(/\s/g, '').replace(/\u00a0/g, '');
+        if (!text) return 0;
+        const hasDot = text.includes('.');
+        const hasComma = text.includes(',');
+        if (hasDot && hasComma) {
+            text = text.lastIndexOf(',') > text.lastIndexOf('.')
+                ? text.replace(/\./g, '').replace(',', '.')
+                : text.replace(/,/g, '');
+        } else if (hasComma) {
+            const parts = text.split(',');
+            text = (parts.length === 2 && parts[1].length === 3)
+                ? text.replace(/,/g, '')
+                : text.replace(',', '.');
+        } else if (hasDot) {
+            const parts = text.split('.');
+            if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3)) {
+                text = text.replace(/\./g, '');
+            }
+        }
+        const parsed = parseFloat(text);
+        return Number.isFinite(parsed) ? parsed : 0;
     }
 
     function formatDecimalInput(value) {

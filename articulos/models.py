@@ -444,20 +444,12 @@ class Articulo(models.Model):
         return precio_oferta.quantize(Decimal('0.01'))
     
     def _string_to_decimal(self, value):
-        """Convierte string a Decimal manejando formato chileno"""
+        """Convierte string a Decimal: 1.190 miles, 1000.00 / 1000.000 decimal."""
         if not value:
             return Decimal('0')
-        
         try:
-            value_str = str(value).strip()
-            if ',' in value_str:
-                # Caso típico chileno: 1.234,56 o 1234,56
-                value_str = value_str.replace('.', '')  # quitar separador de miles
-                value_str = value_str.replace(',', '.')  # usar punto decimal
-            elif '.' in value_str:
-                # Asumir punto como decimal y coma (si hubiera) como miles
-                value_str = value_str.replace(',', '')
-            return Decimal(value_str)
+            from articulos.templatetags.articulo_filters import parse_chilean_decimal
+            return parse_chilean_decimal(value)
         except Exception:
             return Decimal('0')
     

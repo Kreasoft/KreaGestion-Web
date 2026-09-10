@@ -14,11 +14,11 @@ def format_miles(value):
     Ejemplo: 1000000 -> 1.000.000
     """
     try:
-        # Convertir a número
         if isinstance(value, str):
-            value = value.replace(',', '').replace('.', '').replace(' ', '').replace('\xa0', '').strip()
-        
-        num = Decimal(str(value))
+            from articulos.templatetags.articulo_filters import parse_chilean_decimal
+            num = parse_chilean_decimal(value)
+        else:
+            num = Decimal(str(value))
         
         # Redondear sin decimales
         num = int(round(num))

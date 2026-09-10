@@ -59,7 +59,12 @@ urlpatterns = [
 	path('tesoreria/', include('tesoreria.urls')),
 	path('caja/', include('caja.urls')),
 	path('facturacion-electronica/', include('facturacion_electronica.urls')),
-	path('facturacion_electronica/', include('facturacion_electronica.urls')),
+	# Alias histórico: conserva los enlaces antiguos sin registrar dos veces
+	# el namespace principal ``facturacion_electronica``.
+	path(
+		'facturacion_electronica/',
+		include('facturacion_electronica.urls', namespace='facturacion_electronica_legacy'),
+	),
 	path('utilidades/', include('utilidades.urls')),
 	path('informes/', include('informes.urls')),
 	path('produccion/', include('produccion.urls')),

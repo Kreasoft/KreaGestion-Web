@@ -26,11 +26,12 @@ def dashboard(request):
                 nueva_empresa = Empresa.objects.get(pk=request.POST.get('empresa_id'))
                 request.session['empresa_activa_id'] = nueva_empresa.id
                 request.session['empresa_activa'] = nueva_empresa.id
-                request.session.pop('dashboard_bodega_id', None)
+                from ventas.aislamiento import limpiar_contexto_empresa, borrar_cookie_terminal
+                limpiar_contexto_empresa(request.session)
                 request.session.modified = True
                 response = redirect('dashboard')
                 response.set_cookie('empresa_activa_id', nueva_empresa.id, max_age=30*24*60*60, httponly=True, samesite='Lax')
-                return response
+                return borrar_cookie_terminal(response)
             except (Empresa.DoesNotExist, ValueError, TypeError):
                 pass
         elif request.POST.get('dashboard_selector') == 'bodega':
@@ -517,7 +518,9 @@ def dashboard_vendedor(request):
         docs_rango_count = len(documentos_recientes)
         total_rango = sum((v.total or Decimal('0')) for v in documentos_recientes)
     else:
-        documentos_recientes = list(ventas_usuario.order_by('-fecha_creacion')[:9])
+        # El panel resumido corresponde al día actual. El historial continúa
+        # disponible desde "Ver todas las ventas del día" y sus filtros.
+        documentos_recientes = list(ventas_hoy.order_by('-fecha_creacion')[:9])
         for venta in documentos_recientes:
             venta.tipo_reimp, venta.folio_caf = _etiqueta_reimpresion_venta(venta)
             venta.tipo_ico, venta.tipo_ico_cls = _icono_tipo_doc(venta.tipo_reimp)
@@ -793,7 +796,9 @@ def dashboard_cajero(request):
         docs_rango_count = len(documentos_recientes)
         total_rango = sum((d.venta_final.total or Decimal('0')) for d in documentos_recientes)
     else:
-        documentos_recientes = list(docs_qs.order_by('-fecha_proceso')[:9])
+        # No mezclar cobros históricos en el resumen que se presenta como
+        # actividad del día actual.
+        documentos_recientes = list(documentos_hoy.order_by('-fecha_proceso')[:9])
         for doc in documentos_recientes:
             doc.tipo_reimp, doc.folio_caf = _etiqueta_reimpresion(doc)
             doc.tipo_ico, doc.tipo_ico_cls = _icono_tipo_doc(doc.tipo_reimp)

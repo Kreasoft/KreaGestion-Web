@@ -175,6 +175,8 @@ class EstacionTrabajoForm(forms.ModelForm):
         sucursal = cleaned.get('sucursal')
         nombre = (cleaned.get('nombre') or '').strip()
         cleaned['nombre'] = nombre
+        if sucursal and empresa and sucursal.empresa_id != empresa.id:
+            self.add_error('sucursal', 'La sucursal no pertenece a esta empresa.')
         if empresa and sucursal and nombre:
             qs = EstacionTrabajo.objects.filter(
                 empresa=empresa, sucursal=sucursal, nombre__iexact=nombre

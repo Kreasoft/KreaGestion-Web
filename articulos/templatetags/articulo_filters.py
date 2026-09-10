@@ -68,11 +68,7 @@ def format_percentage(value):
         return "0.00"
     
     try:
-        if isinstance(value, str):
-            value = value.replace('.', '').replace(',', '.')
-            value = float(value)
-        else:
-            value = float(value)
+        value = float(parse_chilean_decimal(value))
         
         return f"{value:.2f}"
     except:

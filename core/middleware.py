@@ -140,11 +140,12 @@ class SucursalMiddleware:
             if hasattr(request.user, 'perfil') and request.user.perfil:
                 if hasattr(request.user.perfil, 'sucursal') and request.user.perfil.sucursal:
                     sucursal = request.user.perfil.sucursal
-                    request.sucursal_activa = sucursal
-                    request.session['sucursal_activa'] = sucursal.id
-                    request.session.modified = True
-                    logger.debug(f"[MIDDLEWARE] Sucursal desde perfil: {sucursal.nombre}")
-                    return
+                    if sucursal.empresa_id == getattr(request.empresa, 'id', None):
+                        request.sucursal_activa = sucursal
+                        request.session['sucursal_activa'] = sucursal.id
+                        request.session.modified = True
+                        logger.debug(f"[MIDDLEWARE] Sucursal desde perfil: {sucursal.nombre}")
+                        return
             
             # Si no hay sucursal del usuario, buscar sucursal casa matriz
             sucursal_casa_matriz = Sucursal.objects.filter(

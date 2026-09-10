@@ -947,13 +947,27 @@ function errorFromHtml(html, status) {
 }
 
 function toNumber(value) {
-    if (!value) return 0;
+    if (value == null || value === '') return 0;
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    const text = String(value).replace(/\u00a0/g, '').trim();
-    if (text.includes(',')) {
-        return Number(text.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0;
+    let text = String(value).replace(/\$/g, '').replace(/\u00a0/g, '').replace(/\s/g, '').trim();
+    if (!text) return 0;
+    const hasDot = text.includes('.');
+    const hasComma = text.includes(',');
+    if (hasDot && hasComma) {
+        text = text.lastIndexOf(',') > text.lastIndexOf('.')
+            ? text.replace(/\./g, '').replace(',', '.')
+            : text.replace(/,/g, '');
+    } else if (hasComma) {
+        const parts = text.split(',');
+        text = (parts.length === 2 && parts[1].length === 3) ? text.replace(/,/g, '') : text.replace(',', '.');
+    } else if (hasDot) {
+        const parts = text.split('.');
+        if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3)) {
+            text = text.replace(/\./g, '');
+        }
     }
-    return Number(text.replace(/\./g, '').replace(/[^\d-]/g, '')) || 0;
+    const parsed = Number(text.replace(/[^\d.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function money(value) {

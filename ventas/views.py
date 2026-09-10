@@ -198,6 +198,8 @@ def _apertura_caja_estacion(empresa, estacion, sucursal=None):
 def _estaciones_operativas(request, sucursal=None):
     ensure_estacion_caja_impresion()
     qs = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True)
+    if sucursal is not None and getattr(sucursal, 'empresa_id', None) != getattr(request.empresa, 'id', None):
+        sucursal = None
     if sucursal is not None:
         qs = qs.filter(Q(sucursal=sucursal) | Q(sucursal__isnull=True))
     return qs.order_by('numero')
@@ -3487,6 +3489,7 @@ def conectar_impresora_estacion(request, pk=None):
 @login_required
 @requiere_empresa
 @permission_required('ventas.view_estaciontrabajo', raise_exception=True)
+@never_cache
 def estaciontrabajo_list(request):
     """Lista de estaciones de trabajo"""
     ensure_estacion_caja_impresion()
@@ -3516,7 +3519,7 @@ def estaciontrabajo_list(request):
         estacion_actual = EstacionTrabajo.objects.filter(pk=estacion_id, empresa=request.empresa).first()
     if not estacion_actual:
         terminal = _buscar_terminal_pos(request)
-        if terminal and terminal.estacion_id:
+        if terminal and terminal.estacion_id and terminal.estacion and terminal.estacion.empresa_id == request.empresa.id:
             estacion_actual = terminal.estacion
 
     from caja.impresion_utils import agente_impresion_en_linea
@@ -3724,11 +3727,9 @@ def vale_html(request, pk):
             if not estacion:
                 estacion_id = request.session.get('pos_estacion_id')
                 if estacion_id:
-                    from .models import EstacionTrabajo
-                    try:
-                        estacion = EstacionTrabajo.objects.get(id=estacion_id)
-                    except: pass
-            if estacion:
+                    from ventas.aislamiento import estacion_de_empresa
+                    estacion = estacion_de_empresa(request.empresa, estacion_id)
+            if estacion and getattr(estacion, 'empresa_id', None) == getattr(request.empresa, 'id', None):
                 # Los vales del POS se guardan como ticket con tipo_documento_planeado='vale'.
                 # Para copias, un vale debe respetar copias_vale de la estación.
                 tipo_para_copias = venta.tipo_documento
@@ -3766,12 +3767,10 @@ def vale_termica(request, pk):
         if not estacion:
             estacion_id = request.session.get('pos_estacion_id')
             if estacion_id:
-                from .models import EstacionTrabajo
-                try:
-                    estacion = EstacionTrabajo.objects.get(id=estacion_id)
-                except: pass
+                from ventas.aislamiento import estacion_de_empresa
+                estacion = estacion_de_empresa(request.empresa, estacion_id)
         
-        if estacion:
+        if estacion and getattr(estacion, 'empresa_id', None) == getattr(request.empresa, 'id', None):
             # Los vales del POS se guardan como ticket con tipo_documento_planeado='vale'.
             # Para copias, un vale debe respetar copias_vale de la estación.
             tipo_para_copias = venta.tipo_documento
@@ -4436,12 +4435,10 @@ def venta_html(request, pk):
     if not estacion:
         estacion_id = request.session.get('pos_estacion_id')
         if estacion_id:
-            from .models import EstacionTrabajo
-            try:
-                estacion = EstacionTrabajo.objects.get(id=estacion_id)
-            except: pass
+            from ventas.aislamiento import estacion_de_empresa
+            estacion = estacion_de_empresa(request.empresa, estacion_id)
     
-    if estacion:
+    if estacion and getattr(estacion, 'empresa_id', None) == getattr(request.empresa, 'id', None):
         # Los vales del POS se guardan como ticket con tipo_documento_planeado='vale'.
         # Para copias, un vale debe respetar copias_vale de la estación.
         tipo_para_copias = venta.tipo_documento
@@ -4761,8 +4758,12 @@ def ticket_list(request):
     
     # Filtrar por estación si se especifica
     if estacion_id:
-        tickets = tickets.filter(estacion_trabajo_id=estacion_id)
-        print(f"[TICKET_LIST] Después de filtrar por estación {estacion_id}: {tickets.count()} tickets")
+        from ventas.aislamiento import estacion_de_empresa
+        if estacion_de_empresa(request.empresa, estacion_id) is None:
+            estacion_id = None
+        else:
+            tickets = tickets.filter(estacion_trabajo_id=estacion_id)
+            print(f"[TICKET_LIST] Después de filtrar por estación {estacion_id}: {tickets.count()} tickets")
     
     # Obtener estaciones para el filtro
     estaciones = _estaciones_operativas(request, sucursal_tickets)
@@ -7412,13 +7413,16 @@ def _decimal_from_payload(value, default='0'):
     text = str(value).strip().replace('$', '').replace(' ', '')
     text = text.replace('\xa0', '')
     if ',' in text and '.' in text:
-        text = text.replace('.', '').replace(',', '.')
+        text = text.replace('.', '').replace(',', '.') if text.rfind(',') > text.rfind('.') else text.replace(',', '')
     elif ',' in text:
-        text = text.replace(',', '.')
+        partes = text.split(',')
+        text = text.replace(',', '') if len(partes) == 2 and len(partes[1]) == 3 else text.replace(',', '.')
     elif '.' in text:
-        parts = text.split('.')
-        if len(parts) > 1 and len(parts[-1]) == 3:
-            text = ''.join(parts)
+        partes = text.split('.')
+        if len(partes) > 2:
+            text = ''.join(partes)
+        elif len(partes) == 2 and len(partes[1]) == 3 and len(partes[0]) <= 3:
+            text = ''.join(partes)
     try:
         return Decimal(text)
     except Exception:

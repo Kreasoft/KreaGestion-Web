@@ -503,7 +503,7 @@ class EstacionTrabajo(models.Model):
         blank=True,
         related_name='estaciones_impresion',
         verbose_name="Impresora de la estación",
-        help_text="Agente/cola donde salen los vales de esta estación. Puede ser propia o compartida. No tiene que ser la caja de cobro.",
+        help_text="Agente/cola de esta misma empresa donde salen los vales. No se comparte con otra empresa.",
     )
     impresora_vales = models.ForeignKey(
         'caja.ImpresoraAgente',
@@ -525,6 +525,30 @@ class EstacionTrabajo(models.Model):
         ordering = ['numero']
         unique_together = ['empresa', 'numero']
     
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.sucursal_id and self.empresa_id:
+            sucursal_empresa_id = getattr(self.sucursal, 'empresa_id', None)
+            if sucursal_empresa_id and sucursal_empresa_id != self.empresa_id:
+                raise ValidationError({'sucursal': 'La sucursal no pertenece a esta empresa.'})
+        caja = getattr(self, 'caja_impresion', None)
+        if caja is not None and self.empresa_id and getattr(caja, 'empresa_id', None) not in (None, self.empresa_id):
+            raise ValidationError({'caja_impresion': 'La caja de impresión no pertenece a esta empresa.'})
+        impresora = getattr(self, 'impresora_vales', None)
+        if impresora is not None and self.empresa_id and getattr(impresora, 'empresa_id', None) not in (None, self.empresa_id):
+            raise ValidationError({'impresora_vales': 'La impresora no pertenece a esta empresa.'})
+
+    def save(self, *args, **kwargs):
+        if self.empresa_id and self.caja_impresion_id:
+            from caja.models import Caja
+            if not Caja.objects.filter(pk=self.caja_impresion_id, empresa_id=self.empresa_id).exists():
+                self.caja_impresion = None
+        if self.empresa_id and self.impresora_vales_id:
+            from caja.models import ImpresoraAgente
+            if not ImpresoraAgente.objects.filter(pk=self.impresora_vales_id, empresa_id=self.empresa_id).exists():
+                self.impresora_vales = None
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Estación {self.numero} - {self.nombre}"
 
@@ -681,6 +705,13 @@ class TerminalPOS(models.Model):
         ordering = ['nombre']
         unique_together = ['empresa', 'codigo']
 
+    def save(self, *args, **kwargs):
+        if self.estacion_id and self.empresa_id:
+            empresa_estacion = EstacionTrabajo.objects.filter(pk=self.estacion_id).values_list('empresa_id', flat=True).first()
+            if empresa_estacion and empresa_estacion != self.empresa_id:
+                raise ValueError('El terminal POS no puede usar una estación de otra empresa.')
+        return super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.codigo} · {self.nombre}"
 
@@ -718,6 +749,11 @@ def ensure_estacion_caja_impresion():
                 """
             )
             if cursor.fetchone():
+                try:
+                    from ventas.aislamiento import sanear_referencias_estaciones
+                    sanear_referencias_estaciones()
+                except Exception:
+                    pass
                 return True
             cursor.execute("SET lock_timeout = '8s'")
             cursor.execute(

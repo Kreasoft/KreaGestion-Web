@@ -130,5 +130,5 @@ class SucursalMiddleware(MiddlewareMixin):
             # Usuarios normales: Usar sucursal de su perfil automáticamente
             if hasattr(request.user, 'perfil') and request.user.perfil:
                 sucursal_perfil = request.user.perfil.sucursal
-                if sucursal_perfil:
+                if sucursal_perfil and sucursal_perfil.empresa_id == request.empresa.id:
                     request.sucursal_activa = sucursal_perfil

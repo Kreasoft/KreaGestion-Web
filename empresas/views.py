@@ -514,6 +514,8 @@ def seleccionar_empresa(request):
 				# Guardar la empresa seleccionada en la sesión
 				request.session['empresa_activa_id'] = empresa.id
 				request.session['empresa_activa'] = empresa.id
+				from ventas.aislamiento import limpiar_contexto_empresa, borrar_cookie_terminal
+				limpiar_contexto_empresa(request.session)
 				request.session.modified = True  # Forzar guardado
 				
 				# Crear respuesta con cookie
@@ -525,6 +527,7 @@ def seleccionar_empresa(request):
 					httponly=True,
 					samesite='Lax'
 				)
+				borrar_cookie_terminal(response)
 				
 				messages.success(request, f'✓ Empresa cambiada a: {empresa.nombre}')
 				return response

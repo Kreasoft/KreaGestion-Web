@@ -619,13 +619,16 @@ def resolver_caja_cola_impresion(empresa, estacion=None, sucursal=None, tipo_doc
         if imp_vales is None and getattr(estacion, 'impresora_vales_id', None):
             from caja.models import ImpresoraAgente
             imp_vales = ImpresoraAgente.objects.select_related('caja').filter(
-                pk=estacion.impresora_vales_id
+                pk=estacion.impresora_vales_id,
+                empresa_id=estacion.empresa_id,
             ).first()
         if imp_vales is not None and getattr(imp_vales, 'caja', None) and getattr(imp_vales.caja, 'activo', True):
             return imp_vales.caja
         caja_est = getattr(estacion, 'caja_impresion', None)
         if caja_est is None and getattr(estacion, 'caja_impresion_id', None):
-            caja_est = Caja.objects.filter(pk=estacion.caja_impresion_id, activo=True).first()
+            caja_est = Caja.objects.filter(
+                pk=estacion.caja_impresion_id, empresa_id=estacion.empresa_id, activo=True
+            ).first()
         if caja_est and getattr(caja_est, 'activo', True):
             return caja_est
 
