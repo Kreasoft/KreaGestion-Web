@@ -133,12 +133,18 @@
                 <a href="{% url 'pedidos:orden_despacho_list' %}" class="btn btn-sm" style="background:rgba(93,64,55,0.1); border:1px solid #D4C4A8; color:#5D4037; font-weight:600; font-size:0.72rem; height:28px; line-height:14px;">
                     <i class="fas fa-arrow-left me-1"></i>Volver
                 </a>
+                {% if not tiene_factura and orden.estado != 'cancelado' %}
+                <button type="button" class="btn btn-sm" data-bs-toggle="modal" data-bs-target="#modalFacturarDespacho" style="background: linear-gradient(135deg, #8B8B3A 0%, #6F6F2E 100%); color:#fff; font-weight:700; font-size:0.72rem; height:28px; line-height:14px; border:none;">
+                    <i class="fas fa-file-invoice me-1"></i>Generar Factura
+                </button>
+                {% endif %}
                 {% if orden.estado != 'entregado' and orden.estado != 'cancelado' %}
                 <a href="{% url 'pedidos:orden_despacho_edit' orden.pk %}" class="btn btn-sm" style="background:#8B7355; color:#fff; font-weight:700; font-size:0.72rem; height:28px; line-height:14px; border:none;">
                     <i class="fas fa-edit me-1"></i>Editar
                 </a>
                 {% endif %}
             </div>
+
         </div>
 
         <div class="card-body" style="padding: 8px;">
@@ -277,4 +283,68 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Facturar Despacho -->
+{% if not tiene_factura %}
+<div class="modal fade" id="modalFacturarDespacho" tabindex="-1" aria-labelledby="modalFacturarDespachoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border: 1px solid #D4C4A8; border-radius: 10px;">
+            <form method="post" action="{% url 'pedidos:orden_despacho_generar_factura' orden.pk %}">
+                {% csrf_token %}
+                <div class="modal-header" style="background: var(--stone-gradient, linear-gradient(135deg,#FDFCFB,#F5F1E8)); border-bottom: 2px solid #E8DCC8;">
+                    <h5 class="modal-title fw-bold" id="modalFacturarDespachoLabel" style="color: #5D4037; font-size: 1rem;">
+                        <i class="fas fa-file-invoice me-2" style="color: #8B7355;"></i> Emitir Factura Electrónica
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="font-size: 0.8rem;">
+                    <p class="text-muted mb-3" style="font-size: 0.75rem;">
+                        Confirme o seleccione los datos de cobranza e inventario para generar la Factura Electrónica (DTE 33) del despacho <strong>{{ orden.numero_despacho }}</strong>.
+                    </p>
+
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label-stone fw-bold" style="font-size: 0.72rem; color: #6F5B44;"><i class="fas fa-warehouse me-1"></i> Bodega (Rebaja Stock)</label>
+                            <select name="bodega" class="form-select form-select-sm" required style="font-size: 0.75rem; border-color: #D4C4A8;">
+                                {% for b in bodegas %}
+                                    <option value="{{ b.id }}" {% if orden.bodega_id == b.id or not orden.bodega_id and orden.orden_pedido.bodega_id == b.id %}selected{% endif %}>{{ b.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label-stone fw-bold" style="font-size: 0.72rem; color: #6F5B44;"><i class="fas fa-user-tag me-1"></i> Vendedor Responsable</label>
+                            <select name="vendedor" class="form-select form-select-sm" required style="font-size: 0.75rem; border-color: #D4C4A8;">
+                                <option value="">- Seleccione Vendedor -</option>
+                                {% for v in vendedores %}
+                                    <option value="{{ v.id }}" {% if orden.vendedor_id == v.id %}selected{% endif %}>{{ v.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label-stone fw-bold" style="font-size: 0.72rem; color: #6F5B44;"><i class="fas fa-credit-card me-1"></i> Forma de Pago</label>
+                            <select name="forma_pago" class="form-select form-select-sm" required style="font-size: 0.75rem; border-color: #D4C4A8;">
+                                {% for fp in formas_pago %}
+                                    <option value="{{ fp.id }}" {% if orden.forma_pago_id == fp.id %}selected{% endif %}>{{ fp.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label-stone fw-bold" style="font-size: 0.72rem; color: #6F5B44;"><i class="fas fa-calendar-check me-1"></i> Vencimiento</label>
+                            <input type="date" name="fecha_vencimiento" class="form-control form-control-sm" value="{% if orden.fecha_vencimiento %}{{ orden.fecha_vencimiento|date:'Y-m-d' }}{% else %}{{ orden.fecha_despacho|date:'Y-m-d' }}{% endif %}" style="font-size: 0.75rem; border-color: #D4C4A8;">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #E8DCC8; background: #FAFAF8;">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal" style="font-size: 0.75rem;">Cancelar</button>
+                    <button type="submit" class="btn btn-sm" style="background: #8B7355; color: white; font-weight: 700; font-size: 0.75rem;"><i class="fas fa-check me-1"></i> Generar Factura</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
+

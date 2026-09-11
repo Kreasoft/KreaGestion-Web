@@ -65,6 +65,16 @@ class Cliente(models.Model):
         default=Decimal('0.00'),
         verbose_name="Descuento por Defecto (%)"
     )
+    forma_pago_defecto = models.ForeignKey(
+        'ventas.FormaPago',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='clientes_forma_pago_defecto',
+        verbose_name="Medio de Pago por Defecto",
+        help_text="Medio de pago sugerido por defecto al facturar a este cliente"
+    )
+
     
     # Estado
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo')

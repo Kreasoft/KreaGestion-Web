@@ -421,11 +421,12 @@
                                     </div>
                                 </div>
                                 <div class="col-md-12">
-                                    <label class="form-label fw-bold">Descuento por Defecto (%)</label>
+                                    <label class="form-label fw-bold">Medio de Pago por Defecto</label>
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-white"><i class="fas fa-percent"></i></span>
-                                        <input type="number" name="descuento_porcentaje" id="m_cliente_descuento" class="form-control" step="0.01" value="0.00">
-                                        <span class="input-group-text">%</span>
+                                        <span class="input-group-text bg-white"><i class="fas fa-wallet"></i></span>
+                                        <select name="forma_pago_defecto" id="m_cliente_forma_pago_defecto" class="form-select form-select-sm">
+                                            <option value="">Seleccione medio de pago por defecto</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="col-md-12">
@@ -637,6 +638,25 @@ function cargarRutasModal() {
     }
 }
 
+// Cargar formas de pago
+function cargarFormasPagoModal() {
+    const select = document.getElementById('m_cliente_forma_pago_defecto');
+    if (select && select.options.length <= 1) {
+        fetch('/clientes/ajax/formas-pago/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.formas_pago) {
+                data.formas_pago.forEach(fp => {
+                    const opt = document.createElement('option');
+                    opt.value = fp.id;
+                    opt.textContent = fp.nombre;
+                    select.appendChild(opt);
+                });
+            }
+        }).catch(err => console.error('Error cargando formas de pago:', err));
+    }
+}
+
 // Abrir para NUEVO cliente
 window.abrirModalNuevoCliente = function(rut = "") {
     const modalEl = document.getElementById('modalCliente');
@@ -652,6 +672,7 @@ window.abrirModalNuevoCliente = function(rut = "") {
     
     cargarVendedoresModal();
     cargarRutasModal();
+    cargarFormasPagoModal();
     
     setModalClienteHeader(false);
     
@@ -679,6 +700,7 @@ window.abrirModalEditarCliente = function(id, tabDestino) {
     
     cargarVendedoresModal();
     cargarRutasModal();
+    cargarFormasPagoModal();
     
     setModalClienteHeader(true);
 
@@ -703,7 +725,7 @@ window.abrirModalEditarCliente = function(id, tabDestino) {
                 'm_cliente_plazo': c.plazo_pago,
                 'm_cliente_vendedor': c.vendedor,
                 'm_cliente_ruta': c.ruta,
-                'm_cliente_descuento': c.descuento_porcentaje,
+                'm_cliente_forma_pago_defecto': c.forma_pago_defecto,
                 'm_cliente_obs': c.observaciones
             };
             for (let fId in fields) {
@@ -923,11 +945,13 @@ function guardarContactoModal() {
 }
 
 // Eventos al cargar el DOM
-document.addEventListener('DOMContentLoaded', function() {
+function initClienteModalScript() {
     const btnGuardar = document.getElementById('btnGuardarClienteModal');
     const form = document.getElementById('formNuevoCliente');
     
-    if (btnGuardar && form) {
+    if (btnGuardar && form && !btnGuardar.dataset.bound) {
+        btnGuardar.dataset.bound = '1';
+
         function enviarClienteModal() {
             const clienteId = document.getElementById('m_cliente_id').value;
             const isEdit = clienteId && clienteId !== "";
@@ -936,35 +960,53 @@ document.addEventListener('DOMContentLoaded', function() {
             btnGuardar.disabled = true;
             btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
 
+            const csrfToken = csrfClienteModal() || (document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '');
+
             fetch(url, {
                 method: 'POST',
                 body: new FormData(form),
-                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+                headers: { 'X-CSRFToken': csrfToken }
             })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     if (window.Swal) Swal.fire({ icon: 'success', title: '¡Guardado!', text: data.message, timer: 1500, showConfirmButton: false, confirmButtonColor: '#8B7355' });
-                    bootstrap.Modal.getInstance(document.getElementById('modalCliente')).hide();
+                    const modalEl = document.getElementById('modalCliente');
+                    if (modalEl && window.bootstrap) {
+                        const modalInst = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInst) modalInst.hide();
+                    }
                     document.dispatchEvent(new CustomEvent(isEdit ? 'clienteActualizado' : 'clienteCreado', { detail: data }));
                     if (window.location.pathname.includes('/clientes/')) setTimeout(() => window.location.reload(), 1000);
                 } else if (window.Swal) {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message, confirmButtonColor: '#C76F43' });
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'No se pudo guardar el cliente.', confirmButtonColor: '#C76F43' });
+                } else {
+                    alert(data.message || 'Error al guardar el cliente.');
                 }
             })
-            .catch(() => { if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo comunicar con el servidor', confirmButtonColor: '#C76F43' }); })
+            .catch(err => {
+                console.error('Error al guardar cliente:', err);
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo comunicar con el servidor', confirmButtonColor: '#C76F43' });
+                else alert('No se pudo comunicar con el servidor');
+            })
             .finally(() => { btnGuardar.disabled = false; btnGuardar.innerHTML = originalText; });
         }
 
         function enfocarEmailCliente() {
             const firstTab = document.querySelector('#modalClienteTabs button[data-bs-target="#modal-datos-basicos"]');
-            if (firstTab) bootstrap.Tab.getOrCreateInstance(firstTab).show();
+            if (firstTab && window.bootstrap) bootstrap.Tab.getOrCreateInstance(firstTab).show();
             const emailInput = document.getElementById('m_cliente_email');
             if (emailInput) setTimeout(() => emailInput.focus(), 180);
         }
 
-        btnGuardar.addEventListener('click', function() {
-            if (!form.checkValidity()) { form.reportValidity(); return; }
+        btnGuardar.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (!form.checkValidity()) {
+                const firstTab = document.querySelector('#modalClienteTabs button[data-bs-target="#modal-datos-basicos"]');
+                if (firstTab && window.bootstrap) bootstrap.Tab.getOrCreateInstance(firstTab).show();
+                setTimeout(() => form.reportValidity(), 150);
+                return;
+            }
 
             const emailVal = (document.getElementById('m_cliente_email')?.value || '').trim();
             if (emailVal) {
@@ -1001,15 +1043,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.getElementById('btnNuevoContacto')?.addEventListener('click', function() {
-        mostrarFormContactoModal(null);
-    });
-    document.getElementById('btnCancelarContacto')?.addEventListener('click', ocultarFormContactoModal);
-    document.getElementById('btnGuardarContacto')?.addEventListener('click', guardarContactoModal);
+    const btnNuevo = document.getElementById('btnNuevoContacto');
+    if (btnNuevo && !btnNuevo.dataset.bound) {
+        btnNuevo.dataset.bound = '1';
+        btnNuevo.addEventListener('click', function() { mostrarFormContactoModal(null); });
+    }
+    const btnCanc = document.getElementById('btnCancelarContacto');
+    if (btnCanc && !btnCanc.dataset.bound) {
+        btnCanc.dataset.bound = '1';
+        btnCanc.addEventListener('click', ocultarFormContactoModal);
+    }
+    const btnSaveC = document.getElementById('btnGuardarContacto');
+    if (btnSaveC && !btnSaveC.dataset.bound) {
+        btnSaveC.dataset.bound = '1';
+        btnSaveC.addEventListener('click', guardarContactoModal);
+    }
 
     // Formateo de RUT
     const rutInput = document.getElementById('m_cliente_rut');
-    if (rutInput) {
+    if (rutInput && !rutInput.dataset.bound) {
+        rutInput.dataset.bound = '1';
         rutInput.addEventListener('input', function(e) {
             let v = e.target.value.replace(/\./g, '').replace('-', '');
             if (v.length > 9) v = v.slice(0, 9);
@@ -1020,5 +1073,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initClienteModalScript);
+} else {
+    initClienteModalScript();
+}
 </script>

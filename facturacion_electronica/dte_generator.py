@@ -339,7 +339,7 @@ class DTEXMLGenerator:
             if fecha_cancel:
                 etree.SubElement(id_doc, "FchCancel").text = fecha_cancel.strftime('%Y-%m-%d')
 
-        if self.tipo_dte != '52':
+        if self.tipo_dte not in ['39', '41', '52']:
             fecha_venc = getattr(self.documento, 'fecha_vencimiento', None)
             if not fecha_venc:
                 venta_doc = getattr(self.documento, 'venta', None)

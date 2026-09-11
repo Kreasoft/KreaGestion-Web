@@ -417,6 +417,17 @@ def ajax_vendedores(request):
     vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).values('id', 'nombre')
     return JsonResponse({'success': True, 'vendedores': list(vendedores)})
 
+@login_required
+def ajax_formas_pago(request):
+    """Obtener lista de formas de pago para los modales"""
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+    
+    from ventas.models import FormaPago
+    formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).values('id', 'nombre').order_by('nombre')
+    return JsonResponse({'success': True, 'formas_pago': list(formas_pago)})
+
 def _serialize_contacto(contacto):
     return {
         'id': contacto.id,
@@ -553,6 +564,8 @@ def ajax_cliente_detail(request, pk):
             'tipo_cliente': cliente.tipo_cliente,
             'vendedor': cliente.vendedor.id if cliente.vendedor else None,
             'vendedor_nombre': cliente.vendedor.nombre if cliente.vendedor else 'Sin vendedor',
+            'forma_pago_defecto': cliente.forma_pago_defecto.id if cliente.forma_pago_defecto else None,
+            'forma_pago_defecto_nombre': cliente.forma_pago_defecto.nombre if cliente.forma_pago_defecto else 'Sin especificar',
             'ruta': cliente.ruta.id if cliente.ruta else None,
             'ruta_nombre': cliente.ruta.nombre if cliente.ruta else 'Sin ruta',
             'descuento_porcentaje': float(cliente.descuento_porcentaje or 0),
@@ -560,6 +573,7 @@ def ajax_cliente_detail(request, pk):
             'plazo_pago': cliente.plazo_pago or 30,
             'estado': cliente.estado,
             'observaciones': cliente.observaciones or ''
+
         }
     })
 

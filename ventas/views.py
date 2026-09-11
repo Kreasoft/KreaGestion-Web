@@ -1760,8 +1760,11 @@ def pos_buscar_cliente(request):
                     'comuna': cliente.comuna,
                     'ciudad': cliente.ciudad,
                     'telefono': cliente.telefono,
-                    'email': cliente.email
+                    'email': cliente.email,
+                    'forma_pago_defecto_id': cliente.forma_pago_defecto_id,
+                    'plazo_pago': cliente.plazo_pago or 30,
                 })
+
             
             return JsonResponse({
                 'success': True,
@@ -7726,11 +7729,14 @@ def facturar_directo(request):
                 fecha_documento = datetime.strptime(data.get('fecha'), '%Y-%m-%d').date()
             except Exception:
                 fecha_documento = timezone.now().date()
-        fecha_vencimiento = resolver_fecha_vencimiento(
-            fecha_documento,
-            getattr(cliente, 'plazo_pago', 0),
-            data.get('fecha_vencimiento'),
-        )
+        if tipo_documento_venta in ['factura', 'guia']:
+            fecha_vencimiento = resolver_fecha_vencimiento(
+                fecha_documento,
+                getattr(cliente, 'plazo_pago', 0),
+                data.get('fecha_vencimiento'),
+            )
+        else:
+            fecha_vencimiento = None
 
         monto_pagado = _decimal_from_payload(data.get('monto_pagado'))
         if not forma_pago or not forma_pago.es_cuenta_corriente:
@@ -7889,6 +7895,7 @@ def facturar_directo(request):
         'comuna': cliente.comuna or '',
         'ciudad': cliente.ciudad or '',
         'plazo_pago': int(cliente.plazo_pago or 0),
+        'forma_pago_defecto_id': cliente.forma_pago_defecto_id,
     } for cliente in clientes]
 
     return render(request, 'ventas/facturar_directo.html', {

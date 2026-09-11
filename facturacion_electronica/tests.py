@@ -164,18 +164,32 @@ class ClasificacionSiiTests(SimpleTestCase):
         self.assertFalse(dte.puede_enviarse_al_sii)
         self.assertTrue(dte.permite_reenvio_xml_corregido)
 
-    def test_dok_dte_recibido_no_es_aceptado(self):
+    def test_dok_dte_recibido_es_aceptado(self):
         dte = self._dte(
             tipo_dte='33',
             estado_sii='aceptado',
             track_id='0257001450',
-            glosa_sii='DTE Recibido. El SII aún no informa aceptación ni rechazo.',
+            glosa_sii='DTE Recibido',
             respuesta_sii='<ESTADO>DOK</ESTADO><GLOSA_ESTADO>DTE Recibido</GLOSA_ESTADO>',
         )
-        self.assertEqual(dte.get_estado_sii_real(), 'enviado')
-        self.assertEqual(dte.get_estado_sii_real_display(), 'Pendiente SII')
-        self.assertTrue(dte.requiere_consulta_estado_sii())
-        self.assertFalse(dte.puede_compartir_pdf_correo_whatsapp)
+        self.assertEqual(dte.get_estado_sii_real(), 'aceptado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Aceptada')
+        self.assertTrue(dte.puede_compartir_pdf_correo_whatsapp)
+
+    def test_dte_repetido_es_aceptado_y_bloquea_reenvio(self):
+        dte = self._dte(
+            tipo_dte='33',
+            folio=150,
+            estado_sii='enviado',
+            track_id='0258263066',
+            glosa_sii='RCH - DTE Rechazado (DTE-3-100) DTE Repetido',
+            respuesta_sii='(DTE-3-100) DTE Repetido (TipDoc, Folio, FchEmis, IVA, MntTot, RUTRecep)',
+        )
+        self.assertEqual(dte.get_estado_sii_real(), 'aceptado')
+        self.assertEqual(dte.get_estado_sii_real_display(), 'Aceptada')
+        self.assertFalse(dte.puede_enviarse_al_sii)
+        self.assertFalse(dte.permite_reenvio_xml_corregido)
+        self.assertTrue(dte.puede_compartir_pdf_correo_whatsapp)
 
     def test_guia_dte_recibido_es_aceptada(self):
         dte = self._dte(

@@ -289,9 +289,12 @@ def procesar_venta_caja(request, ticket_id):
             numero_venta_final = ticket.numero_venta
 
             ticket.fecha = fecha_documento
-            ticket.fecha_vencimiento = resolver_fecha_vencimiento(
-                fecha_documento, plazo_pago_cliente, request.POST.get('fecha_vencimiento')
-            )
+            if ticket.tipo_documento_planeado in ['factura', 'guia']:
+                ticket.fecha_vencimiento = resolver_fecha_vencimiento(
+                    fecha_documento, plazo_pago_cliente, request.POST.get('fecha_vencimiento')
+                )
+            else:
+                ticket.fecha_vencimiento = None
             campos_ticket = ['fecha', 'fecha_vencimiento']
             campos_ticket.extend(_aplicar_despacho_caja(ticket, request.empresa, request.POST))
             ticket.save(update_fields=campos_ticket)

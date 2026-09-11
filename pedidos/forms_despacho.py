@@ -27,13 +27,34 @@ class OrdenDespachoForm(forms.ModelForm):
         fields = [
             'orden_pedido', 'fecha_despacho', 'fecha_entrega_estimada',
             'estado', 'chofer', 'vehiculo', 'transportista_externo',
-            'tipo_documento', 'direccion_entrega', 'observaciones', 'tipo_traslado'
+            'tipo_documento', 'direccion_entrega', 'observaciones', 'tipo_traslado',
+            'bodega', 'vendedor', 'forma_pago', 'fecha_vencimiento'
         ]
         widgets = {
             'tipo_traslado': forms.Select(attrs={
                 'class': 'form-select form-select-sm',
                 'id': 'id_tipo_traslado'
             }),
+            'bodega': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+                'id': 'id_bodega'
+            }),
+            'vendedor': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+                'id': 'id_vendedor'
+            }),
+            'forma_pago': forms.Select(attrs={
+                'class': 'form-select form-select-sm',
+                'id': 'id_forma_pago'
+            }),
+            'fecha_vencimiento': forms.DateInput(
+                format='%Y-%m-%d',
+                attrs={
+                    'class': 'form-control form-control-sm',
+                    'type': 'date',
+                    'id': 'id_fecha_vencimiento'
+                }
+            ),
             'orden_pedido': forms.Select(attrs={
                 'class': 'form-select form-select-sm',
                 'id': 'id_orden_pedido',
@@ -90,6 +111,8 @@ class OrdenDespachoForm(forms.ModelForm):
         if empresa:
             from django.db.models import Q
             from .models_transporte import Chofer, Vehiculo
+            from bodegas.models import Bodega
+            from ventas.models import Vendedor, FormaPago
 
             pedidos_qs = OrdenPedido.con_saldo_pendiente(empresa=empresa)
 
@@ -110,6 +133,10 @@ class OrdenDespachoForm(forms.ModelForm):
             self.fields['orden_pedido'].queryset = pedidos_qs.select_related('cliente').order_by('-fecha_creacion')
             self.fields['chofer'].queryset = Chofer.objects.filter(empresa=empresa, activo=True).order_by('nombre')
             self.fields['vehiculo'].queryset = Vehiculo.objects.filter(empresa=empresa, activo=True).order_by('patente')
+            self.fields['bodega'].queryset = Bodega.objects.filter(empresa=empresa, activa=True).order_by('nombre')
+            self.fields['vendedor'].queryset = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+            self.fields['forma_pago'].queryset = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+
 
         self.fields['orden_pedido'].empty_label = 'Seleccione un pedido'
         self.fields['orden_pedido'].widget.attrs.pop('required', None)
@@ -118,6 +145,11 @@ class OrdenDespachoForm(forms.ModelForm):
         self.fields['vehiculo'].required = False
         self.fields['tipo_traslado'].required = False
         self.fields['direccion_entrega'].required = False
+        self.fields['bodega'].required = False
+        self.fields['vendedor'].required = False
+        self.fields['forma_pago'].required = False
+        self.fields['fecha_vencimiento'].required = False
+
 
     def clean_orden_pedido(self):
         pedido = self.cleaned_data.get('orden_pedido')

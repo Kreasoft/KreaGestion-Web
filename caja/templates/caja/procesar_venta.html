@@ -400,6 +400,7 @@
                                             {% endfor %}
                                         </select>
                                     </div>
+                                    {% if ticket.tipo_documento_planeado == 'factura' or ticket.tipo_documento_planeado == 'guia' %}
                                     <div class="col-md-6">
                                         <span class="form-label-stone d-block">Fecha de vencimiento</span>
                                         <input type="date" name="fecha_vencimiento" id="fecha_vencimiento" class="form-control form-control-stone" value="{% if fecha_vencimiento %}{{ fecha_vencimiento|date:'Y-m-d' }}{% endif %}">
@@ -408,6 +409,7 @@
                                             {% else %}Sin plazo: vence el mismo día. Editable antes de imprimir.{% endif %}
                                         </small>
                                     </div>
+                                    {% endif %}
                                     
                                     {% if empresa.usa_sistema_despacho %}
                                     <div class="col-md-6">
@@ -444,7 +446,7 @@
                                                 <select name="forma_pago_1" class="form-select form-control-stone">
                                                     {% for fp in form.fields.forma_pago.queryset %}
                                                     {% if ticket.tipo_documento_planeado == 'factura' or not fp.es_cuenta_corriente %}
-                                                    <option value="{{ fp.id }}" {% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}>{{ fp.nombre }}{% if fp.es_cuenta_corriente %} (crédito){% endif %}</option>
+                                                    <option value="{{ fp.id }}" {% if ticket.forma_pago_id %}{% if ticket.forma_pago_id == fp.id %}selected{% endif %}{% elif ticket.cliente.forma_pago_defecto_id %}{% if ticket.cliente.forma_pago_defecto_id == fp.id %}selected{% endif %}{% else %}{% if fp.codigo == 'EF' or fp.nombre|upper == 'EFECTIVO' %}selected{% endif %}{% endif %}>{{ fp.nombre }}{% if fp.es_cuenta_corriente %} (crédito){% endif %}</option>
                                                     {% endif %}
                                                     {% endfor %}
                                                 </select>
@@ -665,12 +667,41 @@ if (btnAgregarPago) {
         `;
         container.appendChild(nuevaFila);
         nuevaFila.querySelector('.remove-pago').addEventListener('click', () => { nuevaFila.remove(); actualizarResumen(); });
-        nuevaFila.querySelector('.monto-pago').addEventListener('input', actualizarResumen);
+        const nuevoMonto = nuevaFila.querySelector('.monto-pago');
+        nuevoMonto.addEventListener('input', actualizarResumen);
+        // Enfocar y seleccionar el nuevo campo monto automáticamente
+        nuevoMonto.focus();
+        nuevoMonto.select();
+        // Vincular cambio de forma de pago al nuevo select
+        const nuevoSelect = nuevaFila.querySelector('select[name^="forma_pago_"]');
+        if (nuevoSelect) bindSelectFocusMonto(nuevoSelect);
         actualizarResumen();
     });
 }
 document.querySelectorAll('.monto-pago').forEach(input => input.addEventListener('input', actualizarResumen));
 actualizarResumen();
+
+// Al cambiar forma de pago → enfocar y seleccionar el monto correspondiente
+function bindSelectFocusMonto(selectEl) {
+    selectEl.addEventListener('change', function() {
+        const row = this.closest('.forma-pago-item-stone');
+        if (row) {
+            const montoInput = row.querySelector('.monto-pago');
+            if (montoInput) {
+                montoInput.focus();
+                montoInput.select();
+            }
+        }
+    });
+}
+document.querySelectorAll('select[name^="forma_pago_"]').forEach(bindSelectFocusMonto);
+
+// Al cargar la página → enfocar y seleccionar el primer campo monto
+const primerMonto = document.querySelector('.monto-pago');
+if (primerMonto) {
+    primerMonto.focus();
+    primerMonto.select();
+}
 {% endif %}
 
 {% if es_pos_vale %}

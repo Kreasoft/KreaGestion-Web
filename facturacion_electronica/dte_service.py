@@ -239,12 +239,15 @@ class DTEService:
                         ),
                     )
                     dte_temp.venta = venta  # Asociar venta
-                    from core.fechas import calcular_fecha_vencimiento
-                    fecha_venc = getattr(venta, 'fecha_vencimiento', None)
-                    if not fecha_venc:
-                        dias = getattr(venta.cliente, 'plazo_pago', 0) if getattr(venta, 'cliente', None) else 0
-                        fecha_venc = calcular_fecha_vencimiento(venta.fecha, dias)
-                    dte_temp.fecha_vencimiento = fecha_venc
+                    if tipo_dte in ['39', '41']:
+                        dte_temp.fecha_vencimiento = None
+                    else:
+                        from core.fechas import calcular_fecha_vencimiento
+                        fecha_venc = getattr(venta, 'fecha_vencimiento', None)
+                        if not fecha_venc:
+                            dias = getattr(venta.cliente, 'plazo_pago', 0) if getattr(venta, 'cliente', None) else 0
+                            fecha_venc = calcular_fecha_vencimiento(venta.fecha, dias)
+                        dte_temp.fecha_vencimiento = fecha_venc
                     dte_temp.chofer = getattr(venta, 'chofer', None)
                     dte_temp.vehiculo = getattr(venta, 'vehiculo', None)
                     if tipo_dte == '52':
@@ -969,6 +972,7 @@ class DTEService:
                         contiene_codigo_estado,
                         es_consulta_datos_no_coinciden,
                         es_dte_no_recibido_sii,
+                        es_dte_repetido_sii,
                         es_dte_sin_aceptacion_comercial,
                         es_espera_reintento_sii,
                         es_glosa_envio_procesado,
@@ -985,6 +989,9 @@ class DTEService:
                         track_glosa = extraer_track_id(estado_texto)
                         if track_glosa and not str(dte.track_id or '').strip():
                             dte.track_id = track_glosa
+                    elif es_dte_repetido_sii(estado_texto):
+                        dte.estado_sii = 'aceptado'
+                        glosa_original = 'DTE Aceptado por el SII (Folio registrado previamente)'
                     elif detalle_estado in {'RCH', 'RSC'} or evidencia_rechazo_tributario(estado_texto):
                         dte.estado_sii = 'rechazado'
                         if not glosa_original:
@@ -1011,15 +1018,11 @@ class DTEService:
                         dte.estado_sii = 'aceptado'
                         if datos_no_coinciden or not glosa_original or es_glosa_envio_procesado(glosa_original):
                             glosa_original = 'DTE Recibido'
-                    elif detalle_estado in {'EOK', 'SOK'} or contiene_codigo_estado(estado_texto, ('EOK', 'SOK')) or any(
-                        token in estado_texto for token in ['DTE ACEPTADO', 'DOCUMENTO ACEPTADO']
+                    elif detalle_estado in {'EOK', 'SOK', 'DOK'} or contiene_codigo_estado(estado_texto, ('EOK', 'SOK', 'DOK')) or any(
+                        token in estado_texto for token in ['DTE ACEPTADO', 'DOCUMENTO ACEPTADO', 'DTE RECIBIDO']
                     ):
                         if 'CON REPAROS' not in estado_texto:
                             dte.estado_sii = 'aceptado'
-                    elif detalle_estado in {'DOK'} or 'DTE RECIBIDO' in estado_texto:
-                        dte.estado_sii = 'enviado'
-                        if not glosa_original or es_glosa_envio_procesado(glosa_original):
-                            glosa_original = 'DTE Recibido. El SII aún no informa aceptación ni rechazo.'
                     elif rechazados > 0:
                         dte.estado_sii = 'rechazado'
                         if not glosa_original:

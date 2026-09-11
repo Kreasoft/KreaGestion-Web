@@ -240,8 +240,90 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
         
         monto_total = monto_neto + monto_iva + monto_exento
 
-        # Crear el DTE
+        # Datos de cobranza, vendedor y bodega
+        from ventas.models import Vendedor, FormaPago, Venta, VentaDetalle
+        from datetime import timedelta
+        from decimal import Decimal
+
+        vendedor = orden_despacho.vendedor
+        if not vendedor:
+            vendedor = Vendedor.objects.filter(empresa=orden_despacho.empresa, activo=True).first()
+
         cliente = orden_despacho.orden_pedido.cliente
+        forma_pago = orden_despacho.forma_pago or getattr(cliente, 'forma_pago_defecto', None)
+        if not forma_pago:
+            forma_pago = FormaPago.objects.filter(empresa=orden_despacho.empresa, activo=True).first()
+
+        bodega = orden_despacho.bodega or orden_despacho.orden_pedido.bodega
+
+        from core.fechas import calcular_fecha_vencimiento
+        fecha_vencimiento = orden_despacho.fecha_vencimiento
+        if not fecha_vencimiento:
+            plazo = getattr(cliente, 'plazo_pago', 0) or getattr(cliente, 'dias_credito', 0) or 0
+            fecha_vencimiento = calcular_fecha_vencimiento(orden_despacho.fecha_despacho, plazo)
+
+
+        # Determinar si el pago es a crédito o al contado
+        es_credito = bool(getattr(forma_pago, 'es_cuenta_corriente', False))
+        if not es_credito and forma_pago:
+            nombre_fp = forma_pago.nombre.lower()
+            if 'credito' in nombre_fp or 'crédito' in nombre_fp or 'cuenta corriente' in nombre_fp:
+                es_credito = True
+
+        if es_credito:
+            monto_pagado = Decimal('0.00')
+            saldo_pendiente = Decimal(str(monto_total))
+        else:
+            monto_pagado = Decimal(str(monto_total))
+            saldo_pendiente = Decimal('0.00')
+
+        # Crear el registro de Venta para cuentas corrientes, comisiones e informes
+        temp_numero = f"FACT-{siguiente_folio}"
+        venta = Venta.objects.create(
+            empresa=orden_despacho.empresa,
+            sucursal=sucursal,
+            numero_venta=temp_numero,
+            fecha=orden_despacho.fecha_despacho,
+            fecha_vencimiento=fecha_vencimiento,
+            cliente=cliente,
+            vendedor=vendedor,
+            forma_pago=forma_pago,
+            tipo_documento='factura',
+            tipo_documento_planeado='factura',
+            vehiculo=orden_despacho.vehiculo,
+            chofer=orden_despacho.chofer,
+            subtotal=Decimal(str(monto_neto + monto_exento)),
+            neto=Decimal(str(monto_neto)),
+            iva=Decimal(str(monto_iva)),
+            total=Decimal(str(monto_total)),
+            estado='confirmada',
+            facturado=True,
+            monto_pagado=monto_pagado,
+            saldo_pendiente=saldo_pendiente,
+            observaciones=f"Factura generada desde Despacho {orden_despacho.numero_despacho}",
+            usuario_creacion=usuario,
+        )
+
+        for item_despacho in items_emitibles:
+            item_pedido = item_despacho.item_pedido
+            VentaDetalle.objects.create(
+                venta=venta,
+                articulo=item_pedido.articulo,
+                comentario=f"Despacho {orden_despacho.numero_despacho}",
+                cantidad=item_despacho.cantidad,
+                precio_unitario=item_pedido.precio_unitario,
+                precio_total=Decimal(str(item_despacho.cantidad * item_pedido.precio_unitario)),
+            )
+
+        # Rebajar stock de bodega si existe
+        if bodega:
+            try:
+                from caja.views import descontar_stock_venta_completo
+                descontar_stock_venta_completo(venta, bodega)
+            except Exception as e_stock:
+                print(f"[WARN] No se pudo descontar stock automáticamente: {e_stock}")
+
+        # Crear el DTE
         dte = DocumentoTributarioElectronico.objects.create(
             empresa=orden_despacho.empresa,
             tipo_dte='33',
@@ -250,6 +332,10 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
             usuario_creacion=usuario,
             estado_sii='NoEnviado',
             caf_utilizado=caf_disponible,
+            venta=venta,
+            vendedor=vendedor,
+            chofer=orden_despacho.chofer,
+            vehiculo=orden_despacho.vehiculo,
             # Montos
             monto_neto=int(monto_neto),
             monto_iva=int(monto_iva),
@@ -276,4 +362,21 @@ def generar_factura_desde_orden_despacho(orden_despacho, usuario):
         xml_sin_firmar = generator.generar_xml()
         primer_item = items_emitibles.select_related('item_pedido__articulo').first()
         item_glosa = primer_item.item_pedido.articulo.nombre if primer_item and primer_item.item_pedido else 'Factura Electrónica'
-        return _finalizar_xml_dte_despacho(dte, xml_sin_firmar, item_glosa)
+        dte_final = _finalizar_xml_dte_despacho(dte, xml_sin_firmar, item_glosa)
+
+        # Sincronizar con Tesorería / Cuentas Corrientes de Clientes
+        if es_credito and saldo_pendiente > 0:
+            try:
+                from tesoreria.services import sincronizar_venta_credito_en_tesoreria
+                sincronizar_venta_credito_en_tesoreria(
+                    venta=venta,
+                    dte=dte_final,
+                    usuario=usuario,
+                    descripcion=f"Factura N° {dte_final.folio} (Despacho {orden_despacho.numero_despacho})"
+                )
+            except Exception as e_cc:
+                print(f"[WARN] No se pudo sincronizar venta a crédito en tesorería: {e_cc}")
+
+        return dte_final
+
+

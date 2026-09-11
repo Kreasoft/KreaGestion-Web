@@ -274,9 +274,11 @@ class Venta(models.Model):
                 self.monto_pagado = self.total
                 self.saldo_pendiente = Decimal('0.00')
 
-        if not self.fecha_vencimiento and self.fecha:
+        if self.tipo_documento in ['boleta', 'ticket', 'vale'] or self.tipo_documento_planeado in ['boleta', 'ticket', 'vale']:
+            self.fecha_vencimiento = None
+        elif not self.fecha_vencimiento and self.fecha:
             from core.fechas import calcular_fecha_vencimiento
-            dias = getattr(self.cliente, 'plazo_pago', 0) if self.cliente_id else 0
+            dias = getattr(self.cliente, 'plazo_pago_dias', 0) if self.cliente else 0
             self.fecha_vencimiento = calcular_fecha_vencimiento(self.fecha, dias)
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:

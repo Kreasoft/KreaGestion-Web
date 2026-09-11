@@ -10,6 +10,7 @@ from facturacion_electronica.clasificacion_sii import (
     contiene_codigo_estado,
     conteos_envio_sii,
     es_dte_no_recibido_sii,
+    es_dte_repetido_sii,
     es_dte_sin_aceptacion_comercial,
     es_espera_reintento_sii,
     es_falso_rechazo_sii,
@@ -956,17 +957,18 @@ class DocumentoTributarioElectronico(models.Model):
 
         # Rechazo tributario real (RCH) gana. EOK (aceptación comercial) gana al conteo del envío.
         # DOK / DTE Recibido solo confirma que el SII tomó el documento, no que lo aceptó.
+        if es_dte_repetido_sii(texto_sii, texto):
+            return 'aceptado'
         if evidencia_rechazo_tributario(texto_sii, texto):
             return 'rechazado'
         if any(token in glosa for token in ['ACEPTADO CON REPAROS', 'ACEPTADA CON REPAROS']) or contiene_codigo_estado(glosa, ('RPR', 'RPC', 'RLV')):
             return 'aceptado_reparos'
         if (
-            any(token in glosa for token in ['DTE ACEPTADO', 'DOCUMENTO ACEPTADO'])
-            or contiene_codigo_estado(glosa, ('EOK', 'SOK'))
-            or contiene_codigo_estado(texto, ('EOK', 'SOK'))
+            any(token in glosa for token in ['DTE ACEPTADO', 'DOCUMENTO ACEPTADO', 'DTE RECIBIDO'])
+            or contiene_codigo_estado(glosa, ('EOK', 'SOK', 'DOK'))
+            or contiene_codigo_estado(texto, ('EOK', 'SOK', 'DOK'))
             or (
                 any(token in glosa for token in ['ACEPTADO', 'ACEPTADA'])
-                and 'RECIBIDO' not in glosa
                 and 'CON REPAROS' not in glosa
             )
         ):
@@ -977,18 +979,9 @@ class DocumentoTributarioElectronico(models.Model):
                 conteos['aceptados'] > 0 and conteos['rechazados'] == 0
             ):
                 return 'aceptado'
-        if (
-            'DTE RECIBIDO' in glosa
-            or contiene_codigo_estado(glosa, ('DOK',))
-            or contiene_codigo_estado(texto, ('DOK',))
-        ):
-            return 'enviado'
         if conteos['rechazados'] > 0 and conteos['aceptados'] == 0:
             return 'rechazado'
-        if estado_actual == 'rechazado':
-            return 'enviado' if str(self.track_id or '').strip() else 'pendiente'
-
-        if estado_actual in {'aceptado', 'anulado', 'aceptado_reparos'}:
+        if estado_actual in {'aceptado', 'anulado', 'aceptado_reparos', 'rechazado'}:
             return estado_actual
 
         if es_glosa_envio_procesado(texto_sii, texto):

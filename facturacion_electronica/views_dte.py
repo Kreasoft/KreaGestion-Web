@@ -362,18 +362,13 @@ def consultar_estado_dte(request, dte_id):
         etiqueta = dte.get_estado_sii_real_display()
         glosa = (estado.get('glosa') or dte.glosa_sii or '').strip()
         detalle = str(estado.get('detalle_estado') or '').strip().upper()
-        recibido_sin_resolucion = estado_real == 'enviado' and (
-            detalle == 'DOK' or 'DTE RECIBIDO' in glosa.upper()
-        )
-        if recibido_sin_resolucion:
-            messages.info(
-                request,
-                'El SII recibió el documento (DOK). Aún no informa si fue aceptado o rechazado.'
-            )
-        elif estado_real == 'rechazado':
+        if estado_real == 'rechazado':
             messages.error(request, f'{etiqueta}: {glosa}' if glosa else etiqueta)
         elif estado_real == 'aceptado_reparos':
             messages.warning(request, f'{etiqueta}: {glosa}' if glosa else etiqueta)
+        elif estado_real == 'aceptado':
+            msg = f'{etiqueta}: {glosa}' if glosa else f'{etiqueta} por el SII'
+            messages.success(request, msg)
         elif glosa:
             messages.success(request, f'{etiqueta}: {glosa}')
         else:

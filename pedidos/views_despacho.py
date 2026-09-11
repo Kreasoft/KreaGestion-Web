@@ -226,14 +226,28 @@ def orden_despacho_detail(request, pk):
     
     # Calcular totales
     total_items = orden.get_total_items()
+
+    from bodegas.models import Bodega
+    from ventas.models import Vendedor, FormaPago
+
+    tiene_factura = any(doc['tipo'] == 'Factura' for doc in documentos)
+    bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
+    vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+
     
     context = {
         'orden': orden,
         'documentos': documentos,
         'total_items': total_items,
+        'tiene_factura': tiene_factura,
+        'bodegas': bodegas,
+        'vendedores': vendedores,
+        'formas_pago': formas_pago,
     }
     
     return render(request, 'pedidos/orden_despacho_detail.html', context)
+
 
 
 @login_required
@@ -463,16 +477,38 @@ def generar_factura_despacho(request, pk):
     
     if request.method == 'POST':
         try:
+            bodega_id = request.POST.get('bodega')
+            vendedor_id = request.POST.get('vendedor')
+            forma_pago_id = request.POST.get('forma_pago')
+            fecha_vencimiento = request.POST.get('fecha_vencimiento')
+
+            update_fields = []
+            if bodega_id:
+                orden.bodega_id = bodega_id
+                update_fields.append('bodega')
+            if vendedor_id:
+                orden.vendedor_id = vendedor_id
+                update_fields.append('vendedor')
+            if forma_pago_id:
+                orden.forma_pago_id = forma_pago_id
+                update_fields.append('forma_pago')
+            if fecha_vencimiento:
+                orden.fecha_vencimiento = fecha_vencimiento
+                update_fields.append('fecha_vencimiento')
+            
+            if update_fields:
+                orden.save(update_fields=update_fields)
+
             from .utils_despacho import generar_factura_desde_orden_despacho
             dte = generar_factura_desde_orden_despacho(orden, request.user)
             messages.success(request, f'Factura Electrónica {dte.folio} generada exitosamente.')
             orden.estado = 'despachado'
-            orden.save()
-            # Redirigir a la vista del DTE generado
+            orden.save(update_fields=['estado'])
             return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
         except Exception as e:
             messages.error(request, f'Error al generar Factura: {str(e)}')
             
     return redirect('pedidos:orden_despacho_detail', pk=pk)
+
 
 

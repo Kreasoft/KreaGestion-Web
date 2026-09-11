@@ -13,7 +13,7 @@ class ClienteForm(forms.ModelForm):
         fields = [
             'rut', 'nombre', 'tipo_cliente', 'giro',
             'direccion', 'comuna', 'ciudad', 'region', 'telefono', 'email', 'sitio_web',
-            'limite_credito', 'plazo_pago', 'descuento_porcentaje', 'ruta', 'vendedor', 'estado', 'observaciones'
+            'limite_credito', 'plazo_pago', 'forma_pago_defecto', 'descuento_porcentaje', 'ruta', 'vendedor', 'estado', 'observaciones'
         ]
         widgets = {
             'rut': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '12.345.678-9 o 12345678-9', 'id': 'rut-input'}),
@@ -29,7 +29,8 @@ class ClienteForm(forms.ModelForm):
             'sitio_web': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'www.ejemplo.cl o https://www.ejemplo.cl'}),
             'limite_credito': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
             'plazo_pago': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '30'}),
-            'descuento_porcentaje': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': '0.00'}),
+            'forma_pago_defecto': forms.Select(attrs={'class': 'form-control'}),
+            'descuento_porcentaje': forms.HiddenInput(),
             'ruta': forms.Select(attrs={'class': 'form-control'}),
             'vendedor': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
@@ -52,14 +53,19 @@ class ClienteForm(forms.ModelForm):
         self.fields['ruta'].empty_label = 'Sin ruta asignada'
 
         # Filtrar vendedores por empresa
-        from ventas.models import Vendedor
+        from ventas.models import Vendedor, FormaPago
         if self.empresa:
             self.fields['vendedor'].queryset = Vendedor.objects.filter(empresa=self.empresa, activo=True).order_by('nombre')
+            self.fields['forma_pago_defecto'].queryset = FormaPago.objects.filter(empresa=self.empresa, activo=True).order_by('nombre')
         else:
             self.fields['vendedor'].queryset = Vendedor.objects.filter(activo=True).order_by('nombre')
+            self.fields['forma_pago_defecto'].queryset = FormaPago.objects.filter(activo=True).order_by('nombre')
         
         self.fields['vendedor'].required = False
         self.fields['vendedor'].empty_label = 'Sin vendedor asignado'
+
+        self.fields['forma_pago_defecto'].required = False
+        self.fields['forma_pago_defecto'].empty_label = 'Seleccione medio de pago por defecto'
         
         # Hacer campos requeridos
         self.fields['rut'].required = True
@@ -71,6 +77,7 @@ class ClienteForm(forms.ModelForm):
         self.fields['region'].required = False
         self.fields['telefono'].required = True
         self.fields['descuento_porcentaje'].required = False
+
     
     def clean_rut(self):
         rut = self.cleaned_data.get('rut', '')

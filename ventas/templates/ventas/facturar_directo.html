@@ -722,7 +722,7 @@
                                 <select id="cliente_id" class="form-select form-select-sm" data-no-select2="1">
                                     <option value="">Seleccionar cliente</option>
                                     {% for cliente in clientes %}
-                                    <option value="{{ cliente.id|unlocalize }}" data-rut="{{ cliente.rut|default:'' }}" data-nombre="{{ cliente.nombre }}">{{ cliente.rut }} - {{ cliente.nombre }}</option>
+                                    <option value="{{ cliente.id|unlocalize }}" data-rut="{{ cliente.rut|default:'' }}" data-nombre="{{ cliente.nombre }}" data-forma-pago="{{ cliente.forma_pago_defecto_id|unlocalize|default:'' }}" data-plazo="{{ cliente.plazo_pago|default:0 }}">{{ cliente.rut }} - {{ cliente.nombre }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -1110,10 +1110,7 @@ function initSelect2() {
         dropdownCssClass: 'guide-select2-dropdown',
     });
     jQuery('#forma_pago_id').on('change', updateTotals);
-    jQuery('#cliente_id').on('change', () => {
-        vencimientoManual = false;
-        recalcVencimiento(true);
-    });
+    jQuery('#cliente_id').on('change', onClientChange);
     jQuery('#vehiculo_id').on('change', syncChoferFromVehiculo);
     jQuery(document).on('select2:open', function () {
         addProductDropdownHeader();
@@ -1280,10 +1277,33 @@ function recalcVencimiento(forzar) {
     if (hint) hint.textContent = dias > 0 ? `${dias} días de pago` : 'contado (mismo día)';
 }
 
-document.getElementById('cliente_id').addEventListener('change', () => {
+function onClientChange() {
     vencimientoManual = false;
+    const client = selectedClient();
+    let formaPagoId = null;
+    if (client && client.forma_pago_defecto_id) {
+        formaPagoId = client.forma_pago_defecto_id;
+    } else {
+        const clientOpt = document.getElementById('cliente_id').selectedOptions[0];
+        if (clientOpt && clientOpt.dataset.formaPago) {
+            formaPagoId = clientOpt.dataset.formaPago;
+        }
+    }
+    if (formaPagoId) {
+        const fpSelect = document.getElementById('forma_pago_id');
+        if (fpSelect) {
+            fpSelect.value = String(formaPagoId);
+            if (window.jQuery && jQuery.fn.select2) {
+                jQuery(fpSelect).val(String(formaPagoId)).trigger('change');
+            } else {
+                fpSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    }
     recalcVencimiento(true);
-});
+}
+
+document.getElementById('cliente_id').addEventListener('change', onClientChange);
 document.getElementById('fecha').addEventListener('change', () => recalcVencimiento(false));
 document.getElementById('fecha_vencimiento').addEventListener('input', () => { vencimientoManual = true; });
 const vehiculoSel = document.getElementById('vehiculo_id');
@@ -1467,6 +1487,6 @@ initSelect2();
 addRow();
 setDocType('33');
 updateTotals();
-recalcVencimiento(true);
+onClientChange();
 </script>
 {% endblock %}

@@ -68,9 +68,23 @@ def mensaje_espera_reintento(segundos=900, track_id=''):
     )
 
 
+def es_dte_repetido_sii(*partes):
+    """True si el SII indica que el DTE ya fue recibido/registrado previamente (DTE-3-100 / DTE Repetido)."""
+    texto = texto_sii_de(*partes)
+    if not texto:
+        return False
+    if 'DTE-3-100' in texto:
+        return True
+    if 'DTE REPETIDO' in texto:
+        return True
+    if 'FOLIO REPETIDO' in texto:
+        return True
+    return False
+
+
 def evidencia_rechazo_tributario(*partes):
-    """True solo con evidencia real de rechazo: RCH, RSC o la palabra RECHAZADO."""
-    if es_espera_reintento_sii(*partes):
+    """True solo con evidencia real de rechazo: RCH, RSC o la palabra RECHAZADO (excluye esperas y repetidos)."""
+    if es_espera_reintento_sii(*partes) or es_dte_repetido_sii(*partes):
         return False
     texto = texto_sii_de(*partes)
     if not texto:
@@ -115,8 +129,8 @@ def conteos_envio_sii(*partes):
     return conteos
 
 
-# La guía (52) no tiene aceptación comercial del receptor: DOK / EPR+ACEPTADOS es el estado final.
-TIPOS_SIN_ACEPTACION_COMERCIAL = frozenset({'52'})
+# Documentos sin aceptación comercial del receptor (boletas y guías): DOK / SOK / EOK es estado final aceptado.
+TIPOS_SIN_ACEPTACION_COMERCIAL = frozenset({'39', '41', '52'})
 
 
 def es_dte_sin_aceptacion_comercial(tipo_dte):
@@ -143,18 +157,22 @@ def es_consulta_datos_no_coinciden(*partes):
 
 def es_falso_rechazo_sii(*partes, estado_sii='', track_id=''):
     """
-    estado_sii quedó en rechazado/error pero la glosa no es un RCH:
-    espera 900s, Envio Procesado, o vacía con Track ID.
+    estado_sii quedó en rechazado/error pero la glosa no es un RCH ni DOK/EOK:
+    espera 900s, o glosa vacía/EPR sin rechazos tributarios ni codigos reales.
     """
     estado = str(estado_sii or '').strip().lower()
     if estado not in {'rechazado', 'error_envio', 'error'}:
+        return False
+    texto = texto_sii_de(*partes)
+    if contiene_codigo_estado(texto, ('RCH', 'RSC', 'EOK', 'SOK', 'DOK', 'RPR', 'RPC', 'RLV')) or es_dte_repetido_sii(texto):
         return False
     if conteos_envio_sii(*partes).get('rechazados', 0) > 0:
         return False
     if evidencia_rechazo_tributario(*partes):
         return False
-    if es_espera_reintento_sii(*partes) or es_glosa_envio_procesado(*partes):
+    if es_espera_reintento_sii(*partes):
         return True
-    texto = texto_sii_de(*partes)
     tiene_track = bool(str(track_id or '').strip() or extraer_track_id(*partes))
+    if es_glosa_envio_procesado(*partes) and tiene_track:
+        return True
     return (not texto) and tiene_track

@@ -119,6 +119,40 @@ class OrdenDespacho(models.Model):
         verbose_name="Tipo de Traslado (IndTraslado)"
     )
 
+    # Datos de Cobranza / Facturación e Inventario
+    bodega = models.ForeignKey(
+        'bodegas.Bodega',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despachos',
+        verbose_name="Bodega de Despacho"
+    )
+
+    vendedor = models.ForeignKey(
+        'ventas.Vendedor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despachos',
+        verbose_name="Vendedor Responsable"
+    )
+
+    forma_pago = models.ForeignKey(
+        'ventas.FormaPago',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='despachos',
+        verbose_name="Forma de Pago"
+    )
+
+    fecha_vencimiento = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Vencimiento"
+    )
+
     # Auditoría
     creado_por = models.ForeignKey(
         User,
