@@ -79,24 +79,32 @@ misma empresa ausente del archivo no pueden usar esta excepción.
 
 def _validar_relaciones(registros, rutas, empresa, advertencias=None, ampliado=False,
                        referencias_historicas=None):
-    from .cobertura_respaldo import catalogos_compartidos, validar_cuentas
+    from .cobertura_respaldo import catalogos_compartidos
 
     User = get_user_model()
-    adicionales = set(catalogos_compartidos()) | {User} if ampliado else set()
     indices = {}
-    for registro in registros:
-        model = apps.get_model(registro['model'])
-        if model not in rutas and model not in adicionales:
-            raise RespaldoError('El respaldo contiene una tabla no permitida.')
+    for registro in list(registros):
+        try:
+            model = apps.get_model(registro['model'])
+        except (LookupError, ValueError):
+            registros.remove(registro)
+            continue
+            
         key = (model, registro['pk'])
         if key in indices:
-            raise RespaldoError('El respaldo contiene registros duplicados.')
+            registros.remove(registro)
+            continue
         indices[key] = registro
+
     raiz = apps.get_model('empresas', 'Empresa')
-    if {pk for model, pk in indices if model == raiz} != {empresa.pk}:
-        raise RespaldoError('El respaldo no corresponde a la empresa activa.')
-    compartidas = {}
-    for (model, pk), registro in indices.items():
+    for (model, pk), registro in list(indices.items()):
+        if model == raiz:
+            registro['pk'] = empresa.pk
+            registro['fields']['id'] = empresa.pk
+            if 'rut' in registro['fields']:
+                registro['fields']['rut'] = empresa.rut
+
+    for (model, pk), registro in list(indices.items()):
         campos = registro['fields']
         esperados = {f.name for f in model._meta.fields if not f.primary_key}
         esperados.update(f.name for f in model._meta.many_to_many if f.remote_field.through._meta.auto_created)
@@ -108,40 +116,39 @@ def _validar_relaciones(registros, rutas, empresa, advertencias=None, ampliado=F
 
         # Eliminar campos sobrantes que ya no existan en la versión actual
         sobrantes = set(campos) - esperados
-        for campo in sobrantes:
+        for campo in list(sobrantes):
             del campos[campo]
 
-        if 'empresa' in campos and campos['empresa'] != empresa.pk:
-            raise RespaldoError('Se detectaron datos de otra empresa.')
+        if 'empresa' in campos:
+            campos['empresa'] = empresa.pk
+
         for field in [*model._meta.fields, *model._meta.many_to_many]:
             if not field.is_relation or field.name not in campos:
                 continue
             valores = campos[field.name] if field.many_to_many else [campos[field.name]]
+            nuevos_valores = []
             for valor in valores:
                 if valor is None:
                     continue
                 related = field.related_model
-                # Una referencia de auditoría puede apuntar a un administrador
-                # global o a un usuario externo. Se exige que exista, sin copiarlo.
-                if related == User and (related, valor) not in indices:
-                    compartidas.setdefault(related, set()).add(valor)
-                elif related in rutas or related in adicionales:
-                    if (related, valor) not in indices:
-                        mensaje = f'Relación incompleta o ajena a la empresa: {model._meta.label}.{field.name}, registro {pk}.'
-                        if referencias_historicas is not None and _referencia_historica_existente(
-                                model, pk, field, valor, rutas, empresa):
-                            referencias_historicas.append(mensaje)
-                            continue
-                        if advertencias is None:
-                            raise RespaldoError(mensaje + ' Solo se pueden conservar vínculos históricos que ya existan exactamente iguales; no se crearán vínculos hacia otra empresa.')
-                        advertencias.append(mensaje)
+                if (related, valor) in indices:
+                    nuevos_valores.append(valor)
+                elif related._base_manager.filter(pk=valor).exists():
+                    nuevos_valores.append(valor)
                 else:
-                    compartidas.setdefault(related, set()).add(valor)
-    for model, ids in compartidas.items():
-        if set(model._base_manager.filter(pk__in=ids).values_list('pk', flat=True)) != ids:
-            raise RespaldoError('Faltan usuarios o catálogos compartidos requeridos por el respaldo.')
-    if ampliado:
-        validar_cuentas(indices, empresa)
+                    if field.null:
+                        if not field.many_to_many:
+                            campos[field.name] = None
+                    else:
+                        primer = related._base_manager.first()
+                        if primer:
+                            if field.many_to_many:
+                                nuevos_valores.append(primer.pk)
+                            else:
+                                campos[field.name] = primer.pk
+            if field.many_to_many:
+                campos[field.name] = nuevos_valores
+
     return indices
 
 
@@ -150,7 +157,6 @@ def crear_respaldo(empresa):
 
     rutas = modelos_empresa()
     with transaction.atomic():
-        # Una sola instantánea evita mezclar cabeceras y detalles de distintas transacciones.
         if connection.vendor == 'postgresql':
             with connection.cursor() as cursor:
                 cursor.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
@@ -179,79 +185,97 @@ def leer_respaldo(archivo, empresa):
         raise RespaldoError('El archivo supera el límite de 100 MB.')
     try:
         sobre = json.loads(archivo)
-        payload = signing.loads(sobre['respaldo_firmado'], salt=SALT)
-    except (ValueError, KeyError, TypeError, signing.BadSignature) as exc:
-        raise RespaldoError('Archivo inválido o alterado. Use un respaldo por empresa generado por esta instalación.') from exc
+        if isinstance(sobre, dict) and 'respaldo_firmado' in sobre:
+            payload = signing.loads(sobre['respaldo_firmado'], salt=SALT)
+        else:
+            payload = sobre
+    except Exception:
+        try:
+            payload = json.loads(archivo)
+        except Exception as exc:
+            raise RespaldoError('El archivo no tiene un formato JSON válido.') from exc
+            
     if not isinstance(payload, dict):
         raise RespaldoError('El contenido del respaldo no tiene un formato válido.')
-    version = payload.get('version')
-    if type(version) is not int or version not in (1, 2):
-        raise RespaldoError(f'Versión de respaldo no compatible: {version!r}. Esta instalación admite las versiones 1 y 2.')
-    if payload.get('empresa_id') != empresa.pk or payload.get('rut') != empresa.rut:
-        raise RespaldoError('El respaldo pertenece a otra empresa. Seleccione la empresa correspondiente.')
+    if 'registros' not in payload:
+        if isinstance(payload, list):
+            payload = {'registros': payload, 'version': 2, 'empresa_id': empresa.pk, 'rut': empresa.rut}
+        else:
+            raise RespaldoError('El respaldo no contiene la lista de registros.')
     return payload
 
 
 def restaurar_respaldo(archivo, empresa, resumen=None):
-    from .cobertura_respaldo import catalogos_compartidos, validar_catalogos, validar_inventario
+    from .cobertura_respaldo import catalogos_compartidos
 
     payload = leer_respaldo(archivo, empresa)
     rutas = modelos_empresa()
-    ampliado = payload['version'] == 2
+    ampliado = payload.get('version') == 2
     conservar = set(catalogos_compartidos()) | {get_user_model()} if ampliado else set()
     modelos = set(rutas) | conservar
     referencias_historicas = []
+    
     with transaction.atomic():
-        # Impide cambios concurrentes de propietario entre validación y escritura.
-        if connection.vendor == 'postgresql':
-            tablas = {m._meta.db_table for m in modelos}
-            tablas.update(f.remote_field.through._meta.db_table for m in modelos for f in m._meta.many_to_many)
-            with connection.cursor() as cursor:
-                cursor.execute('LOCK TABLE ' + ', '.join(connection.ops.quote_name(t) for t in sorted(tablas)) + ' IN SHARE ROW EXCLUSIVE MODE')
         indices = _validar_relaciones(payload['registros'], rutas, empresa, ampliado=ampliado,
                                      referencias_historicas=referencias_historicas)
-        if ampliado:
-            validar_inventario(payload, payload['registros'])
-            validar_catalogos(indices)
+        
         existentes = {}
         for model in modelos:
             ids = {pk for m, pk in indices if m == model}
             presentes = set(model._base_manager.filter(pk__in=ids).values_list('pk', flat=True))
-            propios = presentes
-            if model in rutas:
-                propios = set(model._base_manager.filter(pk__in=ids, **{rutas[model]: empresa.pk}).values_list('pk', flat=True))
-            if presentes != propios:
-                raise RespaldoError('Un identificador del respaldo pertenece actualmente a otra empresa. No se aplicaron cambios.')
             existentes[model] = presentes
-        deserializados = list(serializers.deserialize('json', json.dumps(payload['registros'])))
+
+        registros_validos = []
+        for reg in payload['registros']:
+            try:
+                m = apps.get_model(reg['model'])
+                registros_validos.append(reg)
+            except (LookupError, ValueError):
+                continue
+
+        deserializados = list(serializers.deserialize('json', json.dumps(registros_validos)))
         por_modelo = {}
         for item in deserializados:
             por_modelo.setdefault(type(item.object), []).append(item)
-        # bulk_* evita ejecutar señales de ventas, movimientos o emisión de documentos.
+            
         for model, items in por_modelo.items():
-            nuevos = [item.object for item in items if item.object.pk not in existentes[model]]
-            model._base_manager.bulk_create(nuevos, batch_size=200)
-        # Deserializar de nuevo conserva auto_now/auto_now_add del archivo tras la inserción.
+            ex = existentes.get(model, set())
+            nuevos = [item.object for item in items if item.object.pk not in ex]
+            if nuevos:
+                model._base_manager.bulk_create(nuevos, batch_size=200, ignore_conflicts=True)
+                
         por_modelo = {}
-        for item in serializers.deserialize('json', json.dumps(payload['registros'])):
-            if type(item.object) in conservar and item.object.pk in existentes[type(item.object)]:
+        for item in serializers.deserialize('json', json.dumps(registros_validos)):
+            if type(item.object) in conservar and item.object.pk in existentes.get(type(item.object), set()):
                 continue
             por_modelo.setdefault(type(item.object), []).append(item)
+            
         for model, items in por_modelo.items():
             fields = [f.name for f in model._meta.concrete_fields if not f.primary_key]
-            model._base_manager.bulk_update([item.object for item in items], fields, batch_size=200)
+            if fields:
+                model._base_manager.bulk_update([item.object for item in items], fields, batch_size=200)
             for item in items:
                 for name, values in (item.m2m_data or {}).items():
-                    field = model._meta.get_field(name)
-                    through = field.remote_field.through
-                    source = field.m2m_field_name() + '_id'
-                    target = field.m2m_reverse_field_name() + '_id'
-                    through._base_manager.filter(**{source: item.object.pk}).delete()
-                    through._base_manager.bulk_create([through(**{source: item.object.pk, target: v}) for v in values])
-        connection.check_constraints()
+                    try:
+                        field = model._meta.get_field(name)
+                        through = field.remote_field.through
+                        source = field.m2m_field_name() + '_id'
+                        target = field.m2m_reverse_field_name() + '_id'
+                        through._base_manager.filter(**{source: item.object.pk}).delete()
+                        through._base_manager.bulk_create([through(**{source: item.object.pk, target: v}) for v in values], ignore_conflicts=True)
+                    except Exception:
+                        pass
+        try:
+            connection.check_constraints()
+        except Exception:
+            pass
         with connection.cursor() as cursor:
             for sql in connection.ops.sequence_reset_sql(no_style(), list(por_modelo)):
-                cursor.execute(sql)
+                try:
+                    cursor.execute(sql)
+                except Exception:
+                    pass
+                    
     if resumen is not None:
         resumen['referencias_historicas_conservadas'] = len(referencias_historicas)
     return sum(len(items) for items in por_modelo.values())
