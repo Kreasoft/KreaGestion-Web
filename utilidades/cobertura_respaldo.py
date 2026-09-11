@@ -148,12 +148,14 @@ def validar_catalogos(indices):
 
 def validar_inventario(payload, registros):
     """Evita aceptar un v2 con cobertura parcial o datos ajenos como tablas nuevas."""
-    from .respaldo_empresa import RespaldoError
+    from .respaldo_empresa import RespaldoError, modelos_empresa
+    from django.contrib.auth import get_user_model
 
     tablas = payload.get('tablas', [])
     nombres = [t['tabla'] for t in tablas]
-    actuales = set(connection.introspection.table_names())
-    if len(set(nombres)) != len(nombres) or set(nombres) != actuales:
+    modelos = set(modelos_empresa()) | set(catalogos_compartidos()) | {get_user_model()}
+    esperadas = {m._meta.db_table for m in modelos}
+    if len(set(nombres)) != len(nombres) or set(nombres) != esperadas:
         raise RespaldoError('Las tablas del respaldo no coinciden con esta instalación. Genere un respaldo nuevo.')
     conteos = Counter(r['model'] for r in registros)
     for tabla in tablas:

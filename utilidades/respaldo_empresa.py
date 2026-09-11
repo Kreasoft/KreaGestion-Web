@@ -100,8 +100,17 @@ def _validar_relaciones(registros, rutas, empresa, advertencias=None, ampliado=F
         campos = registro['fields']
         esperados = {f.name for f in model._meta.fields if not f.primary_key}
         esperados.update(f.name for f in model._meta.many_to_many if f.remote_field.through._meta.auto_created)
-        if set(campos) != esperados:
-            raise RespaldoError('La estructura del respaldo no coincide con esta versión del sistema.')
+        
+        # Compatibilidad con respaldos anteriores: inicializar en None campos faltantes por nuevas migraciones
+        faltantes = esperados - set(campos)
+        for campo in faltantes:
+            campos[campo] = None
+
+        # Eliminar campos sobrantes que ya no existan en la versión actual
+        sobrantes = set(campos) - esperados
+        for campo in sobrantes:
+            del campos[campo]
+
         if 'empresa' in campos and campos['empresa'] != empresa.pk:
             raise RespaldoError('Se detectaron datos de otra empresa.')
         for field in [*model._meta.fields, *model._meta.many_to_many]:
