@@ -100,6 +100,8 @@
 
     var SELECTORES_FILA = 'select[name="insumo_articulo[]"], select.articulo-select, select.articulo-select-edit, select.item-articulo, select[name$="-articulo"]';
     var SELECTORES_UNICO = '#articuloSelect, #select-articulo, #id_articulo, select[name="articulo"].form-select-premium, select[name="articulo"].form-select-stone, select[name="articulo"].select-terroso, select[name="articulo"].select2-modal, select[name="articulo"].select2-stone';
+    var articulosSeleccionadosF10 = {};
+    var debounceTimerF10 = null;
 
     function requiereStock() {
         return !!window.articulosF10RequiereStock;
@@ -125,8 +127,27 @@
         return sel && sel.value ? sel.value : '';
     }
 
+    function registrarSeleccion(tr, checkeado) {
+        var id = tr.getAttribute('data-id');
+        if (!id) return;
+        if (checkeado) {
+            articulosSeleccionadosF10[id] = {
+                id: id,
+                codigo: tr.getAttribute('data-codigo'),
+                nombre: tr.getAttribute('data-nombre'),
+                precio: parseFloat(tr.getAttribute('data-precio')) || 0,
+                costo: parseFloat(tr.getAttribute('data-costo')) || 0,
+                iva: parseFloat(tr.getAttribute('data-iva')) || 0,
+                stock: parseFloat(tr.getAttribute('data-stock')) || 0,
+                control_stock: tr.getAttribute('data-control-stock') === '1'
+            };
+        } else {
+            delete articulosSeleccionadosF10[id];
+        }
+    }
+
     function actualizarCount() {
-        var n = document.querySelectorAll('#articulosF10Tabla .articulo-f10-check:checked').length;
+        var n = Object.keys(articulosSeleccionadosF10).length;
         var c = document.getElementById('articulosF10Count');
         if (c) c.textContent = n;
     }
@@ -160,10 +181,11 @@
             var bloqueado = requiereStock() && controla && stock <= 0;
             var color = stock > 0 ? '#5F8D62' : '#C76F43';
             var texto = (a.codigo || '') + ' ' + (a.nombre || '');
-            var cls = 'articulo-f10-row' + (bloqueado ? ' sin-stock' : '');
+            var estaSeleccionado = !!articulosSeleccionadosF10[String(a.id)];
+            var cls = 'articulo-f10-row' + (bloqueado ? ' sin-stock' : '') + (estaSeleccionado ? ' seleccionada' : '');
             var check = bloqueado
                 ? '<input type="checkbox" class="articulo-f10-check" disabled title="Sin stock">'
-                : '<input type="checkbox" class="articulo-f10-check">';
+                : '<input type="checkbox" class="articulo-f10-check"' + (estaSeleccionado ? ' checked' : '') + '>';
             var monto = esComprasF10() ? (a.costo || 0) : (a.precio || 0);
             return '<tr class="' + cls + '" data-id="' + a.id + '" data-codigo="' + String(a.codigo || '').replace(/"/g, '&quot;') +
                 '" data-nombre="' + String(a.nombre || '').replace(/"/g, '&quot;') +
@@ -184,11 +206,13 @@
 
     function cargarListado() {
         var tbody = document.getElementById('articulosF10Body');
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="color:#8B7355;">Cargando...</td></tr>';
+        var q = (document.getElementById('articulosF10Input').value || '').trim();
+        if (!tbody.querySelectorAll('.articulo-f10-row').length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center" style="color:#8B7355;">Cargando...</td></tr>';
+        }
         {% url "articulos:api_buscar_articulos_f10" as articulos_f10_api %}
         var url = '{{ articulos_f10_api|default:"/articulos/api/buscar-f10/" }}';
         var bodega = bodegaActivaId();
-        var q = (document.getElementById('articulosF10Input').value || '').trim();
         var params = [];
         if (q) params.push('q=' + encodeURIComponent(q));
         if (bodega) params.push('bodega_id=' + encodeURIComponent(bodega));
@@ -212,23 +236,7 @@
     };
 
     function seleccionados() {
-        var items = [];
-        document.querySelectorAll('#articulosF10Tabla .articulo-f10-row').forEach(function (tr) {
-            var chk = tr.querySelector('.articulo-f10-check');
-            if (chk && chk.checked && !chk.disabled) {
-                items.push({
-                    id: tr.getAttribute('data-id'),
-                    codigo: tr.getAttribute('data-codigo'),
-                    nombre: tr.getAttribute('data-nombre'),
-                    precio: parseFloat(tr.getAttribute('data-precio')) || 0,
-                    costo: parseFloat(tr.getAttribute('data-costo')) || 0,
-                    iva: parseFloat(tr.getAttribute('data-iva')) || 0,
-                    stock: parseFloat(tr.getAttribute('data-stock')) || 0,
-                    control_stock: tr.getAttribute('data-control-stock') === '1'
-                });
-            }
-        });
-        return items;
+        return Object.values(articulosSeleccionadosF10);
     }
 
     function selectVivo(s) {
@@ -466,6 +474,7 @@
             return;
         }
         articulosF10CargarDefault(items);
+        articulosSeleccionadosF10 = {};
         document.querySelectorAll('#articulosF10Tabla .articulo-f10-check').forEach(function (c) { c.checked = false; });
         document.querySelectorAll('#articulosF10Tabla .articulo-f10-row').forEach(function (tr) { tr.classList.remove('seleccionada'); });
         var todos = document.getElementById('articulosF10Todos');
@@ -489,6 +498,7 @@
 
     document.addEventListener('shown.bs.modal', function (e) {
         if (!e.target || e.target.id !== 'articulosF10Modal') return;
+        articulosSeleccionadosF10 = {};
         var backs = document.querySelectorAll('.modal-backdrop');
         if (backs.length) backs[backs.length - 1].style.zIndex = '1995';
         var input = document.getElementById('articulosF10Input');
@@ -502,7 +512,13 @@
     });
 
     document.addEventListener('input', function (e) {
-        if (e.target && e.target.id === 'articulosF10Input') filtrarLocal();
+        if (e.target && e.target.id === 'articulosF10Input') {
+            filtrarLocal();
+            if (debounceTimerF10) clearTimeout(debounceTimerF10);
+            debounceTimerF10 = setTimeout(function () {
+                cargarListado();
+            }, 250);
+        }
     });
 
     document.addEventListener('click', function (e) {
@@ -524,12 +540,15 @@
             }
             var chk = tr.querySelector('.articulo-f10-check');
             if (!chk || chk.disabled) return;
+            var nuevoEstado;
             if (e.target.classList.contains('articulo-f10-check')) {
-                tr.classList.toggle('seleccionada', e.target.checked);
+                nuevoEstado = e.target.checked;
             } else {
                 chk.checked = !chk.checked;
-                tr.classList.toggle('seleccionada', chk.checked);
+                nuevoEstado = chk.checked;
             }
+            tr.classList.toggle('seleccionada', nuevoEstado);
+            registrarSeleccion(tr, nuevoEstado);
             actualizarCount();
             return;
         }
@@ -541,6 +560,7 @@
                 if (!c || c.disabled) return;
                 c.checked = on;
                 row.classList.toggle('seleccionada', on);
+                registrarSeleccion(row, on);
             });
             actualizarCount();
         }
