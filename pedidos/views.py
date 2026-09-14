@@ -171,7 +171,8 @@ def orden_pedido_create(request):
                     print(f"Totales calculados - Total: {pedido.total_pedido}")
                 
                 messages.success(request, f'Orden de pedido {pedido.numero_pedido} creada exitosamente.')
-                return redirect('pedidos:orden_pedido_detail', pk=pedido.pk)
+                from django.urls import reverse
+                return redirect(f"{reverse('pedidos:orden_pedido_detail', kwargs={'pk': pedido.pk})}?nuevo=1")
             except Exception as e:
                 import traceback
                 print(f"Error al guardar: {str(e)}")
@@ -241,6 +242,366 @@ def orden_pedido_detail(request, pk):
     }
     
     return render(request, 'pedidos/orden_pedido_detail.html', context)
+
+
+from django.views.decorators.clickjacking import xframe_options_exempt
+
+
+@xframe_options_exempt
+@login_required
+@requiere_empresa
+def orden_pedido_pdf(request, pk):
+    """Genera comprobante PDF profesional de una orden de pedido con logo de la empresa."""
+    from io import BytesIO
+    import os
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as ReportLabImage
+    )
+
+    pedido = get_object_or_404(
+        OrdenPedido.objects.select_related('cliente', 'bodega', 'creado_por', 'empresa'),
+        pk=pk,
+        empresa=request.empresa
+    )
+
+    # Si no se solicita el binario directo (raw=1) o descarga (dl=1), mostrar visor interactivo con botones Volver / Cerrar / Imprimir
+    if request.GET.get('raw') != '1' and request.GET.get('dl') != '1':
+        resp = render(request, 'pedidos/orden_pedido_pdf_visor.html', {
+            'pedido': pedido,
+            'empresa': pedido.empresa,
+        })
+        resp.xframe_options_exempt = True
+        return resp
+
+    items = pedido.items.select_related('articulo').all()
+    empresa = pedido.empresa
+    cliente = pedido.cliente
+
+    # Paleta de colores corporativa profesional
+    color_primario = colors.HexColor('#2c3e50')   # Azul pizarra corporativo
+    color_acento = colors.HexColor('#8B7355')     # Marrón piedra distintivo
+    color_borde = colors.HexColor('#d4c4a8')      # Beige cálido para bordes
+    color_fondo = colors.HexColor('#fafaf8')      # Fondo suave crema
+    color_fondo_th = colors.HexColor('#f5f1e8')   # Encabezado tabla
+    color_texto = colors.HexColor('#2c3e50')
+    color_gris = colors.HexColor('#6b7280')
+
+    # Estilos de texto
+    st_emp_nombre = ParagraphStyle('EmpNombre', fontName='Helvetica-Bold', fontSize=12, leading=15, textColor=color_primario)
+    st_emp_sub = ParagraphStyle('EmpSub', fontName='Helvetica', fontSize=7.5, leading=10, textColor=color_gris)
+
+    st_box_rut = ParagraphStyle('BoxRut', fontName='Helvetica-Bold', fontSize=9.5, leading=12, textColor=color_acento, alignment=TA_CENTER)
+    st_box_titulo = ParagraphStyle('BoxTit', fontName='Helvetica-Bold', fontSize=12, leading=15, textColor=color_primario, alignment=TA_CENTER)
+    st_box_num = ParagraphStyle('BoxNum', fontName='Helvetica-Bold', fontSize=13, leading=16, textColor=color_acento, alignment=TA_CENTER)
+    st_box_meta = ParagraphStyle('BoxMeta', fontName='Helvetica', fontSize=8, leading=10.5, textColor=color_gris, alignment=TA_CENTER)
+
+    st_label = ParagraphStyle('Lbl', fontName='Helvetica-Bold', fontSize=7, leading=9, textColor=color_acento)
+    st_val = ParagraphStyle('Val', fontName='Helvetica', fontSize=8, leading=10.5, textColor=color_texto)
+    st_val_b = ParagraphStyle('ValB', fontName='Helvetica-Bold', fontSize=8, leading=10.5, textColor=color_texto)
+
+    st_th = ParagraphStyle('Th', fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, textColor=color_acento, alignment=TA_CENTER)
+    st_th_r = ParagraphStyle('ThR', fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, textColor=color_acento, alignment=TA_RIGHT)
+    st_td = ParagraphStyle('Td', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=color_texto)
+    st_td_c = ParagraphStyle('TdC', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=color_texto, alignment=TA_CENTER)
+    st_td_r = ParagraphStyle('TdR', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=color_texto, alignment=TA_RIGHT)
+
+    def _fmt(val):
+        if val is None:
+            return "$ 0"
+        try:
+            return f"$ {int(round(float(val))):,}".replace(",", ".")
+        except Exception:
+            return str(val)
+
+    # 1. Cabecera con Logo y Datos de la Empresa
+    logo_flowable = None
+    if empresa.logo and hasattr(empresa.logo, 'path') and os.path.exists(empresa.logo.path):
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(empresa.logo.path) as img:
+                orig_w, orig_h = img.size
+            max_w = 46 * mm
+            max_h = 24 * mm
+            ratio = min(max_w / orig_w, max_h / orig_h)
+            logo_flowable = ReportLabImage(empresa.logo.path, width=orig_w * ratio, height=orig_h * ratio)
+            logo_flowable.hAlign = 'LEFT'
+        except Exception as e:
+            print(f"[PDF] Error al cargar logo empresa: {e}")
+            logo_flowable = None
+
+    emisor_lineas = []
+    if logo_flowable:
+        emisor_lineas.append(logo_flowable)
+        emisor_lineas.append(Spacer(1, 2 * mm))
+    emisor_lineas.append(Paragraph(empresa.nombre.upper(), st_emp_nombre))
+    if empresa.rut:
+        emisor_lineas.append(Paragraph(f"<b>RUT:</b> {empresa.rut}", st_emp_sub))
+    if empresa.giro:
+        emisor_lineas.append(Paragraph(f"<b>Giro:</b> {empresa.giro}", st_emp_sub))
+    dir_completa = f"{empresa.direccion or ''}"
+    if empresa.comuna or empresa.ciudad:
+        dir_completa += f" - {empresa.comuna or ''}, {empresa.ciudad or ''}".strip(" -,")
+    if dir_completa.strip():
+        emisor_lineas.append(Paragraph(f"<b>Dirección:</b> {dir_completa.strip()}", st_emp_sub))
+    contactos = []
+    if empresa.telefono:
+        contactos.append(f"Tel: {empresa.telefono}")
+    if empresa.email:
+        contactos.append(f"Email: {empresa.email}")
+    if contactos:
+        emisor_lineas.append(Paragraph(" • ".join(contactos), st_emp_sub))
+
+    # Recuadro oficial del Pedido
+    estado_texto = pedido.get_estado_display().upper()
+    caja_pedido_contenido = [
+        [Paragraph(f"R.U.T.: {empresa.rut or 'SIN RUT'}", st_box_rut)],
+        [Paragraph("ORDEN DE PEDIDO", st_box_titulo)],
+        [Paragraph(f"N° {pedido.numero_pedido}", st_box_num)],
+        [Paragraph(f"<b>Emisión:</b> {pedido.fecha_pedido.strftime('%d-%m-%Y')}", st_box_meta)],
+        [Paragraph(f"<b>Estado:</b> {estado_texto}", st_box_meta)],
+    ]
+    caja_pedido = Table(caja_pedido_contenido, colWidths=[68 * mm])
+    caja_pedido.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 1.5, color_acento),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LINEBELOW', (0, 1), (-1, 1), 0.8, color_borde),
+    ]))
+
+    cabecera = Table([[emisor_lineas, caja_pedido]], colWidths=[112 * mm, 70 * mm])
+    cabecera.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    # 2. Bloque de Datos del Cliente y Condiciones Comerciales
+    dir_cli = cliente.direccion or '—'
+    comuna_cli = f"{cliente.comuna or ''} {cliente.ciudad or ''}".strip() or '—'
+    fono_email_cli = f"{cliente.telefono or ''} {('/ ' + cliente.email) if cliente.email else ''}".strip() or '—'
+
+    fecha_ent = pedido.fecha_entrega_estimada.strftime('%d-%m-%Y') if pedido.fecha_entrega_estimada else 'No definida'
+    oc_txt = pedido.numero_oc_cliente or '—'
+    if pedido.fecha_oc_cliente:
+        oc_txt += f" ({pedido.fecha_oc_cliente.strftime('%d-%m-%Y')})"
+
+    datos_cliente = [
+        [
+            Paragraph("SEÑOR(ES):", st_label), Paragraph(cliente.nombre.upper(), st_val_b),
+            Paragraph("R.U.T.:", st_label), Paragraph(cliente.rut or '—', st_val_b)
+        ],
+        [
+            Paragraph("DIRECCIÓN:", st_label), Paragraph(dir_cli, st_val),
+            Paragraph("COMUNA/CIUDAD:", st_label), Paragraph(comuna_cli, st_val)
+        ],
+        [
+            Paragraph("TELÉFONO / EMAIL:", st_label), Paragraph(fono_email_cli, st_val),
+            Paragraph("BODEGA DESPACHO:", st_label), Paragraph(pedido.bodega.nombre if pedido.bodega else '—', st_val)
+        ],
+        [
+            Paragraph("COND. PAGO:", st_label), Paragraph(pedido.condiciones_pago or 'Contado', st_val),
+            Paragraph("ENTREGA ESTIMADA:", st_label), Paragraph(fecha_ent, st_val)
+        ],
+        [
+            Paragraph("N° OC CLIENTE:", st_label), Paragraph(oc_txt, st_val),
+            Paragraph("RESPONSABLE:", st_label), Paragraph(pedido.creado_por.get_full_name() or pedido.creado_por.username, st_val)
+        ]
+    ]
+    tabla_cliente = Table(datos_cliente, colWidths=[27 * mm, 73 * mm, 27 * mm, 55 * mm])
+    tabla_cliente.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.7, color_borde),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, color_borde),
+        ('BACKGROUND', (0, 0), (0, -1), color_fondo_th),
+        ('BACKGROUND', (2, 0), (2, -1), color_fondo_th),
+        ('BACKGROUND', (1, 0), (1, -1), color_fondo),
+        ('BACKGROUND', (3, 0), (3, -1), color_fondo),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    # 3. Tabla Detalle de Ítems
+    filas_items = [[
+        Paragraph("#", st_th),
+        Paragraph("CÓDIGO", st_th),
+        Paragraph("DESCRIPCIÓN DEL PRODUCTO", st_th),
+        Paragraph("CANTIDAD", st_th),
+        Paragraph("P. UNITARIO", st_th_r),
+        Paragraph("DESC %", st_th_r),
+        Paragraph("TOTAL", st_th_r),
+    ]]
+
+    for idx, it in enumerate(items, start=1):
+        desc_linea = it.articulo.nombre
+        if it.observaciones:
+            desc_linea += f"<br/><font color='#6b7280' size='6.5'><i>{it.observaciones}</i></font>"
+
+        cant_fmt = f"{it.cantidad:.2f}".rstrip('0').rstrip('.') if it.cantidad % 1 != 0 else f"{int(it.cantidad)}"
+        subtotal_linea = it.get_subtotal() - it.get_descuento_monto()
+        desc_pct = f"{it.descuento_porcentaje:.0f}%" if it.descuento_porcentaje > 0 else "-"
+
+        filas_items.append([
+            Paragraph(str(idx), st_td_c),
+            Paragraph(it.articulo.codigo or '—', st_td_c),
+            Paragraph(desc_linea, st_td),
+            Paragraph(cant_fmt, st_td_c),
+            Paragraph(_fmt(it.precio_unitario), st_td_r),
+            Paragraph(desc_pct, st_td_r),
+            Paragraph(_fmt(subtotal_linea), st_td_r),
+        ])
+
+    while len(filas_items) < 6:
+        filas_items.append(['', '', '', '', '', '', ''])
+
+    tabla_items = Table(
+        filas_items,
+        colWidths=[8 * mm, 24 * mm, 74 * mm, 18 * mm, 23 * mm, 15 * mm, 24 * mm]
+    )
+    tabla_items.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.7, color_borde),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, color_borde),
+        ('BACKGROUND', (0, 0), (-1, 0), color_fondo_th),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    # 4. Observaciones y Totales
+    obs_content = []
+    obs_content.append(Paragraph("<b>OBSERVACIONES:</b>", st_label))
+    if pedido.observaciones:
+        obs_content.append(Paragraph(pedido.observaciones.replace('\n', '<br/>'), st_val))
+    else:
+        obs_content.append(Paragraph("Sin observaciones adicionales.", st_emp_sub))
+    obs_content.append(Spacer(1, 3 * mm))
+    obs_content.append(Paragraph(
+        "<i>Nota: Este comprobante es un documento interno de control y respaldo de pedido. "
+        "No constituye documento tributario electrónico (DTE).</i>",
+        st_emp_sub
+    ))
+
+    caja_obs = Table([[obs_content]], colWidths=[108 * mm])
+    caja_obs.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.7, color_borde),
+        ('BACKGROUND', (0, 0), (-1, -1), color_fondo),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+
+    st_tot_lbl = ParagraphStyle('TotLbl', fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=color_primario)
+    st_tot_val = ParagraphStyle('TotVal', fontName='Helvetica-Bold', fontSize=8, leading=10, alignment=TA_RIGHT, textColor=color_primario)
+    st_tot_big_lbl = ParagraphStyle('TotBigLbl', fontName='Helvetica-Bold', fontSize=10, leading=12, textColor=color_acento)
+    st_tot_big_val = ParagraphStyle('TotBigVal', fontName='Helvetica-Bold', fontSize=10.5, leading=12, alignment=TA_RIGHT, textColor=color_acento)
+
+    filas_tot = [
+        [Paragraph("SUBTOTAL NETO", st_tot_lbl), Paragraph(_fmt(pedido.subtotal), st_tot_val)],
+    ]
+    if pedido.descuentos_totales > 0:
+        filas_tot.append([
+            Paragraph("DESCUENTOS", st_tot_lbl),
+            Paragraph(f"- {_fmt(pedido.descuentos_totales)}", st_tot_val)
+        ])
+    filas_tot.append([
+        Paragraph("IVA (19%)", st_tot_lbl),
+        Paragraph(_fmt(pedido.impuestos_totales), st_tot_val)
+    ])
+    filas_tot.append([
+        Paragraph("TOTAL PEDIDO", st_tot_big_lbl),
+        Paragraph(_fmt(pedido.total_pedido), st_tot_big_val)
+    ])
+
+    tabla_tot = Table(filas_tot, colWidths=[40 * mm, 34 * mm])
+    tabla_tot.setStyle(TableStyle([
+        ('BOX', (0, 0), (-1, -1), 0.7, color_acento),
+        ('INNERGRID', (0, 0), (-1, -1), 0.3, color_borde),
+        ('BACKGROUND', (0, 0), (-1, -2), color_fondo),
+        ('BACKGROUND', (0, -1), (-1, -1), color_fondo_th),
+        ('TOPPADDING', (0, 0), (-1, -1), 3.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3.5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+
+    bloque_pie = Table([[caja_obs, tabla_tot]], colWidths=[110 * mm, 76 * mm])
+    bloque_pie.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+    ]))
+
+    # 5. Firmas de Control
+    st_sig = ParagraphStyle('Sig', fontName='Helvetica', fontSize=7, leading=9, alignment=TA_CENTER, textColor=color_gris)
+    filas_firmas = [
+        ['', '', ''],
+        [
+            Paragraph(f"<b>Emitido por:</b><br/>{pedido.creado_por.get_full_name() or pedido.creado_por.username}", st_sig),
+            Paragraph("<b>Aprobado por:</b><br/>Firma y Timbre", st_sig),
+            Paragraph("<b>Recepción Conforme:</b><br/>Firma, RUT y Fecha", st_sig),
+        ]
+    ]
+    tabla_firmas = Table(filas_firmas, colWidths=[58 * mm, 58 * mm, 58 * mm], rowHeights=[14 * mm, 10 * mm])
+    tabla_firmas.setStyle(TableStyle([
+        ('LINEABOVE', (0, 1), (0, 1), 0.7, color_gris),
+        ('LINEABOVE', (1, 1), (1, 1), 0.7, color_gris),
+        ('LINEABOVE', (2, 1), (2, 1), 0.7, color_gris),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 1), (-1, 1), 2),
+    ]))
+
+    historia = [
+        cabecera,
+        Spacer(1, 4 * mm),
+        tabla_cliente,
+        Spacer(1, 4 * mm),
+        tabla_items,
+        Spacer(1, 4 * mm),
+        bloque_pie,
+        Spacer(1, 7 * mm),
+        tabla_firmas,
+    ]
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=14 * mm,
+        leftMargin=14 * mm,
+        topMargin=12 * mm,
+        bottomMargin=12 * mm,
+        title=f"Orden de Pedido {pedido.numero_pedido}",
+        author=empresa.nombre
+    )
+    doc.build(historia)
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    disposition = 'attachment' if request.GET.get('dl') == '1' else 'inline'
+    response['Content-Disposition'] = f'{disposition}; filename="orden_pedido_{pedido.numero_pedido}.pdf"'
+    response.xframe_options_exempt = True
+    return response
 
 
 @login_required

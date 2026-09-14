@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprobante Pedido {{ pedido.numero_pedido }} - {{ empresa.nombre }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #2c3e50; font-family: system-ui, -apple-system, sans-serif; }
+        
+        .visor-toolbar {
+            height: 52px;
+            background: #5D4037;
+            border-bottom: 3px solid #C76F43;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            z-index: 100;
+            position: relative;
+        }
+        .visor-title {
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .visor-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .visor-btn {
+            padding: 7px 16px;
+            min-height: 36px;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-imprimir { background: #5F8D62; }
+        .btn-imprimir:hover { background: #4e7751; color: #fff; }
+        .btn-volver { background: #8B7355; }
+        .btn-volver:hover { background: #756147; color: #fff; }
+        .btn-cerrar { background: #C76F43; }
+        .btn-cerrar:hover { background: #a85a34; color: #fff; }
+        .btn-descargar { background: #34495e; border: 1px solid rgba(255,255,255,0.3); }
+        .btn-descargar:hover { background: #2c3e50; color: #fff; }
+
+        .pdf-frame-container {
+            width: 100%;
+            height: calc(100% - 52px);
+            background: #525659;
+        }
+        .pdf-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+
+        @media (max-width: 650px) {
+            .visor-title { display: none; }
+            .visor-toolbar { justify-content: center; padding: 0 8px; }
+            .visor-btn { padding: 6px 10px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="visor-toolbar">
+        <div class="visor-title">
+            <i class="fas fa-file-invoice"></i>
+            <span>Orden de Pedido {{ pedido.numero_pedido }}</span>
+            <span style="opacity: 0.75; font-weight: 400; font-size: 12px;">({{ pedido.cliente.nombre }})</span>
+        </div>
+        <div class="visor-buttons">
+            <button type="button" class="visor-btn btn-imprimir" onclick="imprimirPdf()" title="Imprimir documento">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <a href="{% url 'pedidos:orden_pedido_pdf' pedido.pk %}?raw=1&dl=1" class="visor-btn btn-descargar" title="Descargar archivo PDF">
+                <i class="fas fa-download"></i> Descargar
+            </a>
+            <button type="button" class="visor-btn btn-volver" onclick="volver()" title="Volver a la vista anterior">
+                <i class="fas fa-arrow-left"></i> Volver
+            </button>
+            <button type="button" class="visor-btn btn-cerrar" onclick="cerrar()" title="Cerrar esta ventana">
+                <i class="fas fa-times"></i> Cerrar
+            </button>
+        </div>
+    </div>
+    <div class="pdf-frame-container">
+        <iframe id="pdfFrame" name="pdfFrame" class="pdf-frame" src="{% url 'pedidos:orden_pedido_pdf' pedido.pk %}?raw=1" type="application/pdf">
+            <p style="color: white; padding: 20px; text-align: center;">
+                Su navegador no soporta la visualización integrada de PDF.<br>
+                <a href="{% url 'pedidos:orden_pedido_pdf' pedido.pk %}?raw=1" style="color: #E8DCC8; font-weight: bold;">
+                    Haga clic aquí para ver o descargar el documento PDF.
+                </a>
+            </p>
+        </iframe>
+    </div>
+
+    <script>
+    function imprimirPdf() {
+        var frame = document.getElementById('pdfFrame');
+        if (frame && frame.contentWindow) {
+            try {
+                frame.contentWindow.focus();
+                frame.contentWindow.print();
+                return;
+            } catch(e) {
+                console.log('No se pudo imprimir vía frame, abriendo directo:', e);
+            }
+        }
+        window.open('{% url "pedidos:orden_pedido_pdf" pedido.pk %}?raw=1', '_blank');
+    }
+    function volver() {
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            window.location.href = "{% url 'pedidos:orden_pedido_detail' pedido.pk %}";
+        }
+    }
+    function cerrar() {
+        window.close();
+        setTimeout(function() {
+            window.location.href = "{% url 'pedidos:orden_pedido_detail' pedido.pk %}";
+        }, 250);
+    }
+    </script>
+</body>
+</html>

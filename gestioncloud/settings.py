@@ -294,6 +294,9 @@ SESSION_SAVE_EVERY_REQUEST = False  # DESACTIVADO: Causaba loop en POS al sobres
 SESSION_COOKIE_HTTPONLY = True  # Seguridad: no accesible por JavaScript
 SESSION_COOKIE_SAMESITE = 'Lax'  # Protección CSRF
 
+# Permitir visualización en iframes del mismo origen (visores de PDF, modales)
+X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 # Configuración de archivos estáticos en producción
 if not DEBUG:
 	STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'

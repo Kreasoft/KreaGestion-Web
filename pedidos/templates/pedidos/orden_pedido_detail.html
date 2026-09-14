@@ -322,11 +322,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{% url 'pedidos:orden_pedido_list' %}" class="btn btn-sm btn-stone-secondary px-4" style="border-radius: 20px; font-weight: 600; height: 36px; display: flex; align-items: center; transition: all 0.3s ease;">
+                    <a href="{% url 'pedidos:orden_pedido_list' %}" class="btn btn-sm btn-stone-secondary px-3" style="border-radius: 20px; font-weight: 600; height: 36px; display: flex; align-items: center; transition: all 0.3s ease;">
                         <i class="fas fa-arrow-left me-2"></i> VOLVER
                     </a>
+                    <a href="{% url 'pedidos:orden_pedido_pdf' pedido.pk %}" target="_blank" class="btn btn-sm btn-stone-primary px-3" style="border-radius: 20px; font-weight: 700; height: 36px; display: flex; align-items: center; gap: 6px; transition: all 0.3s ease;">
+                        <i class="fas fa-file-pdf"></i> IMPRIMIR PDF
+                    </a>
                     {% if pedido.estado != 'completada' and pedido.estado != 'cancelada' %}
-                    <a href="{% url 'pedidos:orden_pedido_update' pedido.pk %}" class="btn btn-sm btn-stone-primary px-4" style="border-radius: 20px; font-weight: 700; height: 36px; display: flex; align-items: center; transition: all 0.3s ease;">
+                    <a href="{% url 'pedidos:orden_pedido_update' pedido.pk %}" class="btn btn-sm btn-stone-primary px-3" style="border-radius: 20px; font-weight: 700; height: 36px; display: flex; align-items: center; transition: all 0.3s ease;">
                         <i class="fas fa-pen me-2"></i> EDITAR
                     </a>
                     {% endif %}
@@ -470,4 +473,35 @@ document.addEventListener('DOMContentLoaded', function () {
         Actualizado: {{ pedido.fecha_actualizacion|date:"d-m-Y H:i" }}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('nuevo') === '1') {
+        if (window.history.replaceState) {
+            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '¡Orden de Pedido Creada!',
+                text: '¿Desea imprimir el comprobante de la Orden de Pedido N° {{ pedido.numero_pedido }}?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#8B7355',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="fas fa-file-pdf me-1"></i> Sí, Imprimir Comprobante',
+                cancelButtonText: 'No, ver detalle',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.open("{% url 'pedidos:orden_pedido_pdf' pedido.pk %}", '_blank');
+                }
+            });
+        }
+    }
+});
+</script>
 {% endblock %}
