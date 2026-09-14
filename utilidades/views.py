@@ -213,6 +213,20 @@ def get_campos_destino(tipo_importacion):
             {'campo': 'precio_final', 'nombre': 'Precio Final (con todos los impuestos)', 'requerido': False},
             {'campo': 'codigo_barras', 'nombre': 'Código de Barras', 'requerido': False},
         ],
+        'ventas': [
+            {'campo': 'numero_venta', 'nombre': 'N° Venta / Folio', 'requerido': True},
+            {'campo': 'fecha', 'nombre': 'Fecha de Emisión (YYYY-MM-DD)', 'requerido': False},
+            {'campo': 'tipo_documento', 'nombre': 'Tipo Documento (factura, boleta, guia, vale, ticket)', 'requerido': False},
+            {'campo': 'cliente_rut', 'nombre': 'RUT Cliente', 'requerido': False},
+            {'campo': 'cliente_nombre', 'nombre': 'Nombre Cliente', 'requerido': False},
+            {'campo': 'subtotal', 'nombre': 'Subtotal / Neto', 'requerido': False},
+            {'campo': 'descuento', 'nombre': 'Descuento', 'requerido': False},
+            {'campo': 'iva', 'nombre': 'IVA', 'requerido': False},
+            {'campo': 'total', 'nombre': 'Total Venta', 'requerido': True},
+            {'campo': 'forma_pago', 'nombre': 'Forma de Pago', 'requerido': False},
+            {'campo': 'estado', 'nombre': 'Estado (confirmada, anulada, borrador)', 'requerido': False},
+            {'campo': 'observaciones', 'nombre': 'Observaciones / Detalle', 'requerido': False},
+        ],
     }
     
     return campos.get(tipo_importacion, [])
@@ -260,6 +274,8 @@ def ejecutar_importacion(request):
                 resultado = importar_familias(datos, mapeo, request.empresa)
             elif tipo_importacion == 'articulos':
                 resultado = importar_articulos(datos, mapeo, request.empresa)
+            elif tipo_importacion == 'ventas':
+                resultado = importar_ventas(datos, mapeo, request.empresa)
             else:
                 return JsonResponse({'success': False, 'message': 'Tipo de importación no válido'})
             
@@ -598,3 +614,155 @@ def importar_articulos(datos, mapeo, empresa):
         'errores': errores,
         'total': len(datos)
     }
+
+
+def importar_ventas(datos, mapeo, empresa):
+    """Importar ventas desde base de datos externa"""
+    from ventas.models import Venta, FormaPago
+    from clientes.models import Cliente
+    from decimal import Decimal
+    from django.utils import timezone
+    from datetime import datetime, date
+    import re
+
+    importados = 0
+    actualizados = 0
+    errores = []
+    omitidos = 0
+
+    for fila in datos:
+        try:
+            datos_venta = {}
+            for campo_destino, campo_origen in mapeo.items():
+                if campo_origen and campo_origen in fila:
+                    valor = fila[campo_origen]
+                    datos_venta[campo_destino] = valor
+
+            numero_venta = str(datos_venta.get('numero_venta') or '').strip()
+            if not numero_venta:
+                omitidos += 1
+                continue
+
+            # Fecha de venta
+            fecha_val = datos_venta.get('fecha')
+            fecha = timezone.localdate()
+            if fecha_val:
+                if isinstance(fecha_val, (datetime, date)):
+                    fecha = fecha_val.date() if isinstance(fecha_val, datetime) else fecha_val
+                elif isinstance(fecha_val, str):
+                    fecha_str = fecha_val.strip().split(' ')[0]
+                    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d'):
+                        try:
+                            fecha = datetime.strptime(fecha_str, fmt).date()
+                            break
+                        except ValueError:
+                            pass
+
+            # Tipo de documento
+            tipo_doc_raw = str(datos_venta.get('tipo_documento') or 'boleta').strip().lower()
+            if 'fact' in tipo_doc_raw or tipo_doc_raw in ('33', '34'):
+                tipo_documento = 'factura'
+            elif 'guia' in tipo_doc_raw or 'guía' in tipo_doc_raw or tipo_doc_raw == '52':
+                tipo_documento = 'guia'
+            elif 'vale' in tipo_doc_raw:
+                tipo_documento = 'vale'
+            elif 'ticket' in tipo_doc_raw:
+                tipo_documento = 'ticket'
+            elif 'cotiz' in tipo_doc_raw:
+                tipo_documento = 'cotizacion'
+            else:
+                tipo_documento = 'boleta'
+
+            # Cliente
+            cliente = None
+            cliente_rut = str(datos_venta.get('cliente_rut') or '').strip()
+            if cliente_rut:
+                cliente = Cliente.objects.filter(empresa=empresa, rut__iexact=cliente_rut).first()
+                if not cliente:
+                    rut_limpio = re.sub(r'[^0-9kK]', '', cliente_rut)
+                    for c in Cliente.objects.filter(empresa=empresa):
+                        if re.sub(r'[^0-9kK]', '', c.rut or '') == rut_limpio:
+                            cliente = c
+                            break
+
+            if not cliente and datos_venta.get('cliente_nombre'):
+                cliente_nombre = str(datos_venta.get('cliente_nombre')).strip()
+                if cliente_nombre:
+                    cliente = Cliente.objects.filter(empresa=empresa, nombre__iexact=cliente_nombre).first()
+                    if not cliente and cliente_rut:
+                        cliente = Cliente.objects.create(empresa=empresa, rut=cliente_rut, nombre=cliente_nombre)
+
+            def _to_dec(val):
+                if val is None or val == '':
+                    return Decimal('0.00')
+                try:
+                    s = str(val).replace('$', '').replace(' ', '').replace(',', '.')
+                    return Decimal(s)
+                except Exception:
+                    return Decimal('0.00')
+
+            total = _to_dec(datos_venta.get('total'))
+            subtotal = _to_dec(datos_venta.get('subtotal'))
+            iva = _to_dec(datos_venta.get('iva'))
+            descuento = _to_dec(datos_venta.get('descuento'))
+
+            if total > 0 and subtotal == 0:
+                subtotal = round(total / Decimal('1.19'), 2)
+                iva = total - subtotal
+            elif subtotal > 0 and total == 0:
+                iva = round(subtotal * Decimal('0.19'), 2)
+                total = subtotal + iva
+
+            forma_pago = None
+            fp_nombre = str(datos_venta.get('forma_pago') or '').strip()
+            if fp_nombre:
+                forma_pago = FormaPago.objects.filter(empresa=empresa, nombre__icontains=fp_nombre).first()
+
+            estado_raw = str(datos_venta.get('estado') or 'confirmada').strip().lower()
+            if 'anul' in estado_raw:
+                estado = 'anulada'
+            elif 'borr' in estado_raw:
+                estado = 'borrador'
+            else:
+                estado = 'confirmada'
+
+            obs = str(datos_venta.get('observaciones') or '').strip()
+
+            venta, created = Venta.objects.update_or_create(
+                empresa=empresa,
+                tipo_documento=tipo_documento,
+                numero_venta=numero_venta,
+                defaults={
+                    'fecha': fecha,
+                    'cliente': cliente,
+                    'forma_pago': forma_pago,
+                    'tipo_documento_planeado': tipo_documento if tipo_documento != 'vale' else 'boleta',
+                    'subtotal': subtotal,
+                    'neto': subtotal,
+                    'iva': iva,
+                    'descuento': descuento,
+                    'total': total,
+                    'monto_pagado': total if estado == 'confirmada' else Decimal('0.00'),
+                    'saldo_pendiente': Decimal('0.00'),
+                    'estado': estado,
+                    'observaciones': obs,
+                }
+            )
+            if created:
+                importados += 1
+            else:
+                actualizados += 1
+
+        except Exception as e:
+            num_err = fila.get('NUMERO', fila.get('FOLIO', fila.get('numero', 'N/A')))
+            errores.append(f"Error en venta N° {num_err}: {str(e)}")
+
+    return {
+        'success': True,
+        'importados': importados,
+        'actualizados': actualizados,
+        'omitidos': omitidos,
+        'errores': errores,
+        'total': len(datos)
+    }
+
