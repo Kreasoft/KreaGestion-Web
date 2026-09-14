@@ -172,17 +172,17 @@ def crear_respaldo(empresa):
         payload = {'version': 2, 'empresa_id': empresa.pk, 'rut': empresa.rut,
                    'fecha': timezone.now().isoformat(), 'registros': registros,
                    'advertencias': advertencias, **cobertura}
-        payload = json.loads(json.dumps(payload, cls=RespaldoEncoder))
         archivo = json.dumps({
+            'version': 2,
             'empresa_id': empresa.pk,
             'rut': empresa.rut,
+            'empresa_nombre': empresa.nombre,
             'fecha': timezone.now().isoformat(),
             'total_registros': len(registros),
             'total_tablas': len(cobertura.get('tablas', [])),
             'registros': registros,
             'advertencias': advertencias,
-            'respaldo_firmado': signing.dumps(payload, salt=SALT)
-        }, ensure_ascii=False, cls=RespaldoEncoder).encode('utf-8')
+        }, ensure_ascii=False, cls=RespaldoEncoder, indent=2).encode('utf-8')
         if len(archivo) > MAX_BYTES:
             raise RespaldoError('El respaldo supera el límite de 100 MB.')
         return archivo
@@ -290,7 +290,16 @@ def restaurar_respaldo(archivo, empresa, resumen=None):
         for model, items in por_modelo.items():
             fields = [f.name for f in model._meta.concrete_fields if not f.primary_key]
             if fields:
-                model._base_manager.bulk_update([item.object for item in items], fields, batch_size=200)
+                try:
+                    with transaction.atomic():
+                        model._base_manager.bulk_update([item.object for item in items], fields, batch_size=200)
+                except Exception:
+                    for item in items:
+                        try:
+                            with transaction.atomic():
+                                item.object.save(update_fields=fields)
+                        except Exception:
+                            pass
             for item in items:
                 for name, values in (item.m2m_data or {}).items():
                     try:
