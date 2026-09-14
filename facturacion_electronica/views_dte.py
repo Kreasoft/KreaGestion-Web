@@ -197,6 +197,59 @@ def resolver_bodega_documento(venta=None, dte=None):
     return ''
 
 
+def resolver_referencias_documento(venta=None, dte=None):
+    """
+    Construye la lista unificada de referencias para documentos de venta y DTE.
+    Combina referencias directas de VentaReferencia y guías asociadas via dte.orden_despacho.
+    """
+    referencias_list = []
+    seen_refs = set()
+
+    # 1. De venta.referencias (VentaReferencia)
+    if venta and hasattr(venta, 'referencias'):
+        try:
+            for ref in venta.referencias.all():
+                key = (str(ref.tipo_referencia), str(ref.folio_referencia))
+                if key not in seen_refs:
+                    seen_refs.add(key)
+                    f_date = ref.fecha_referencia
+                    referencias_list.append({
+                        'tipo': ref.get_tipo_referencia_display(),
+                        'tipo_codigo': ref.tipo_referencia,
+                        'folio': ref.folio_referencia,
+                        'fecha': f_date,
+                        'fecha_display': f_date.strftime('%d-%m-%Y') if hasattr(f_date, 'strftime') else str(f_date),
+                        'razon': ref.razon_referencia,
+                    })
+        except Exception:
+            pass
+
+    # 2. De dte.orden_despacho (guías consolidadas asociadas al DTE)
+    if dte and hasattr(dte, 'orden_despacho'):
+        try:
+            import re
+            for guia in dte.orden_despacho.all():
+                num_raw = str(getattr(getattr(guia, 'dte', None), 'folio', None) or guia.numero_venta or '')
+                digits = re.sub(r'\D', '', num_raw).lstrip('0')
+                g_folio = digits if digits else num_raw
+                key = ('52', g_folio)
+                if key not in seen_refs:
+                    seen_refs.add(key)
+                    g_fecha = getattr(getattr(guia, 'dte', None), 'fecha_emision', None) or guia.fecha
+                    referencias_list.append({
+                        'tipo': 'Guía de Despacho',
+                        'tipo_codigo': '52',
+                        'folio': g_folio,
+                        'fecha': g_fecha,
+                        'fecha_display': g_fecha.strftime('%d-%m-%Y') if hasattr(g_fecha, 'strftime') else str(g_fecha),
+                        'razon': 'Guía de Despacho',
+                    })
+        except Exception:
+            pass
+
+    return referencias_list
+
+
 @login_required
 @requiere_empresa
 def generar_dte_venta(request, venta_id):
@@ -540,7 +593,12 @@ def _html_tributario_a_pdf(html, tipo_impresora):
     else:
         pagina = '@page { size: A4; margin: 10mm; }'
 
+    # Eliminar barra y estilos de visor interactivo (solo necesarios en navegador)
+    html = re.sub(r'<!--\s*VISOR_ACCIONES_START\s*-->.*?<!--\s*VISOR_ACCIONES_END\s*-->', '', html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<div\b[^>]*class="[^"]*visor-actions[^"]*"[^>]*>.*?</div>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'<style\b[^>]*>[^<]*\.visor-actions[^<]*</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    html = re.sub(r'@keyframes\s+[^{]+\{(?:[^{}]+|\{[^{}]*\})*\}', '', html, flags=re.DOTALL | re.IGNORECASE)
     html = re.sub(r'@page\s*\{[^}]*\}', '', html)
     extra_css = (
         f'<style>{pagina}'
@@ -571,11 +629,11 @@ def _html_tributario_a_pdf(html, tipo_impresora):
     return pdf
 
 
-def _respuesta_copia_oficial(request, dte):
-    """Renderiza la misma copia tributaria usada al imprimir."""
+def _respuesta_copia_oficial(request, dte, forzar_a4=False):
+    """Renderiza la copia tributaria usada al imprimir o descargar en PDF."""
     if dte.tipo_dte == '52':
         transferencia = dte.transferencias.first()
-        if transferencia:
+        if transferencia and not forzar_a4:
             from inventario.views_transferencias import transferencia_imprimir_guia
             return transferencia_imprimir_guia(request, transferencia.pk)
     if dte.tipo_dte == '61':
@@ -586,7 +644,7 @@ def _respuesta_copia_oficial(request, dte):
         nota = dte.notas_debito.first()
         if nota:
             return ver_notadebito_electronica(request, nota.pk)
-    return ver_factura_electronica(request, dte.pk)
+    return ver_factura_electronica(request, dte.pk, forzar_a4=forzar_a4)
 
 
 def _dte_detail_es_partial(request):
@@ -725,16 +783,17 @@ def dte_detail(request, pk):
 
 
 def _generar_pdf_tributario_bytes(request, dte):
-    """Genera el PDF de la copia tributaria. Lanza ValueError si no se puede."""
+    """Genera el PDF de la copia tributaria siempre en formato A4 para descarga."""
     if not dte.puede_compartir_pdf_correo_whatsapp:
         raise ValueError(dte.get_mensaje_no_compartible())
 
     original_get = request.GET
     query = original_get.copy()
     query['pdf'] = '1'
+    query['formato'] = 'a4'
     request.GET = query
     try:
-        respuesta = _respuesta_copia_oficial(request, dte)
+        respuesta = _respuesta_copia_oficial(request, dte, forzar_a4=True)
     finally:
         request.GET = original_get
 
@@ -742,8 +801,7 @@ def _generar_pdf_tributario_bytes(request, dte):
         raise ValueError('No se pudo generar la copia tributaria del documento.')
 
     html = respuesta.content.decode(getattr(respuesta, 'charset', None) or 'utf-8', errors='replace')
-    tipo_impresora = _tipo_impresora_dte(getattr(request, 'empresa', None) or dte.empresa, dte)
-    return _html_tributario_a_pdf(html, tipo_impresora)
+    return _html_tributario_a_pdf(html, 'laser')
 
 
 @login_required
@@ -1020,6 +1078,19 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
     
     if isinstance(documento_origen, Venta):
         detalles = list(documento_origen.ventadetalle_set.all().select_related('articulo', 'articulo__unidad_medida'))
+        if venta:
+            despachos_set = set()
+            for d in detalles:
+                com = (getattr(d, 'comentario', '') or '').strip()
+                if 'despacho' in com.lower() or 'desp-' in com.lower():
+                    despachos_set.add(com)
+            if despachos_set:
+                texto_desp = ', '.join(sorted(despachos_set))
+                obs_actual = getattr(venta, 'observaciones', '') or ''
+                if not obs_actual:
+                    venta.observaciones = texto_desp
+                elif not any(d in obs_actual for d in despachos_set):
+                    venta.observaciones = f"{obs_actual} · {texto_desp}"
     elif OrdenDespacho and isinstance(documento_origen, OrdenDespacho):
         detalles_qs = documento_origen.items.filter(cantidad__gt=0)
         if str(dte.tipo_dte) == '52':
@@ -1079,7 +1150,7 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
     elif dte.tipo_dte in ['39', '41']:  # Boletas
         tipo_impresora = getattr(empresa, 'impresora_boleta', 'laser')
         nombre_impresora = getattr(empresa, 'impresora_boleta_nombre', None)
-        template = 'ventas/boleta_electronica_termica.html' if tipo_impresora in ['termica_80', 'termica_58', 'termica'] else 'ventas/factura_electronica_html.html'
+        template = 'ventas/boleta_electronica_termica.html' if tipo_impresora in ['termica_80', 'termica_58', 'termica'] else 'ventas/boleta_electronica_html.html'
     
     elif dte.tipo_dte == '52':  # Guía de Despacho
         tipo_impresora = getattr(empresa, 'impresora_guia', 'laser')
@@ -1093,6 +1164,8 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
         nombre_impresora = None
         if dte.tipo_dte == '52':
             template = 'inventario/guia_despacho_electronica_html.html'
+        elif dte.tipo_dte in ['39', '41']:
+            template = 'ventas/boleta_electronica_html.html'
         else:
             template = 'ventas/factura_electronica_html.html'
     
@@ -1155,9 +1228,11 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
     context = {
         'dte': dte,
         'venta': venta,
+        'guia': venta,
         'cliente_display': cliente_display,
         'receptor_display': receptor_display,
         'bodega_display': bodega_display,
+        'referencias_list': resolver_referencias_documento(venta=venta, dte=dte),
         'detalles': detalles,
         'empresa': empresa,
         'nombre_impresora': nombre_impresora,
@@ -1336,7 +1411,7 @@ def regenerar_xml_dte(request, dte_id):
                     self.empresa = transferencia.empresa
                     self.cliente = None
                     self.tipo_documento = '52'
-                    self.fecha_emision = timezone.now().date()
+                    self.fecha_emision = timezone.localdate()
                     self.tipo_traslado = tipo_traslado
                     self.tipo_despacho = tipo_traslado
                     self.rut_receptor = transferencia.empresa.rut
@@ -1375,7 +1450,7 @@ def regenerar_xml_dte(request, dte_id):
                 'rut_emisor': request.empresa.rut,
                 'tipo_dte': '52',
                 'folio': dte.folio,
-                'fecha_emision': (dte.fecha_emision or timezone.now().date()).strftime('%Y-%m-%d'),
+                'fecha_emision': (dte.fecha_emision or timezone.localdate()).strftime('%Y-%m-%d'),
                 'rut_receptor': request.empresa.rut,
                 'razon_social_receptor': request.empresa.nombre,
                 'monto_total': int(total),

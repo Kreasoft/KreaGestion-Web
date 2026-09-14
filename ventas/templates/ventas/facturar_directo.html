@@ -797,16 +797,15 @@
                                 <div class="guide-grid">
                                     <div class="field">
                                         <label>Tipo de traslado</label>
-                                        <select id="tipo_despacho" class="form-select form-select-sm">
-                                            <option value="">Seleccionar</option>
+                                        <select id="tipo_despacho" class="form-select form-select-sm" data-no-select2="1">
                                             {% for value, label in tipo_despacho_choices %}
-                                            <option value="{{ value }}">{{ label }}</option>
+                                            <option value="{{ value }}" {% if value == '1' or value == 1 %}selected{% endif %}>{{ label }}</option>
                                             {% endfor %}
                                         </select>
                                     </div>
                                     <div class="field">
                                         <label>Tipo de despacho</label>
-                                        <select id="tipo_despacho_sii" class="form-select form-select-sm">
+                                        <select id="tipo_despacho_sii" class="form-select form-select-sm" data-no-select2="1">
                                             {% for value, label in tipo_despacho_sii_choices %}
                                             <option value="{{ value }}" {% if value == '2' %}selected{% endif %}>{{ label }}</option>
                                             {% endfor %}
@@ -814,8 +813,8 @@
                                     </div>
                                     <div class="field">
                                         <label>Vehículo</label>
-                                        <select id="vehiculo_id" class="form-select form-select-sm">
-                                            <option value="">Seleccionar</option>
+                                        <select id="vehiculo_id" class="form-select form-select-sm" data-no-select2="1">
+                                            <option value="">Seleccionar vehículo</option>
                                             {% for vehiculo in vehiculos %}
                                             <option value="{{ vehiculo.id|unlocalize }}" data-patente="{{ vehiculo.patente }}" data-chofer="{{ vehiculo.chofer_id|default:''|unlocalize }}">{{ vehiculo.patente }}{% if vehiculo.descripcion %} - {{ vehiculo.descripcion }}{% endif %}</option>
                                             {% endfor %}
@@ -823,8 +822,8 @@
                                     </div>
                                     <div class="field">
                                         <label>Chofer</label>
-                                        <select id="chofer_id" class="form-select form-select-sm">
-                                            <option value="">Seleccionar</option>
+                                        <select id="chofer_id" class="form-select form-select-sm" data-no-select2="1">
+                                            <option value="">Seleccionar chofer</option>
                                             {% for chofer in choferes %}
                                             <option value="{{ chofer.id|unlocalize }}" data-rut="{{ chofer.rut }}">{{ chofer.nombre }} ({{ chofer.rut }})</option>
                                             {% endfor %}
@@ -1105,10 +1104,6 @@ function initSelect2() {
         templateResult: clientResult,
         templateSelection: clientSelection
     });
-    jQuery('#vehiculo_id, #chofer_id, #tipo_despacho, #tipo_despacho_sii').select2({
-        width: '100%',
-        dropdownCssClass: 'guide-select2-dropdown',
-    });
     jQuery('#forma_pago_id').on('change', updateTotals);
     jQuery('#cliente_id').on('change', onClientChange);
     jQuery('#vehiculo_id').on('change', syncChoferFromVehiculo);
@@ -1208,7 +1203,24 @@ function setDocType(nextType) {
     document.querySelectorAll('.doc-toggle button').forEach(btn => btn.classList.toggle('active', btn.dataset.doc === nextType));
     document.getElementById('doc_label').textContent = docLabels[nextType] || 'Documento';
     document.getElementById('max_items').textContent = maxItemsConfig[nextType] || 20;
-    document.getElementById('guide-panel').style.display = nextType === '52' ? 'grid' : 'none';
+    const guidePanel = document.getElementById('guide-panel');
+    if (guidePanel) {
+        guidePanel.style.display = nextType === '52' ? 'grid' : 'none';
+        if (nextType === '52') {
+            const vSel = document.getElementById('vehiculo_id');
+            const cSel = document.getElementById('chofer_id');
+            if (vSel && !vSel.value && vSel.options.length > 1) {
+                // Si solo hay 1 vehiculo registrado, seleccionarlo por defecto
+                if (vSel.options.length === 2) {
+                    vSel.selectedIndex = 1;
+                    syncChoferFromVehiculo();
+                }
+            }
+            if (cSel && !cSel.value && cSel.options.length === 2) {
+                cSel.selectedIndex = 1;
+            }
+        }
+    }
     document.querySelectorAll('#items-body tr').forEach(row => {
         recalcRow(row);
     });
@@ -1248,9 +1260,9 @@ function syncChoferFromVehiculo() {
     if (!vehiculo || !chofer) return;
     const opt = vehiculo.selectedOptions[0];
     const choferId = opt && opt.dataset.chofer ? opt.dataset.chofer : '';
-    if (!choferId) return;
-    chofer.value = choferId;
-    if (window.jQuery && jQuery.fn.select2) jQuery(chofer).val(choferId).trigger('change.select2');
+    if (choferId) {
+        chofer.value = choferId;
+    }
 }
 
 function addDaysYMD(ymd, days) {

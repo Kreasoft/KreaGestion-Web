@@ -358,6 +358,7 @@
             <!-- FILTROS -->
             <div class="stone-filter-box">
                 <form method="get">
+                    <input type="hidden" name="orden" value="{{ orden }}">
                     <div class="row g-2 align-items-end">
                         <div class="col-md-3">
                             <label class="form-label-stone"><i class="fas fa-search me-1"></i>Buscar Cliente</label>
@@ -400,7 +401,19 @@
                     <thead>
                         <tr>
                             <th class="col-tight col-idx text-center">#</th>
-                            <th class="col-tight col-folio">N° Fac.</th>
+                            <th class="col-tight col-folio">
+                                <a href="?{% for key, value in request.GET.items %}{% if key != 'orden' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}orden={% if orden == 'asc' %}desc{% else %}asc{% endif %}"
+                                   class="text-decoration-none d-inline-flex align-items-center gap-1"
+                                   style="color: inherit;"
+                                   title="Ordenar por N° Factura ({% if orden == 'asc' %}Ascendente, clic para Descendente{% else %}Descendente, clic para Ascendente{% endif %})">
+                                    N° Fac.
+                                    {% if orden == 'asc' %}
+                                        <i class="fas fa-sort-up" style="color: var(--stone-primary);"></i>
+                                    {% else %}
+                                        <i class="fas fa-sort-down" style="color: var(--stone-primary);"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
                             <th class="col-cliente">Cliente</th>
                             <th class="col-tight">Emisión</th>
                             <th class="col-tight">Vence</th>

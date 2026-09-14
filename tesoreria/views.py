@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from calendar import monthrange
 from urllib.parse import urlencode
 import json
+import re
 from decimal import Decimal
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -70,7 +71,7 @@ def parse_monto_chileno(value):
     return Decimal(text)
 
 
-def _href_filtro_cc(search='', estado_pago='', vencimiento_desde='', vencimiento_hasta=''):
+def _href_filtro_cc(search='', estado_pago='', vencimiento_desde='', vencimiento_hasta='', orden='desc'):
     params = {}
     if search:
         params['search'] = search
@@ -80,6 +81,8 @@ def _href_filtro_cc(search='', estado_pago='', vencimiento_desde='', vencimiento
         params['vencimiento_desde'] = vencimiento_desde
     if vencimiento_hasta:
         params['vencimiento_hasta'] = vencimiento_hasta
+    if orden and orden != 'desc':
+        params['orden'] = orden
     qs = urlencode(params)
     return f'?{qs}' if qs else '?'
 
@@ -94,6 +97,9 @@ def _filtros_cuenta_corriente(request):
     hasta = parse_fecha(request.GET.get('vencimiento_hasta'))
     if desde and hasta and hasta < desde:
         desde, hasta = hasta, desde
+    orden = (request.GET.get('orden') or 'desc').strip().lower()
+    if orden not in ('asc', 'desc'):
+        orden = 'desc'
     hoy = timezone.localdate()
     hoy_s = hoy.strftime('%Y-%m-%d')
     ayer_s = (hoy - timedelta(days=1)).strftime('%Y-%m-%d')
@@ -106,7 +112,7 @@ def _filtros_cuenta_corriente(request):
         return {
             'id': ident,
             'label': label,
-            'href': _href_filtro_cc(search, estado_pago, p_desde, p_hasta),
+            'href': _href_filtro_cc(search, estado_pago, p_desde, p_hasta, orden),
             'activo': desde_s == p_desde and hasta_s == p_hasta,
         }
 
@@ -117,6 +123,7 @@ def _filtros_cuenta_corriente(request):
         'vencimiento_hasta': hasta,
         'vencimiento_desde_str': desde_s,
         'vencimiento_hasta_str': hasta_s,
+        'orden': orden,
         'today': hoy,
         'presets_vencimiento': [
             _preset('hoy', 'Hoy', hoy_s, hoy_s),
@@ -136,6 +143,7 @@ def _ctx_filtros_cc(filtros):
         'estado_pago': filtros['estado_pago'],
         'vencimiento_desde_str': filtros['vencimiento_desde_str'],
         'vencimiento_hasta_str': filtros['vencimiento_hasta_str'],
+        'orden': filtros.get('orden', 'desc'),
         'today': filtros['today'],
         'presets_vencimiento': filtros['presets_vencimiento'],
         'querystring': filtros['querystring'],
@@ -166,7 +174,7 @@ def _en_rango_vencimiento(fecha_vencimiento, vencimiento_desde=None, vencimiento
 
 
 def _documentos_proveedor_filtrados(empresa, search='', estado_pago='', vencimiento_desde=None, vencimiento_hasta=None):
-    hoy = timezone.now().date()
+    hoy = timezone.localdate()
     documentos = DocumentoCompra.objects.filter(
         empresa=empresa,
         en_cuenta_corriente=True,
@@ -292,7 +300,7 @@ def _anotar_saldos_movimiento_cliente(mov):
         dias = getattr(venta.cliente, 'plazo_pago', 0) if getattr(venta, 'cliente_id', None) else 0
         fecha_venc = calcular_fecha_vencimiento(venta.fecha, dias)
     mov.fecha_vencimiento = fecha_venc
-    hoy = timezone.now().date()
+    hoy = timezone.localdate()
     if mov.estado_pago != 'pagado' and mov.fecha_vencimiento and mov.fecha_vencimiento < hoy:
         mov.estado_pago = 'vencido'
         mov.dias_vencido = (hoy - mov.fecha_vencimiento).days
@@ -308,7 +316,29 @@ def _anotar_saldos_movimiento_cliente(mov):
     return mov
 
 
-def _movimientos_cliente_filtrados(empresa, search='', estado_pago='', vencimiento_desde=None, vencimiento_hasta=None):
+def _folio_factura_movimiento(mov):
+    """Extrae el número de factura/venta como entero para ordenamiento correlativo."""
+    venta = getattr(mov, 'venta', None)
+    folio = 0
+    if venta:
+        num_str = str(getattr(venta, 'numero_venta', '') or '').strip()
+        digits = re.sub(r'\D', '', num_str)
+        if digits:
+            try:
+                folio = int(digits)
+            except (ValueError, TypeError):
+                pass
+        if folio == 0:
+            dte = getattr(venta, 'dte', None)
+            if dte and getattr(dte, 'folio', None):
+                try:
+                    folio = int(dte.folio)
+                except (ValueError, TypeError):
+                    pass
+    return folio
+
+
+def _movimientos_cliente_filtrados(empresa, search='', estado_pago='', vencimiento_desde=None, vencimiento_hasta=None, orden='desc'):
     from .models import MovimientoCuentaCorrienteCliente
 
     movimientos_base = MovimientoCuentaCorrienteCliente.objects.filter(
@@ -348,7 +378,11 @@ def _movimientos_cliente_filtrados(empresa, search='', estado_pago='', vencimien
             if _en_rango_vencimiento(mov.fecha_vencimiento, vencimiento_desde, vencimiento_hasta)
         ]
 
-    movimientos.sort(key=lambda m: (m.fecha_vencimiento is None, m.fecha_vencimiento or timezone.now().date()))
+    # Ordenar siempre por N° de factura (descendente por defecto, o ascendente si se solicita)
+    if orden == 'asc':
+        movimientos.sort(key=lambda m: (0 if _folio_factura_movimiento(m) > 0 else 1, _folio_factura_movimiento(m), m.id or 0))
+    else:
+        movimientos.sort(key=lambda m: (1 if _folio_factura_movimiento(m) > 0 else 0, _folio_factura_movimiento(m), m.id or 0), reverse=True)
     return movimientos
 
 
@@ -715,7 +749,7 @@ def cuenta_corriente_proveedor_detail(request, proveedor_id):
         'documentos': documentos,
         'stats': stats,
         'empresa': empresa,
-        'today': timezone.now().date(),
+        'today': timezone.localdate(),
     }
     
     return render(request, 'tesoreria/cuenta_corriente_proveedor_detail.html', context)
@@ -742,7 +776,7 @@ def cuenta_corriente_proveedor_detail_print(request, proveedor_id):
         'proveedor': proveedor,
         'documentos': documentos,
         'stats': _stats_documentos_proveedor(documentos),
-        'today': timezone.now().date(),
+        'today': timezone.localdate(),
         'generated_at': timezone.now(),
         'titulo_reporte': f'Cuenta Corriente Proveedor',
         'subtitulo_reporte': proveedor.nombre,
@@ -779,6 +813,7 @@ def cuenta_corriente_cliente_list(request):
         estado_pago=filtros['estado_pago'],
         vencimiento_desde=filtros['vencimiento_desde'],
         vencimiento_hasta=filtros['vencimiento_hasta'],
+        orden=filtros['orden'],
     )
 
     paginator = Paginator(movimientos_list, 20)
@@ -809,6 +844,7 @@ def cuenta_corriente_cliente_print(request):
         estado_pago=filtros['estado_pago'],
         vencimiento_desde=filtros['vencimiento_desde'],
         vencimiento_hasta=filtros['vencimiento_hasta'],
+        orden=filtros['orden'],
     )
 
     context = {
@@ -836,6 +872,7 @@ def exportar_cuenta_corriente_cliente_excel(request):
         estado_pago=filtros['estado_pago'],
         vencimiento_desde=filtros['vencimiento_desde'],
         vencimiento_hasta=filtros['vencimiento_hasta'],
+        orden=filtros['orden'],
     )
     
     # Crear workbook

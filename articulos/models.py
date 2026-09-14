@@ -783,7 +783,7 @@ class KitOferta(models.Model):
     @property
     def esta_vigente(self):
         """Verifica si el kit está dentro del período de vigencia"""
-        hoy = timezone.now().date()
+        hoy = timezone.localdate()
         if self.fecha_inicio and hoy < self.fecha_inicio:
             return False
         if self.fecha_fin and hoy > self.fecha_fin:

@@ -724,7 +724,7 @@ def pos_main(request):
         empresa=request.empresa,
         numero_venta='TEMP',
         defaults={
-            'fecha': timezone.now().date(),
+            'fecha': timezone.localdate(),
             'usuario_creacion': request.user,
             'estado': 'borrador'
         }
@@ -4337,7 +4337,7 @@ def venta_html(request, pk):
                 template_name = 'ventas/boleta_electronica_termica.html'
                 print(f"[PRINT] Boleta Electronica -> Formato TERMICO 80mm")
             else:
-                template_name = 'ventas/factura_electronica_html.html'  # Usa el mismo que factura en A4
+                template_name = 'ventas/boleta_electronica_html.html'
                 print(f"[PRINT] Boleta Electronica -> Formato LASER A4")
         else:
             # Boleta sin DTE (boleta manual)
@@ -4407,7 +4407,7 @@ def venta_html(request, pk):
             elif venta.tipo_documento == 'guia' or (dte and str(getattr(dte, 'tipo_dte', '')) == '52'):
                 template_name = 'inventario/guia_despacho_electronica_html.html'
             elif venta.tipo_documento in ['boleta', 'boleta_electronica'] or (dte and str(getattr(dte, 'tipo_dte', '')) in ['39', '41']):
-                template_name = 'ventas/factura_electronica_html.html'
+                template_name = 'ventas/boleta_electronica_html.html'
             elif venta.tipo_documento in ('ticket', 'vale'):
                 template_name = 'ventas/vale_html.html'
             else:
@@ -4465,9 +4465,10 @@ def venta_html(request, pk):
         'es_ticket': venta.tipo_documento == 'ticket',
     }
 
-    from facturacion_electronica.views_dte import _build_receptor_display, resolver_bodega_documento
+    from facturacion_electronica.views_dte import _build_receptor_display, resolver_bodega_documento, resolver_referencias_documento
     context['receptor_display'] = _build_receptor_display(dte, fallback_cliente=getattr(venta, 'cliente', None))
     context['bodega_display'] = resolver_bodega_documento(venta=venta, dte=dte)
+    context['referencias_list'] = resolver_referencias_documento(venta=venta, dte=dte)
     est_doc = getattr(venta, 'estacion_trabajo', None)
     if est_doc:
         context['estacion_display'] = str(est_doc.nombre or '').strip()
@@ -4670,14 +4671,14 @@ def ticket_list(request):
     
     # Por defecto, mostrar tickets de los últimos 180 días (6 meses) para incluir más tickets
     if not fecha_desde:
-        fecha_desde = timezone.now().date() - timedelta(days=180)
+        fecha_desde = timezone.localdate() - timedelta(days=180)
         print(f"[TICKET_LIST] fecha_desde NO proporcionada, usando por defecto: {fecha_desde}")
     else:
         fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
         print(f"[TICKET_LIST] fecha_desde proporcionada: {fecha_desde}")
     
     if not fecha_hasta:
-        fecha_hasta = timezone.now().date()
+        fecha_hasta = timezone.localdate()
         print(f"[TICKET_LIST] fecha_hasta NO proporcionada, usando por defecto: {fecha_hasta}")
     else:
         fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
@@ -4812,12 +4813,12 @@ def vale_list(request):
     fecha_hasta = request.GET.get('fecha_hasta')
     
     if not fecha_desde:
-        fecha_desde = timezone.now().date() - timedelta(days=30)
+        fecha_desde = timezone.localdate() - timedelta(days=30)
     else:
         fecha_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
     
     if not fecha_hasta:
-        fecha_hasta = timezone.now().date()
+        fecha_hasta = timezone.localdate()
     else:
         fecha_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
     
@@ -5020,8 +5021,9 @@ def pos_tickets_hoy(request):
 
 def _rango_fechas_libro(request):
     """
-    Sin fechas en la URL: si hay caja abierta, del día de esa caja a hoy (el turno).
-    Si no hay caja, el mes en curso. La fecha que manda es la del documento / caja.
+    Rango de fechas para libros (Ventas, Guías, etc.):
+    Por defecto, siempre del primer día al último día del mes actual.
+    Si se indican fechas explícitas por GET, se respeta ese rango.
     """
     import calendar
     hoy = timezone.localdate()
@@ -5030,19 +5032,7 @@ def _rango_fechas_libro(request):
     raw_desde = (request.GET.get('fecha_desde') or '').strip()
     raw_hasta = (request.GET.get('fecha_hasta') or '').strip()
     if not raw_desde and not raw_hasta:
-        d1, d2 = primer, ultimo
-        empresa = getattr(request, 'empresa', None)
-        if empresa is not None:
-            try:
-                from empresas.middleware import resolver_sucursal_operativa
-                sucursal = resolver_sucursal_operativa(request)
-                ap = _apertura_caja_estacion(empresa, None, sucursal)
-                if ap:
-                    d1 = fecha_documento_caja(ap)
-                    d2 = hoy if hoy >= d1 else d1
-            except Exception:
-                d1, d2 = primer, ultimo
-        return d1.strftime('%Y-%m-%d'), d2.strftime('%Y-%m-%d'), d1, d2
+        return primer.strftime('%Y-%m-%d'), ultimo.strftime('%Y-%m-%d'), primer, ultimo
     fecha_desde = raw_desde or primer.strftime('%Y-%m-%d')
     fecha_hasta = raw_hasta or ultimo.strftime('%Y-%m-%d')
     try:
@@ -5059,32 +5049,21 @@ def _rango_fechas_libro(request):
 
 def _q_periodo_libro(fecha_desde_obj, fecha_hasta_obj):
     """
-    El documento entra al período si su fecha de emisión/caja está en el rango.
-    También entra si se registró en ese rango (Chile), para no perder boletas
-    emitidas después de medianoche con la misma caja.
+    Filtro estricto por fecha de emisión/documento para el libro.
+    Garantiza que sólo ingresen documentos cuya fecha tributaria esté dentro del período.
     """
-    tz = timezone.get_current_timezone()
-    inicio_reg = timezone.make_aware(datetime.combine(fecha_desde_obj, time.min), tz)
-    fin_reg = timezone.make_aware(datetime.combine(fecha_hasta_obj + timedelta(days=1), time.min), tz)
-    q_ventas = (
-        Q(fecha__gte=fecha_desde_obj, fecha__lte=fecha_hasta_obj)
-        | Q(fecha_creacion__gte=inicio_reg, fecha_creacion__lt=fin_reg)
-    )
+    q_ventas = Q(fecha__gte=fecha_desde_obj, fecha__lte=fecha_hasta_obj)
     q_dtes = (
         Q(fecha_emision__gte=fecha_desde_obj, fecha_emision__lte=fecha_hasta_obj)
-        | Q(fecha__gte=fecha_desde_obj, fecha__lte=fecha_hasta_obj)
-        | Q(venta__fecha__gte=fecha_desde_obj, venta__fecha__lte=fecha_hasta_obj)
-        | Q(fecha_creacion__gte=inicio_reg, fecha_creacion__lt=fin_reg)
+        | (Q(fecha_emision__isnull=True) & Q(fecha__gte=fecha_desde_obj, fecha__lte=fecha_hasta_obj))
     )
     return q_ventas, q_dtes
 
 
 def _fecha_documento_libro(doc, es_dte=False):
-    """Fecha que se muestra y ordena: día de caja / emisión, no el alta en el sistema."""
+    """Fecha que se muestra y ordena: día de emisión / documento."""
     if es_dte:
-        venta = getattr(doc, 'venta', None)
-        venta_fecha = getattr(venta, 'fecha', None) if venta is not None else None
-        return venta_fecha or getattr(doc, 'fecha_emision', None) or getattr(doc, 'fecha', None)
+        return getattr(doc, 'fecha_emision', None) or getattr(doc, 'fecha', None) or (getattr(doc, 'venta', None) and getattr(doc.venta, 'fecha', None))
     return getattr(doc, 'fecha', None)
 
 
@@ -5990,7 +5969,7 @@ def mobile_sales_gestion(request):
     fecha_desde_str = request.GET.get('desde')
     fecha_hasta_str = request.GET.get('hasta')
     
-    hoy = timezone.now().date()
+    hoy = timezone.localdate()
     
     try:
         if fecha_desde_str:
@@ -6588,7 +6567,7 @@ def mobile_api_save_sale(request):
             estado_cot = 'pendiente'
 
         # Intentar usar la fecha del móvil si es válida, sino usar hoy
-        fecha_final = timezone.now().date()
+        fecha_final = timezone.localdate()
         if fecha_movil:
             try:
                 # El móvil envía ISO string completo o solo fecha
@@ -6679,7 +6658,7 @@ def mobile_api_sales_history(request):
         from datetime import date, timedelta
         
         # Por defecto hoy
-        hoy = timezone.now().date()
+        hoy = timezone.localdate()
         date_inicio = parse_date(fecha_inicio) if fecha_inicio else hoy
         date_fin = parse_date(fecha_fin) if fecha_fin else hoy
         
@@ -7106,12 +7085,7 @@ def libro_guias(request):
     from facturacion_electronica.models import DocumentoTributarioElectronico
     from empresas.middleware import resolver_sucursal_operativa
 
-    hoy = timezone.localdate()
-    primer_dia_mes = hoy.replace(day=1)
-    ultimo_dia_mes = hoy.replace(day=calendar.monthrange(hoy.year, hoy.month)[1])
-
-    fecha_desde = request.GET.get('fecha_desde') or primer_dia_mes.strftime('%Y-%m-%d')
-    fecha_hasta = request.GET.get('fecha_hasta') or ultimo_dia_mes.strftime('%Y-%m-%d')
+    fecha_desde, fecha_hasta, f_desde, f_hasta = _rango_fechas_libro(request)
     cliente_id = request.GET.get('cliente', '').strip()
     vendedor_id = request.GET.get('vendedor', '')
     search = request.GET.get('search', '')
@@ -7147,17 +7121,11 @@ def libro_guias(request):
             Q(venta__sucursal__isnull=True, caf_utilizado__sucursal__isnull=True)
         )
 
-    try:
-        f_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-        f_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-        ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
-        dtes = dtes.filter(
-            Q(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta) |
-            Q(fecha__gte=f_desde, fecha__lte=f_hasta)
-        )
-    except ValueError:
-        f_desde = primer_dia_mes
-        f_hasta = ultimo_dia_mes
+    ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
+    dtes = dtes.filter(
+        Q(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta) |
+        (Q(fecha_emision__isnull=True) & Q(fecha__gte=f_desde, fecha__lte=f_hasta))
+    )
 
     if cliente_id:
         ventas = ventas.filter(
@@ -7286,11 +7254,7 @@ def libro_guias_excel(request):
     )
     from empresas.middleware import resolver_sucursal_operativa
 
-    hoy = timezone.localdate()
-    primer_dia_mes = hoy.replace(day=1)
-    ultimo_dia_mes = hoy.replace(day=calendar.monthrange(hoy.year, hoy.month)[1])
-    fecha_desde = request.GET.get('fecha_desde') or primer_dia_mes.strftime('%Y-%m-%d')
-    fecha_hasta = request.GET.get('fecha_hasta') or ultimo_dia_mes.strftime('%Y-%m-%d')
+    fecha_desde, fecha_hasta, f_desde, f_hasta = _rango_fechas_libro(request)
     sucursal_activa = resolver_sucursal_operativa(request)
 
     ventas = Venta.objects.filter(
@@ -7315,17 +7279,11 @@ def libro_guias_excel(request):
             Q(venta__sucursal__isnull=True, caf_utilizado__sucursal__isnull=True)
         )
 
-    try:
-        f_desde = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-        f_hasta = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-        ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
-        dtes = dtes.filter(
-            Q(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta) |
-            Q(fecha__gte=f_desde, fecha__lte=f_hasta)
-        )
-    except ValueError:
-        f_desde = primer_dia_mes
-        f_hasta = ultimo_dia_mes
+    ventas = ventas.filter(fecha__gte=f_desde, fecha__lte=f_hasta)
+    dtes = dtes.filter(
+        Q(fecha_emision__gte=f_desde, fecha_emision__lte=f_hasta) |
+        (Q(fecha_emision__isnull=True) & Q(fecha__gte=f_desde, fecha__lte=f_hasta))
+    )
 
     documentos = []
     for v in ventas:
@@ -7634,6 +7592,22 @@ def facturar_directo(request):
             vehiculo = Vehiculo.objects.filter(pk=vehiculo_id, empresa=empresa, activo=True).first()
         if chofer_id:
             chofer = Chofer.objects.filter(pk=chofer_id, empresa=empresa, activo=True).first()
+
+        # Fallback inteligente para guías
+        if es_guia:
+            if not chofer and vehiculo and vehiculo.chofer:
+                chofer = vehiculo.chofer
+            if not vehiculo and chofer:
+                vehiculo = Vehiculo.objects.filter(empresa=empresa, chofer=chofer, activo=True).first()
+            if not vehiculo:
+                un_vehiculo = Vehiculo.objects.filter(empresa=empresa, activo=True)
+                if un_vehiculo.count() == 1:
+                    vehiculo = un_vehiculo.first()
+            if not chofer:
+                un_chofer = Chofer.objects.filter(empresa=empresa, activo=True)
+                if un_chofer.count() == 1:
+                    chofer = un_chofer.first()
+
         patente_transporte = (vehiculo.patente if vehiculo else '') or (data.get('patente_transporte') or '').strip()
         rut_transportista = (data.get('rut_transportista') or '').strip() or (empresa.rut or '')
         nombre_chofer = (chofer.nombre if chofer else '') or (data.get('nombre_chofer') or '').strip()
@@ -7723,12 +7697,12 @@ def facturar_directo(request):
             iva = (neto * Decimal('0.19')).quantize(Decimal('1'))
             total = neto + exento + iva
 
-        fecha_documento = timezone.now().date()
+        fecha_documento = timezone.localdate()
         if data.get('fecha'):
             try:
                 fecha_documento = datetime.strptime(data.get('fecha'), '%Y-%m-%d').date()
             except Exception:
-                fecha_documento = timezone.now().date()
+                fecha_documento = timezone.localdate()
         if tipo_documento_venta in ['factura', 'guia']:
             fecha_vencimiento = resolver_fecha_vencimiento(
                 fecha_documento,
@@ -7858,7 +7832,7 @@ def facturar_directo(request):
     from pedidos.models_transporte import Vehiculo, Chofer
     bodegas = Bodega.objects.filter(empresa=empresa, activa=True).order_by('nombre')
     vehiculos = Vehiculo.objects.filter(empresa=empresa, activo=True).select_related('chofer').order_by('patente')
-    choferes = Chofer.objects.filter(empresa=empresa, activo=True, tipo='chofer').order_by('nombre')
+    choferes = Chofer.objects.filter(empresa=empresa, activo=True).order_by('nombre')
 
     articulo_ids = [articulo.id for articulo in articulos]
     stock_total_por_articulo = {
@@ -7907,7 +7881,7 @@ def facturar_directo(request):
         'vendedores': vendedores,
         'sucursales': sucursales,
         'bodegas': bodegas,
-        'today': timezone.now().date(),
+        'today': timezone.localdate(),
         'estacion_activa': estacion_activa,
         'max_items_config': {
             'factura': estacion_activa.max_items_factura if estacion_activa else 20,
@@ -7985,12 +7959,17 @@ def facturar_guias_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+    formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+
     context = {
         'page_obj': page_obj,
         'search': search,
         'solo_pendientes': solo_pendientes,
         'total_clientes_pendientes': total_clientes_pendientes,
         'estacion_activa': estacion_activa,
+        'vendedores': vendedores,
+        'formas_pago': formas_pago,
         'max_items_config': {
             'factura': estacion_activa.max_items_factura if estacion_activa else 20,
             'boleta': estacion_activa.max_items_boleta if estacion_activa else 35,
@@ -8011,6 +7990,7 @@ def api_guias_pendientes_cliente(request, cliente_id):
     from facturacion_electronica.models import DocumentoTributarioElectronico
     
     empresa = request.empresa
+    cliente = Cliente.objects.filter(id=cliente_id, empresa=empresa).first()
     
     # Usar EXACTAMENTE la misma lógica que el queryset de pendientes global
     invoiced_ventas_ids = DocumentoTributarioElectronico.objects.filter(
@@ -8027,6 +8007,13 @@ def api_guias_pendientes_cliente(request, cliente_id):
         Q(tipo_documento='guia') | Q(dte__tipo_dte='52')
     ).exclude(id__in=invoiced_ventas_ids).distinct().order_by('fecha', 'numero_venta')
     
+    vendedor_sugerido_id = guias.filter(vendedor__isnull=False).values_list('vendedor_id', flat=True).last()
+    forma_pago_sugerida_id = None
+    if cliente and cliente.forma_pago_defecto_id:
+        forma_pago_sugerida_id = cliente.forma_pago_defecto_id
+    elif guias.filter(forma_pago__isnull=False).exists():
+        forma_pago_sugerida_id = guias.filter(forma_pago__isnull=False).values_list('forma_pago_id', flat=True).last()
+
     data = []
     for g in guias:
         try:
@@ -8065,7 +8052,15 @@ def api_guias_pendientes_cliente(request, cliente_id):
                 'articulo_ids': articulo_ids,
             })
     
-    return JsonResponse({'success': True, 'guias': data, 'count': len(data)})
+    return JsonResponse({
+        'success': True,
+        'guias': data,
+        'count': len(data),
+        'vendedor_sugerido_id': vendedor_sugerido_id,
+        'forma_pago_sugerida_id': forma_pago_sugerida_id,
+        'cliente_nombre': cliente.nombre if cliente else '',
+        'cliente_rut': cliente.rut if cliente else '',
+    })
 
 @login_required
 @requiere_empresa
@@ -8133,23 +8128,55 @@ def api_procesar_factura_consolidada(request):
                 'tipo_documento': tipo_documento_venta,
             })
 
-        # Bloqueo atómico para correlativo
-        estacion_bloqueada = EstacionTrabajo.objects.select_for_update().get(pk=estacion.pk)
-        numero_ticket = estacion_bloqueada.incrementar_correlativo_ticket()
-        numero_venta = f"{numero_ticket:06d}"
+        # Generar identificador temporal único para la venta consolidada
+        temp_numero = 'FC' + timezone.now().strftime('%y%m%d%H%M%S%f')[:18]
+
+        # Resolver Vendedor y Forma de Pago
+        vendedor_id = data.get('vendedor_id')
+        forma_pago_id = data.get('forma_pago_id')
+
+        vendedor = None
+        if vendedor_id:
+            vendedor = Vendedor.objects.filter(id=vendedor_id, empresa=request.empresa, activo=True).first()
+        if not vendedor:
+            v_id = guias.filter(vendedor__isnull=False).values_list('vendedor_id', flat=True).last()
+            if v_id:
+                vendedor = Vendedor.objects.filter(id=v_id).first()
+        if not vendedor:
+            vendedor = Vendedor.objects.filter(empresa=request.empresa, activo=True).first()
+
+        forma_pago = None
+        if forma_pago_id:
+            forma_pago = FormaPago.objects.filter(id=forma_pago_id, empresa=request.empresa, activo=True).first()
+        if not forma_pago and getattr(cliente, 'forma_pago_defecto', None):
+            forma_pago = cliente.forma_pago_defecto
+        if not forma_pago:
+            fp_id = guias.filter(forma_pago__isnull=False).values_list('forma_pago_id', flat=True).last()
+            if fp_id:
+                forma_pago = FormaPago.objects.filter(id=fp_id).first()
+        if not forma_pago:
+            forma_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).first()
+
+        folios_guias = []
+        for g in guias:
+            f = getattr(getattr(g, 'dte', None), 'folio', None) or g.numero_venta
+            folios_guias.append(str(f))
+        observaciones_consolidada = f"Factura consolidada de Guías: {', '.join(folios_guias)}"
 
         # Crear nueva Venta para la Factura (Consolidada)
         nueva_venta = Venta.objects.create(
             empresa=request.empresa,
             sucursal=guias[0].sucursal if guias.exists() else None,
-            numero_venta=numero_venta,
+            numero_venta=temp_numero,
             fecha=timezone.localdate(),
             cliente=cliente,
-            tipo_documento='factura' if tipo_factura == '33' else 'boleta',
-            tipo_documento_planeado='factura' if tipo_factura == '33' else 'boleta',
+            tipo_documento=tipo_documento_venta,
+            tipo_documento_planeado=tipo_documento_venta,
             estado='confirmada',
+            observaciones=observaciones_consolidada,
             usuario_creacion=request.user,
-            vendedor=guias[0].vendedor if guias.exists() else None,
+            vendedor=vendedor,
+            forma_pago=forma_pago,
             estacion_trabajo=estacion
         )
 
@@ -8164,11 +8191,43 @@ def api_procesar_factura_consolidada(request):
 
         nueva_venta.calcular_totales()
 
+        # Configurar cobro y estado financiero según la forma de pago
+        es_credito = bool(forma_pago and getattr(forma_pago, 'es_credito', False))
+        if es_credito:
+            nueva_venta.monto_pagado = Decimal('0.00')
+            nueva_venta.saldo_pendiente = nueva_venta.total
+        else:
+            nueva_venta.monto_pagado = nueva_venta.total
+            nueva_venta.saldo_pendiente = Decimal('0.00')
+        nueva_venta.save(update_fields=['monto_pagado', 'saldo_pendiente'])
+
+        # Crear referencias tributarias a las guías consolidadas
+        from .models import VentaReferencia
+        import re
+        for guia in guias:
+            num_raw = str(getattr(getattr(guia, 'dte', None), 'folio', None) or guia.numero_venta or '')
+            digits = re.sub(r'\D', '', num_raw).lstrip('0')
+            g_folio = digits if digits else num_raw
+            g_fecha = getattr(getattr(guia, 'dte', None), 'fecha_emision', None) or guia.fecha
+            VentaReferencia.objects.create(
+                venta=nueva_venta,
+                tipo_referencia='52',
+                folio_referencia=str(g_folio),
+                fecha_referencia=g_fecha,
+                razon_referencia=f"Guía de Despacho N° {g_folio}"
+            )
+
         # Generar DTE
         dte_service = DTEService(request.empresa)
         dte = dte_service.generar_dte_desde_venta(nueva_venta, tipo_factura)
 
         if dte:
+            # Actualizar numero_venta con el folio oficial si no colisiona
+            numero_final = f"{dte.folio:06d}"
+            if not Venta.objects.filter(empresa=request.empresa, tipo_documento=nueva_venta.tipo_documento, numero_venta=numero_final).exclude(pk=nueva_venta.pk).exists():
+                nueva_venta.numero_venta = numero_final
+                nueva_venta.save(update_fields=['numero_venta'])
+
             # Vincular guías originales en el many-to-many
             for guia in guias:
                 dte.orden_despacho.add(guia)

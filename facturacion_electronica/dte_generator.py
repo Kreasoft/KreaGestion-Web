@@ -3,6 +3,7 @@ Generador de XML para Documentos Tributarios Electrónicos (DTE)
 Según formato oficial del SII de Chile
 """
 from lxml import etree
+import re
 from datetime import datetime
 from decimal import Decimal
 from django.utils import timezone
@@ -186,7 +187,11 @@ class DTEXMLGenerator:
         self._generar_totales(encabezado, sum_neto=sum_neto)
         
         # Referencia (si aplica)
-        if hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
+        from ventas.models import Venta
+        venta_obj = getattr(self.documento, 'venta', None) if not isinstance(self.documento, Venta) else self.documento
+        tiene_refs = (hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia) or \
+                     (venta_obj and hasattr(venta_obj, 'referencias') and venta_obj.referencias.exists())
+        if tiene_refs:
             self._generar_referencia(documento)
         
         # TED (Timbre Electrónico) - se agregará después de firmar
@@ -297,9 +302,7 @@ class DTEXMLGenerator:
                 etree.SubElement(id_doc, "FchEmis").text = fecha_emision.strftime('%Y-%m-%d')
         else:
             from django.utils import timezone
-            import pytz
-            chile_tz = pytz.timezone('America/Santiago')
-            fecha_chile = timezone.now().astimezone(chile_tz).date()
+            fecha_chile = timezone.localdate()
             etree.SubElement(id_doc, "FchEmis").text = fecha_chile.strftime('%Y-%m-%d')
         
         # Indicador de servicio (OBLIGATORIO para boletas)
@@ -330,7 +333,9 @@ class DTEXMLGenerator:
             elif hasattr(self.documento, 'venta') and self.documento.venta:
                 v = self.documento.venta
                 if hasattr(v, 'forma_pago') and v.forma_pago:
-                    forma_pago = "2" if getattr(v.forma_pago, 'es_credito', False) else "1"
+                    fp = v.forma_pago
+                    es_cred = getattr(fp, 'es_cuenta_corriente', False) or getattr(fp, 'es_credito', False) or ('credito' in (fp.nombre or '').lower()) or ('crédito' in (fp.nombre or '').lower())
+                    forma_pago = "2" if es_cred else "1"
 
             etree.SubElement(id_doc, "FmaPago").text = forma_pago
 
@@ -1073,7 +1078,36 @@ class DTEXMLGenerator:
             etree.SubElement(referencia, "CodRef").text = cod_ref_map.get(self.documento.tipo_nd, '3')
             etree.SubElement(referencia, "RazonRef").text = (self.documento.motivo or 'Ajuste de documento')[:90]
 
-        # Caso para Venta con referencia opcional (ej. Guía de Despacho)
+        # Caso para Venta con modelo VentaReferencia (múltiples referencias o guías consolidadas)
+        venta_obj = getattr(self.documento, 'venta', None) if not isinstance(self.documento, Venta) else self.documento
+        if venta_obj and hasattr(venta_obj, 'referencias') and venta_obj.referencias.exists():
+            nro_lin = 1
+            for ref in venta_obj.referencias.all()[:40]:
+                tpo_ref = str(ref.tipo_referencia).strip()
+                raw_folio = str(ref.folio_referencia).strip()
+
+                # SII exige que para documentos tributarios (tipos numéricos < 800 como 52, 33, 50, etc.)
+                # el FolioRef sea estrictamente numérico positivo (> 0). Letras como 'T' causan rechazo RCH -3-821.
+                es_doc_tributario = tpo_ref.isdigit() and int(tpo_ref) < 800
+                if es_doc_tributario:
+                    folio_numerico = re.sub(r'\D', '', raw_folio).lstrip('0')
+                    if not folio_numerico:
+                        continue
+                    folio_final = folio_numerico[:18]
+                else:
+                    folio_final = raw_folio[:18]
+
+                referencia = etree.SubElement(documento, "Referencia")
+                etree.SubElement(referencia, "NroLinRef").text = str(nro_lin)
+                etree.SubElement(referencia, "TpoDocRef").text = tpo_ref
+                etree.SubElement(referencia, "FolioRef").text = folio_final
+                fch = ref.fecha_referencia
+                etree.SubElement(referencia, "FchRef").text = fch.strftime('%Y-%m-%d') if hasattr(fch, 'strftime') else str(fch)[:10]
+                if ref.razon_referencia:
+                    etree.SubElement(referencia, "RazonRef").text = str(ref.razon_referencia)[:90]
+                nro_lin += 1
+
+        # Caso para Venta con referencia opcional (ej. Guía de Despacho legacy)
         elif isinstance(self.documento, Venta) and hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
             ref = self.documento.documento_referencia
             referencia = etree.SubElement(documento, "Referencia")
@@ -1110,7 +1144,11 @@ class DTEXMLGenerator:
         self._generar_detalles(documento_xml)
         
         # Generar Referencias si aplica
-        if hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia:
+        from ventas.models import Venta
+        venta_obj = getattr(self.documento, 'venta', None) if not isinstance(self.documento, Venta) else self.documento
+        tiene_refs = (hasattr(self.documento, 'documento_referencia') and self.documento.documento_referencia) or \
+                     (venta_obj and hasattr(venta_obj, 'referencias') and venta_obj.referencias.exists())
+        if tiene_refs:
             self._generar_referencia(documento_xml)
 
         # TED y Firma: 

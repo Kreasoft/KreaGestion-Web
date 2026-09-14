@@ -14,9 +14,15 @@ def img_to_escpos_hex(image_path, max_width=384, max_height=None, keep_modules=F
         from PIL import Image, ImageChops
         img = Image.open(image_path)
 
-        if img.mode != 'RGB':
+        if img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info):
+            bg = Image.new('RGB', img.size, (255, 255, 255))
+            mask = img.split()[-1] if img.mode in ('RGBA', 'LA') else img.convert('RGBA').split()[-1]
+            bg.paste(img, mask=mask)
+            img = bg
+        elif img.mode != 'RGB':
             img = img.convert('RGB')
-        bg = Image.new(img.mode, img.size, (255, 255, 255))
+
+        bg = Image.new('RGB', img.size, (255, 255, 255))
         diff = ImageChops.difference(img, bg)
         bbox = diff.getbbox()
         if bbox:
@@ -351,42 +357,44 @@ def generar_esc_pos_ticket(venta, detalles=None):
     lineas.append(CHARSET_SPAIN)
     lineas.append(COMPACT_SPACING)
 
-    def _reset_tras_grafico():
-        # GS v 0 deja la ticketera en modo gráfico si el raster no cierra bien.
-        lineas.append(INIT)
-        lineas.append(CODEPAGE_PC850)
-        lineas.append(CHARSET_SPAIN)
-        lineas.append(COMPACT_SPACING)
-
     # Logo solo en DTE: en vale/ticket el raster se come el texto y no sale papel.
     usar_logo = bool(dte) and bool(getattr(venta.empresa, "logo", None))
     if usar_logo:
         try:
-            logo_hex = img_to_escpos_hex(venta.empresa.logo.path, max_width=logo_w, max_height=120)
+            logo_hex = img_to_escpos_hex(venta.empresa.logo.path, max_width=logo_w, max_height=100)
             if logo_hex:
-                lineas.append(ALIGN_CENTER)
-                lineas.append(logo_hex)
-                _reset_tras_grafico()
+                lineas.append(ALIGN_CENTER + logo_hex)
             else:
                 usar_logo = False
         except Exception:
             usar_logo = False
 
-    # ENCABEZADO (Centrado)
-    lineas.append(ALIGN_CENTER)
-    lineas.append(BOLD_ON)
+    # ENCABEZADO (Centrado - pegar inmediatamente tras el logo con mínimo espacio)
     if not usar_logo:
-        lineas.append(SIZE_DOUBLE_HW)
-        lineas.append(f"{empresa.upper()[:15]}")
-        lineas.append(SIZE_NORMAL)
+        lineas.append(ALIGN_CENTER + BOLD_ON + SIZE_DOUBLE_HW + _escpos_texto(empresa.upper()[:15]) + SIZE_NORMAL + BOLD_OFF)
     else:
-        lineas.append(f"{empresa.upper()[:width]}")
-    lineas.append(BOLD_OFF)
-    
+        # Pegar el nombre de la empresa directamente tras el logo sin INIT ni saltos de línea intermedios
+        lineas.append(ALIGN_CENTER + COMPACT_SPACING + BOLD_ON + _escpos_texto(empresa.upper()[:width]) + BOLD_OFF)
+
     if rut_empresa:
         lineas.append(f"RUT: {rut_empresa}")
-    if venta.sucursal and venta.sucursal.direccion:
-        lineas.append(venta.sucursal.direccion[:width])
+    dir_empresa = (venta.sucursal.direccion if venta.sucursal and venta.sucursal.direccion else getattr(venta.empresa, 'direccion', '')) or ''
+    if dir_empresa:
+        lineas.append(dir_empresa[:width])
+    comuna_emp = getattr(venta.sucursal, 'comuna', '') if venta.sucursal else getattr(venta.empresa, 'comuna', '')
+    ciudad_emp = getattr(venta.sucursal, 'ciudad', '') if venta.sucursal else getattr(venta.empresa, 'ciudad', '')
+    ubica = f"{comuna_emp}, {ciudad_emp}".strip(', ') if (comuna_emp or ciudad_emp) else ''
+    if ubica:
+        lineas.append(ubica[:width])
+    fono_emp = getattr(venta.empresa, 'telefono', '') or ''
+    if fono_emp:
+        lineas.append(f"Fono: {fono_emp}"[:width])
+    email_emp = getattr(venta.empresa, 'email', '') or ''
+    if email_emp:
+        lineas.append(f"Email: {email_emp}"[:width])
+    web_emp = getattr(venta.empresa, 'sitio_web', '') or ''
+    if web_emp:
+        lineas.append(f"Web: {web_emp}"[:width])
     
     # TIPO DE DOCUMENTO
     lineas.append(BOLD_ON)
@@ -548,6 +556,38 @@ def generar_esc_pos_ticket(venta, detalles=None):
     lineas.append(f"IVA:  ${iva_str}")
     lineas.append(SIZE_DOUBLE_HW + f"TOTAL: ${total_str}")
     lineas.append(SIZE_NORMAL + BOLD_OFF)
+
+    # OBSERVACIONES (si tiene)
+    obs = (getattr(venta, 'observaciones', None) or '').strip()
+    if obs:
+        lineas.append("-" * width)
+        lineas.append(ALIGN_LEFT + BOLD_ON + "OBSERVACION:" + BOLD_OFF)
+        for tramo in textwrap.wrap(obs, width=width) or [obs[:width]]:
+            lineas.append(tramo)
+
+    # REFERENCIAS (guías consolidadas, órdenes de compra, etc.)
+    refs = []
+    try:
+        from facturacion_electronica.views_dte import resolver_referencias_documento
+        refs = resolver_referencias_documento(venta=venta, dte=dte)
+    except Exception:
+        pass
+
+    if refs:
+        lineas.append("-" * width)
+        lineas.append(ALIGN_CENTER + BOLD_ON + "REFERENCIAS" + BOLD_OFF)
+        lineas.append(ALIGN_LEFT)
+        for r in refs:
+            tipo_ref = r.get('tipo') or 'Doc Ref'
+            folio_ref = r.get('folio') or ''
+            fch_ref = r.get('fecha_display') or (r.get('fecha').strftime('%d-%m-%Y') if hasattr(r.get('fecha'), 'strftime') else str(r.get('fecha') or ''))
+            razon_ref = r.get('razon') or ''
+
+            lineas.append(f"Tipo: {tipo_ref}"[:width])
+            lineas.append(f"Folio: {folio_ref} | Fecha: {fch_ref}"[:width])
+            if razon_ref:
+                lineas.append(f"Razon: {razon_ref}"[:width])
+        lineas.append("-" * width)
     
     lineas.append(ALIGN_CENTER)
     

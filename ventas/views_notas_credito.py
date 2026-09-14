@@ -191,7 +191,7 @@ def notacredito_create(request):
         'clientes': clientes,
         'bodegas': bodegas,
         'articulos_empresa': articulos_empresa,
-        'today': timezone.now().date(),
+        'today': timezone.localdate(),
     }
     return render(request, 'ventas/notacredito_form.html', context)
 

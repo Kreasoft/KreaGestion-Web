@@ -3480,30 +3480,46 @@
     <script>
         // Submenu functionality
         document.addEventListener('DOMContentLoaded', function () {
-            const submenuToggles = document.querySelectorAll('.submenu-toggle');
+            const submenuToggles = document.querySelectorAll('.sidebar .submenu-toggle');
 
             submenuToggles.forEach(toggle => {
+                // Remover data-bs-toggle para evitar colisión con el controlador interno de Bootstrap 5
+                toggle.removeAttribute('data-bs-toggle');
+
                 toggle.addEventListener('click', function (e) {
                     e.preventDefault();
+                    e.stopPropagation();
 
-                    const target = document.querySelector(this.getAttribute('data-bs-target'));
-                    const isExpanded = this.getAttribute('aria-expanded') === 'true';
+                    if (document.body.classList.contains('menu-superior')) {
+                        return;
+                    }
 
-                    // Close all other submenus (solo cerrar otros submenús, no el actual)
-                    submenuToggles.forEach(otherToggle => {
-                        if (otherToggle !== this) {
-                            otherToggle.setAttribute('aria-expanded', 'false');
-                            const otherTarget = document.querySelector(otherToggle.getAttribute('data-bs-target'));
-                            otherTarget.classList.remove('show');
-                        }
-                    });
+                    const targetSelector = this.getAttribute('data-bs-target');
+                    const target = targetSelector ? document.querySelector(targetSelector) : null;
+                    if (!target) return;
 
-                    // Toggle current submenu
-                    this.setAttribute('aria-expanded', !isExpanded);
-                    if (isExpanded) {
+                    const isCurrentlyOpen = target.classList.contains('show') || this.getAttribute('aria-expanded') === 'true';
+
+                    if (isCurrentlyOpen) {
+                        // Si está abierta, cerrarla
                         target.classList.remove('show');
+                        this.setAttribute('aria-expanded', 'false');
                     } else {
+                        // Cerrar todos los demás submenús
+                        submenuToggles.forEach(otherToggle => {
+                            if (otherToggle !== this) {
+                                otherToggle.setAttribute('aria-expanded', 'false');
+                                const otherSelector = otherToggle.getAttribute('data-bs-target');
+                                const otherTarget = otherSelector ? document.querySelector(otherSelector) : null;
+                                if (otherTarget) {
+                                    otherTarget.classList.remove('show');
+                                }
+                            }
+                        });
+
+                        // Abrir el submenú actual
                         target.classList.add('show');
+                        this.setAttribute('aria-expanded', 'true');
                     }
                 });
             });

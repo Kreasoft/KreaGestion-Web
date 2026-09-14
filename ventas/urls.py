@@ -9,6 +9,7 @@ from . import views_notas_credito
 from . import views_notas_debito
 from . import api_views
 from . import views_pos_procesar
+from . import views_impresion_local
 
 app_name = 'ventas'
 
@@ -67,12 +68,14 @@ urlpatterns = [
     path('vales/', views.vale_list, name='vale_list'),
     path('vales/<int:pk>/html/', views.vale_html, name='vale_html'),
     path('vales/<int:pk>/termica/', views.vale_termica, name='vale_termica'),
+    path('vales/<int:pk>/imprimir-agente/', views_impresion_local.vale_imprimir_local, name='vale_imprimir_agente'),
     path('tickets/', views.ticket_list, name='ticket_list'),
     path('tickets/<int:pk>/', views.ticket_detail, name='ticket_detail'),
     path('tickets/<int:pk>/reimprimir/', views.ticket_reimprimir, name='ticket_reimprimir'),
     
     # Vista genérica de venta (auto-detecta tipo de documento)
     path('ventas/<int:pk>/html/', views.venta_html, name='venta_html'),
+    path('ventas/<int:pk>/imprimir-agente/', views_impresion_local.vale_imprimir_local, name='venta_imprimir_agente'),
     # Vista wrapper: imprimir y volver al POS
     path('ventas/<int:pk>/imprimir-y-volver/', views.venta_imprimir_y_volver, name='venta_imprimir_y_volver'),
     

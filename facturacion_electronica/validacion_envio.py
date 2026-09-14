@@ -197,7 +197,7 @@ def validar_dte_antes_envio(dte):
         if getattr(dte.caf_utilizado, 'estado', '') == 'anulado':
             return False, "El CAF asignado está anulado"
 
-        hoy = timezone.now().date()
+        hoy = timezone.localdate()
         
         # Verificar fecha de vencimiento
         try:
@@ -351,7 +351,7 @@ def diagnosticar_dte(dte):
             if callable(fecha_venc):
                 fecha_venc = fecha_venc()
             if fecha_venc:
-                caf_vigente = fecha_venc >= timezone.now().date()
+                caf_vigente = fecha_venc >= timezone.localdate()
         except (AttributeError, TypeError):
             pass
     

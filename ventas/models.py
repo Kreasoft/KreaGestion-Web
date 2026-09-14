@@ -111,6 +111,13 @@ class FormaPago(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
 
+    @property
+    def es_credito(self):
+        if self.es_cuenta_corriente:
+            return True
+        nom = (self.nombre or '').lower()
+        return 'credito' in nom or 'crédito' in nom or 'cuenta corriente' in nom
+
 
 class DispositivoMovil(models.Model):
     """Modelo para gestionar y autorizar dispositivos móviles que usan la app"""
@@ -278,7 +285,8 @@ class Venta(models.Model):
             self.fecha_vencimiento = None
         elif not self.fecha_vencimiento and self.fecha:
             from core.fechas import calcular_fecha_vencimiento
-            dias = getattr(self.cliente, 'plazo_pago_dias', 0) if self.cliente else 0
+            es_credito = bool(self.forma_pago and getattr(self.forma_pago, 'es_credito', False))
+            dias = (getattr(self.cliente, 'plazo_pago', 0) or getattr(self.cliente, 'plazo_pago_dias', 0)) if (self.cliente and es_credito) else 0
             self.fecha_vencimiento = calcular_fecha_vencimiento(self.fecha, dias)
             update_fields = kwargs.get('update_fields')
             if update_fields is not None:
@@ -345,7 +353,7 @@ class Venta(models.Model):
         
         from datetime import timedelta
         fecha_vencimiento = self.fecha + timedelta(days=30)
-        return timezone.now().date() > fecha_vencimiento
+        return timezone.localdate() > fecha_vencimiento
     
     def actualizar_estado_cotizacion(self):
         """Actualiza el estado de la cotización según su fecha"""
@@ -979,7 +987,7 @@ class PrecioClienteArticulo(models.Model):
         if not self.activo:
             return False
         
-        hoy = timezone.now().date()
+        hoy = timezone.localdate()
         
         if self.fecha_inicio and hoy < self.fecha_inicio:
             return False

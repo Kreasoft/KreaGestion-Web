@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orden de Despacho {{ orden.numero_despacho }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 12px;
+            color: #2c3e50;
+            background: #f4f6f7;
+            padding: 20px;
+        }
+        .print-card {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #d4c4a8;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .header-box {
+            border-bottom: 2px solid #34495e;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .empresa-nombre {
+            font-size: 18px;
+            font-weight: 700;
+            color: #34495e;
+            text-transform: uppercase;
+        }
+        .doc-titulo {
+            font-size: 20px;
+            font-weight: 800;
+            color: #8b7355;
+            text-align: right;
+        }
+        .doc-numero {
+            font-size: 14px;
+            color: #34495e;
+            font-weight: 600;
+            text-align: right;
+        }
+        .section-header {
+            background: #34495e;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 4px 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 4px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px 16px;
+            background: #fafaf8;
+            border: 1px solid #e8dcc8;
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+        .info-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #8b7355;
+            text-transform: uppercase;
+        }
+        .info-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .table-print {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+        .table-print th {
+            background: #f5f1e8;
+            color: #34495e;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10px;
+            padding: 6px 8px;
+            border: 1px solid #d4c4a8;
+        }
+        .table-print td {
+            padding: 6px 8px;
+            border: 1px solid #e8dcc8;
+            vertical-align: middle;
+        }
+        .firma-box {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+        }
+        .firma-linea {
+            border-top: 1px solid #34495e;
+            padding-top: 6px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        .action-bar {
+            max-width: 900px;
+            margin: 0 auto 16px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        @media print {
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+            .action-bar {
+                display: none !important;
+            }
+            .print-card {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="action-bar">
+        <a href="{% url 'pedidos:orden_despacho_detail' orden.pk %}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Volver al Despacho
+        </a>
+        <button onclick="window.print();" class="btn btn-sm" style="background:#34495e; color:#fff; font-weight:700;">
+            <i class="fas fa-print me-1"></i>Imprimir Documento
+        </button>
+    </div>
+
+    <div class="print-card">
+        <div class="header-box d-flex justify-content-between align-items-center">
+            <div>
+                <div class="empresa-nombre">{{ orden.empresa.nombre_fantasia|default:orden.empresa.razon_social }}</div>
+                <div style="font-size:11px; color:#6f5b44;">RUT: {{ orden.empresa.rut }}</div>
+                <div style="font-size:10px; color:#6f5b44;">{{ orden.empresa.direccion }}</div>
+            </div>
+            <div>
+                <div class="doc-titulo">ORDEN DE DESPACHO</div>
+                <div class="doc-numero">N° {{ orden.numero_despacho }}</div>
+                <div style="font-size:11px; text-align:right; color:#6f5b44;">Fecha: {{ orden.fecha_despacho|date:"d-m-Y" }}</div>
+            </div>
+        </div>
+
+        <div class="section-header"><i class="fas fa-user me-1"></i> Datos del Cliente y Entrega</div>
+        <div class="info-grid">
+            <div>
+                <div class="info-label">Cliente</div>
+                <div class="info-value">{{ orden.orden_pedido.cliente.nombre }}</div>
+            </div>
+            <div>
+                <div class="info-label">RUT Cliente</div>
+                <div class="info-value">{{ orden.orden_pedido.cliente.rut }}</div>
+            </div>
+            <div>
+                <div class="info-label">Pedido Origen</div>
+                <div class="info-value">N° {{ orden.orden_pedido.numero_pedido }}</div>
+            </div>
+            <div>
+                <div class="info-label">Dirección de Entrega</div>
+                <div class="info-value">{{ orden.direccion_entrega|default:orden.orden_pedido.cliente.direccion }}</div>
+            </div>
+        </div>
+
+        <div class="section-header"><i class="fas fa-truck me-1"></i> Datos de Transporte y Despacho</div>
+        <div class="info-grid">
+            <div>
+                <div class="info-label">Chofer</div>
+                <div class="info-value">{% if orden.chofer %}{{ orden.chofer.nombre }} (RUT: {{ orden.chofer.rut|default:"-" }}){% else %}-{% endif %}</div>
+            </div>
+            <div>
+                <div class="info-label">Vehículo / Patente</div>
+                <div class="info-value">{% if orden.vehiculo %}{{ orden.vehiculo.patente }} - {{ orden.vehiculo.modelo|default:"" }}{% else %}-{% endif %}</div>
+            </div>
+            <div>
+                <div class="info-label">Transportista Externo</div>
+                <div class="info-value">{{ orden.transportista_externo|default:"Transporte Propio" }}</div>
+            </div>
+            <div>
+                <div class="info-label">Estado Despacho</div>
+                <div class="info-value" style="text-transform:uppercase;">{{ orden.get_estado_display }}</div>
+            </div>
+        </div>
+
+        <div class="section-header"><i class="fas fa-boxes me-1"></i> Detalle de Items Despachados</div>
+        <table class="table-print">
+            <thead>
+                <tr>
+                    <th style="width: 30px;" class="text-center">#</th>
+                    <th style="width: 100px;">Código</th>
+                    <th>Descripción / Producto</th>
+                    <th style="width: 70px;" class="text-center">Cant.</th>
+                    <th style="width: 140px;">Lote / Vencimiento</th>
+                    <th style="width: 140px;">Doc. Asociado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in orden.items.all %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td style="font-family:monospace; font-weight:600;">{{ item.item_pedido.articulo.codigo }}</td>
+                    <td style="font-weight:600;">{{ item.item_pedido.articulo.nombre }}</td>
+                    <td class="text-center font-monospace fw-bold">{{ item.cantidad }}</td>
+                    <td>{% if item.lote or item.fecha_vencimiento %}{{ item.lote|default:"-" }}{% if item.fecha_vencimiento %} ({{ item.fecha_vencimiento|date:"d-m-Y" }}){% endif %}{% else %}-{% endif %}</td>
+                    <td>
+                        {% if item.guia_despacho %}Guía #{{ item.guia_despacho.folio }}
+                        {% elif item.factura %}Factura #{{ item.factura.folio }}
+                        {% else %}Pendiente{% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Sin artículos registrados en este despacho.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if referencias_list %}
+        <div class="section-header"><i class="fas fa-bookmark me-1"></i> Documentos Referenciados</div>
+        <table class="table-print">
+            <thead>
+                <tr>
+                    <th>Tipo Referencia</th>
+                    <th>Folio / Número</th>
+                    <th>Fecha</th>
+                    <th>Razón / Glosa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ref in referencias_list %}
+                <tr>
+                    <td>{{ ref.tipo_codigo }} - {{ ref.tipo_nombre }}</td>
+                    <td style="font-family:monospace; font-weight:700;">{{ ref.folio }}</td>
+                    <td>{{ ref.fecha|date:"d-m-Y" }}</td>
+                    <td>{{ ref.origen }}{% if ref.razon %} ({{ ref.razon }}){% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        {% if orden.observaciones %}
+        <div class="mt-3 p-2" style="background:#fafaf8; border:1px solid #e8dcc8; border-radius:4px; font-size:11px;">
+            <strong>Observaciones:</strong> {{ orden.observaciones }}
+        </div>
+        {% endif %}
+
+        <div class="firma-box">
+            <div>
+                <div class="firma-linea">
+                    Despachado por / Transportista<br>
+                    <span style="font-weight:normal; font-size:10px;">Nombre, RUT y Firma</span>
+                </div>
+            </div>
+            <div>
+                <div class="firma-linea">
+                    Recibido Conforme / Cliente<br>
+                    <span style="font-weight:normal; font-size:10px;">Nombre, RUT, Fecha y Firma</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if auto_print %}
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() { window.print(); }, 500);
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

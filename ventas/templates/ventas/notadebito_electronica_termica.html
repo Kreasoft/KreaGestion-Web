@@ -74,6 +74,14 @@
             background: #FAF8F3;
         }
 
+        .document-rut {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-bottom: 1.5mm;
+            letter-spacing: 0.5px;
+            color: #8B7355;
+        }
+
         .document-type {
             font-size: 10pt;
             font-weight: bold;
@@ -88,9 +96,11 @@
             color: #8B7355;
         }
 
-        .document-fecha {
-            font-size: 8pt;
-            margin-top: 1mm;
+        .document-fechas {
+            font-size: 8.5pt;
+            text-align: center;
+            margin: 2mm 0;
+            line-height: 1.4;
         }
 
         /* Datos del Cliente */
@@ -253,7 +263,6 @@
             {% endif %}
 
             <div class="company-name">{{ empresa.nombre }}</div>
-            <div class="company-rut">RUT: {{ empresa.rut }}</div>
             <div class="company-info">
                 {{ empresa.get_direccion_dte }}<br>
                 {{ empresa.get_comuna_dte }}{% if empresa.get_comuna_dte and empresa.get_ciudad_dte %}, {% endif %}{{ empresa.get_ciudad_dte }}<br>
@@ -263,6 +272,9 @@
 
         <!-- CUADRO DEL DOCUMENTO -->
         <div class="document-box">
+            <div class="document-rut">
+                R.U.T.: {{ dte.rut_emisor|default:empresa.rut }}
+            </div>
             <div class="document-type">NOTA DE DÉBITO ELECTRÓNICA</div>
             <div class="document-folio">
                 {% if dte and dte.folio %}
@@ -271,13 +283,15 @@
                     N° {{ nota.numero }}
                 {% endif %}
             </div>
-            <div class="document-fecha">
-                {% load l10n %}
-                {{ nota.fecha|date:"d-m-Y" }}
-            </div>
-            <div style="font-size: 7pt; margin-top: 1mm;">
+            <div style="font-size: 8pt; font-weight: bold; margin-top: 1mm; color: #8B7355;">
                 SII - {{ empresa.oficina_sii|default:empresa.get_ciudad_dte|upper }}
             </div>
+        </div>
+
+        <!-- FECHAS (FUERA DEL RECUADRO) -->
+        <div class="document-fechas">
+            {% load l10n %}
+            <div><strong>Fecha Emisión:</strong> {{ nota.fecha|date:"d-m-Y" }}</div>
         </div>
 
         <!-- DOCUMENTO AFECTADO -->

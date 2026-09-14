@@ -3,6 +3,7 @@ from . import views
 from . import views_dte
 from . import views_caf
 from . import views_monitor
+from . import views_impresion_agente
 
 app_name = 'facturacion_electronica'
 
@@ -41,6 +42,7 @@ urlpatterns = [
     path('dte/<int:dte_id>/consultar-estado/', views_dte.consultar_estado_dte, name='consultar_estado_dte'),
     path('dte/<int:dte_id>/ver-factura/', views_dte.ver_factura_electronica, name='ver_factura_electronica'),
     path('dte/<int:dte_id>/ver/', views_dte.ver_factura_electronica, name='ver_dte'),
+    path('dte/<int:dte_id>/imprimir-agente/', views_impresion_agente.imprimir_dte_agente, name='imprimir_dte_agente'),
     path('nota-credito/<int:notacredito_id>/ver/', views_dte.ver_notacredito_electronica, name='ver_notacredito_electronica'),
     path('nota-debito/<int:notadebito_id>/ver/', views_dte.ver_notadebito_electronica, name='ver_notadebito_electronica'),
     path('dte/<int:dte_id>/regenerar-xml/', views_dte.regenerar_xml_dte, name='regenerar_xml_dte'),
