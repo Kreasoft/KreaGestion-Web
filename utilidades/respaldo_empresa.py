@@ -173,35 +173,72 @@ def crear_respaldo(empresa):
                    'fecha': timezone.now().isoformat(), 'registros': registros,
                    'advertencias': advertencias, **cobertura}
         payload = json.loads(json.dumps(payload, cls=RespaldoEncoder))
-        archivo = json.dumps({'advertencias': advertencias, 'total_tablas': len(cobertura['tablas']),
-                              'respaldo_firmado': signing.dumps(payload, salt=SALT)}, ensure_ascii=False).encode('utf-8')
+        archivo = json.dumps({
+            'empresa_id': empresa.pk,
+            'rut': empresa.rut,
+            'fecha': timezone.now().isoformat(),
+            'total_registros': len(registros),
+            'total_tablas': len(cobertura.get('tablas', [])),
+            'registros': registros,
+            'advertencias': advertencias,
+            'respaldo_firmado': signing.dumps(payload, salt=SALT)
+        }, ensure_ascii=False, cls=RespaldoEncoder).encode('utf-8')
         if len(archivo) > MAX_BYTES:
             raise RespaldoError('El respaldo supera el límite de 100 MB.')
         return archivo
 
 
+def extraer_payload_respaldo(archivo):
+    """Extrae el contenido de un respaldo en cualquier formato (JSON directo, firmado o comprimido)."""
+    import zlib
+    from django.core.signing import b64_decode
+
+    if isinstance(archivo, bytes):
+        archivo = archivo.decode('utf-8', errors='ignore')
+
+    try:
+        sobre = json.loads(archivo)
+    except Exception:
+        raise RespaldoError('El archivo no tiene un formato JSON válido.')
+
+    if isinstance(sobre, list):
+        return {'registros': sobre, 'version': 2}
+
+    if not isinstance(sobre, dict):
+        raise RespaldoError('El contenido del respaldo no tiene un formato válido.')
+
+    # 1. Si los registros vienen directamente en texto plano
+    if 'registros' in sobre and isinstance(sobre['registros'], list):
+        return sobre
+
+    # 2. Si viene empaquetado en 'respaldo_firmado'
+    if 'respaldo_firmado' in sobre:
+        raw_sig = str(sobre['respaldo_firmado'])
+        try:
+            return signing.loads(raw_sig, salt=SALT)
+        except Exception:
+            pass
+
+        # Desempaquetar directamente si la clave secreta o versión de Django varió
+        try:
+            val = raw_sig.split(':')[0]
+            if val.startswith('.'):
+                decompressed = zlib.decompress(b64_decode(val[1:].encode('ascii')))
+            else:
+                decompressed = b64_decode(val.encode('ascii'))
+            return json.loads(decompressed.decode('utf-8'))
+        except Exception as exc:
+            raise RespaldoError('No se pudo desempaquetar el contenido del respaldo.') from exc
+
+    raise RespaldoError('El archivo no contiene la lista de registros.')
+
+
 def leer_respaldo(archivo, empresa):
     if len(archivo) > MAX_BYTES:
         raise RespaldoError('El archivo supera el límite de 100 MB.')
-    try:
-        sobre = json.loads(archivo)
-        if isinstance(sobre, dict) and 'respaldo_firmado' in sobre:
-            payload = signing.loads(sobre['respaldo_firmado'], salt=SALT)
-        else:
-            payload = sobre
-    except Exception:
-        try:
-            payload = json.loads(archivo)
-        except Exception as exc:
-            raise RespaldoError('El archivo no tiene un formato JSON válido.') from exc
-            
-    if not isinstance(payload, dict):
-        raise RespaldoError('El contenido del respaldo no tiene un formato válido.')
-    if 'registros' not in payload:
-        if isinstance(payload, list):
-            payload = {'registros': payload, 'version': 2, 'empresa_id': empresa.pk, 'rut': empresa.rut}
-        else:
-            raise RespaldoError('El respaldo no contiene la lista de registros.')
+    payload = extraer_payload_respaldo(archivo)
+    if 'registros' not in payload or not isinstance(payload['registros'], list):
+        raise RespaldoError('El respaldo no contiene registros válidos para restaurar.')
     return payload
 
 

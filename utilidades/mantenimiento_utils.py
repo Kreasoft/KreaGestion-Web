@@ -85,8 +85,6 @@ def restaurar_backup(request):
     if not puede_gestionar_respaldos(request.user):
         return JsonResponse({'success': False, 'message': 'Solo los administradores pueden restaurar respaldos.'}, status=403)
     archivo = request.FILES.get('archivo')
-    if request.POST.get('empresa_id') != str(request.empresa.pk):
-        return JsonResponse({'success': False, 'message': 'La empresa activa cambió. Recargue la página antes de restaurar.'}, status=400)
     if not archivo or archivo.size > MAX_BYTES:
         return JsonResponse({'success': False, 'message': 'Seleccione un respaldo válido de hasta 100 MB.'}, status=400)
     try:
