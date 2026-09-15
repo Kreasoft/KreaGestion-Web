@@ -217,8 +217,8 @@ def requiere_permiso(permiso, mensaje=None, redirect_url=None):
             if not request.user.is_authenticated:
                 return redirect('login')
             
-            # Superusuarios siempre tienen acceso
-            if request.user.is_superuser:
+            # Superusuarios y Administradores de Empresa siempre tienen acceso
+            if request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil and request.user.perfil.es_administrador):
                 return view_func(request, *args, **kwargs)
             
             # Verificar permiso
