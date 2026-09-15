@@ -462,16 +462,16 @@ def grupo_list(request):
 
 def traducir_permiso(permission):
     """Traduce el nombre de un permiso al español"""
+    if permission.name and not permission.name.startswith('Can '):
+        return permission.name
     
-    # Diccionario de traducciones para acciones
     acciones = {
-        'add': 'Agregar',
-        'change': 'Editar',
-        'delete': 'Eliminar',
-        'view': 'Ver',
+        'add': 'Crear / Agregar',
+        'change': 'Editar / Modificar',
+        'delete': 'Eliminar / Anular',
+        'view': 'Ver / Consultar',
     }
     
-    # Diccionario de traducciones para modelos
     modelos = {
         # Artículos
         'articulo': 'Artículos',
@@ -479,6 +479,12 @@ def traducir_permiso(permission):
         'impuestoespecifico': 'Impuestos Específicos',
         'stockarticulo': 'Stock de Artículos',
         'unidadmedida': 'Unidades de Medida',
+        'listaprecio': 'Listas de Precios',
+        'kitoferta': 'Kits de Ofertas',
+        'kitofertaitem': 'Ítems de Kits de Ofertas',
+        'precioarticulo': 'Precios de Artículos',
+        'historialcambioprecio': 'Historial de Precios',
+        'homologacioncodigo': 'Homologación de Códigos',
         
         # Bodegas
         'bodega': 'Bodegas',
@@ -486,73 +492,125 @@ def traducir_permiso(permission):
         # Clientes
         'cliente': 'Clientes',
         'contactocliente': 'Contactos de Clientes',
+        'historialprecioscliente': 'Historial de Precios Clientes',
         
         # Compras
         'compra': 'Compras',
         'compradetalle': 'Detalles de Compras',
         'ordencompra': 'Órdenes de Compra',
+        'itemordencompra': 'Ítems de Órdenes de Compra',
+        'recepcionmercancia': 'Recepción de Mercancías',
+        'itemrecepcion': 'Ítems de Recepción',
+        'documentorecibidosii': 'Facturas y Documentos Recibidos SII',
+        'eventoaceptacionreclamosii': 'Eventos SII (Aceptación/Reclamo)',
         
         # Documentos
         'documento': 'Documentos',
         'tipodocumento': 'Tipos de Documentos',
+        'documentocompra': 'Documentos de Compra',
+        'itemdocumentocompra': 'Ítems de Documentos de Compra',
+        'formapagopago': 'Formas de Pago de Compras',
+        'historialpagodocumento': 'Historial de Pagos',
         
         # Empresas
         'empresa': 'Empresas',
         'sucursal': 'Sucursales',
+        'configuracionempresa': 'Configuración de Empresa',
+        'plansaas': 'Planes SaaS',
+        'suscripcion': 'Suscripciones',
         
         # Inventario
         'inventario': 'Inventario',
         'ajusteinventario': 'Ajustes de Inventario',
+        'ajustestock': 'Ajustes de Stock',
+        'detalleajuste': 'Detalles de Ajustes de Stock',
         'movimientoinventario': 'Movimientos de Inventario',
+        'stock': 'Stock en Bodegas',
+        'transferenciainventario': 'Transferencias de Inventario',
         'cargainicial': 'Carga Inicial de Inventario',
         
         # Proveedores
         'proveedor': 'Proveedores',
         'contactoproveedor': 'Contactos de Proveedores',
-        
-        # Reportes
-        'reporte': 'Reportes',
+        'categoriaproveedor': 'Categorías de Proveedores',
+        'evaluacionproveedor': 'Evaluaciones de Proveedores',
+        'historialpreciosproveedor': 'Historial de Precios Proveedores',
         
         # Tesorería
         'cuentacorriente': 'Cuentas Corrientes',
+        'cuentacorrienteproveedor': 'Cuentas Corrientes Proveedores',
+        'cuentacorrientecliente': 'Cuentas Corrientes Clientes',
+        'documentocliente': 'Documentos de Clientes',
+        'pagodocumentocliente': 'Pagos de Clientes',
+        'movimientocuentacorriente': 'Movimientos de Cuenta Corriente',
+        'movimientocuentacorrientecliente': 'Movimientos CC Clientes',
         'pago': 'Pagos',
         'cobro': 'Cobros',
         
-        # Usuarios
+        # Usuarios / Auth
+        'user': 'Usuarios del Sistema',
+        'group': 'Grupos y Roles de Acceso',
+        'permission': 'Permisos del Sistema',
         'perfilusuario': 'Perfiles de Usuario',
         
         # Ventas
-        'venta': 'Ventas',
+        'venta': 'Ventas y Facturación',
         'ventadetalle': 'Detalles de Ventas',
+        'ventareferencia': 'Referencias de Ventas',
         'vendedor': 'Vendedores',
+        'vendedorubicacion': 'Ubicaciones de Vendedores',
         'formapago': 'Formas de Pago',
         'estaciontrabajo': 'Estaciones de Trabajo',
         'cotizacion': 'Cotizaciones',
+        'notacredito': 'Notas de Crédito',
+        'notacreditodetalle': 'Detalles de Notas de Crédito',
+        'notadebito': 'Notas de Débito',
+        'notadebitodetalle': 'Detalles de Notas de Débito',
+        'devolucion': 'Devoluciones',
+        'devoluciondetalle': 'Detalles de Devoluciones',
+        'precioclientearticulo': 'Precios Especiales de Clientes',
+        'dispositivomovil': 'Dispositivos Móviles (Venta en Ruta)',
+        'terminalpos': 'Terminales POS',
         
         # Caja
         'aperturacaja': 'Aperturas de Caja',
         'movimientocaja': 'Movimientos de Caja',
-        'ventaprocesada': 'Ventas Procesadas',
+        'ventaprocesada': 'Ventas Procesadas en Caja',
+        'caja': 'Cajas Registradoras',
+        'colaimpresion': 'Cola de Impresión',
+        'impresoraagente': 'Agentes de Impresión',
+        'codigovinculoimpresion': 'Vínculos de Impresión',
         
         # Facturación Electrónica
-        'archivocaf': 'Archivos CAF',
-        'documentotributarioelectronico': 'Documentos Tributarios Electrónicos',
-        'detalledocumentotributarioelectronico': 'Detalles de Documentos Tributarios Electrónicos',
-        'acuserecibo': 'Acuses de Recibo',
-        'enviodte': 'Envíos de DTE',
-        'configuracionalertafolios': 'Configuración de Alertas de Folios',
+        'archivocaf': 'Archivos CAF / Folios',
+        'documentotributarioelectronico': 'Documentos Tributarios Electrónicos (DTE)',
+        'acuserecibo': 'Acuses de Recibo DTE',
+        'enviodte': 'Envíos DTE al SII',
+        'configuracionalertafolios': 'Alertas de Folios CAF',
         
         # Pedidos
-        'pedido': 'Pedidos',
-        'pedidodetalle': 'Detalles de Pedidos',
+        'ordenpedido': 'Órdenes de Pedido',
+        'itemordenpedido': 'Ítems de Pedidos',
+        'ordendespacho': 'Órdenes de Despacho',
+        'detalleordendespacho': 'Detalles de Despacho',
+        'ruta': 'Rutas de Entrega',
+        'hojaruta': 'Hojas de Ruta',
+        'vehiculo': 'Vehículos de Despacho',
+        'chofer': 'Choferes / Conductores',
+        'despachoreferencia': 'Referencias de Despacho',
         
         # Producción
+        'permisoproduccion': 'Módulo de Producción',
         'ordenproduccion': 'Órdenes de Producción',
-        'receta': 'Recetas',
-        'materialreceta': 'Materiales de Receta',
+        'recetaproduccion': 'Recetas de Producción',
+        'insumoreceta': 'Insumos de Recetas',
         
         # Informes
+        'permisoinforme': 'Módulo de Informes',
         'informe': 'Informes',
+        
+        # Utilidades
+        'permisoutilidad': 'Utilidades del Sistema',
     }
     
     # Extraer la acción del codename (add_, change_, delete_, view_)
@@ -575,25 +633,74 @@ def traducir_permiso(permission):
         return permission.name
 
 
+def obtener_permisos_por_app():
+    """Retorna los permisos del sistema organizados por módulo para la vista de grupos/roles"""
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+    
+    nombres_apps = {
+        'ventas': 'Ventas y Facturación',
+        'articulos': 'Artículos y Productos',
+        'clientes': 'Clientes',
+        'compras': 'Compras y Facturas SII',
+        'proveedores': 'Proveedores',
+        'inventario': 'Inventario y Stock',
+        'bodegas': 'Bodegas',
+        'pedidos': 'Pedidos y Despacho',
+        'produccion': 'Producción',
+        'caja': 'Caja y Turnos',
+        'tesoreria': 'Tesorería (Cuentas por Cobrar / Pagar)',
+        'facturacion_electronica': 'Facturación Electrónica (DTE / CAF)',
+        'informes': 'Informes y Estadísticas',
+        'empresas': 'Empresas y Sucursales',
+        'documentos': 'Documentos y Tipos',
+        'auth': 'Usuarios y Roles del Sistema',
+        'usuarios': 'Perfiles de Usuario',
+        'utilidades': 'Utilidades del Sistema',
+    }
+    
+    app_labels_orden = [
+        'ventas', 'articulos', 'clientes', 'compras', 'proveedores',
+        'inventario', 'bodegas', 'pedidos', 'produccion', 'caja',
+        'tesoreria', 'facturacion_electronica', 'informes', 'empresas',
+        'documentos', 'auth', 'usuarios', 'utilidades'
+    ]
+    
+    permisos_por_app = {}
+    for app_label in app_labels_orden:
+        content_types = ContentType.objects.filter(app_label=app_label)
+        permisos = Permission.objects.filter(content_type__in=content_types).order_by('content_type__model', 'codename')
+        
+        if permisos.exists():
+            permisos_traducidos = []
+            for permiso in permisos:
+                permiso.nombre_traducido = traducir_permiso(permiso)
+                permisos_traducidos.append(permiso)
+            
+            nombre_app = nombres_apps.get(app_label, app_label.title())
+            permisos_por_app[nombre_app] = {
+                'permisos': permisos_traducidos,
+                'app_label_slug': app_label,
+                'nombre': nombre_app
+            }
+    
+    return permisos_por_app
+
+
 @login_required
 @requiere_empresa
 @requiere_permiso('auth.add_group', mensaje='No tienes permisos para crear grupos. Solo los administradores pueden realizar esta acción.', redirect_url='usuarios:grupo_list')
 def grupo_create(request):
     """Crear nuevo grupo"""
     from django.contrib.auth.models import Permission
-    from django.contrib.contenttypes.models import ContentType
     
     if request.method == 'POST':
         form = GrupoForm(request.POST)
-        
-        # Procesar permisos
         permisos_seleccionados = request.POST.getlist('permissions')
         
         if form.is_valid():
             try:
                 grupo = form.save()
-                
-                # Asignar permisos al grupo
                 for perm_id in permisos_seleccionados:
                     try:
                         permission = Permission.objects.get(id=perm_id)
@@ -608,58 +715,7 @@ def grupo_create(request):
     else:
         form = GrupoForm()
     
-    # Obtener todos los permisos organizados por aplicación
-    permisos_por_app = {}
-    
-    # Nombres de aplicaciones en español
-    nombres_apps = {
-        'articulos': 'Artículos',
-        'bodegas': 'Bodegas',
-        'caja': 'Caja',
-        'clientes': 'Clientes',
-        'compras': 'Compras',
-        'documentos': 'Documentos',
-        'empresas': 'Empresas',
-        'facturacion_electronica': 'Facturación Electrónica',
-        'informes': 'Informes',
-        'inventario': 'Inventario',
-        'pedidos': 'Pedidos',
-        'produccion': 'Producción',
-        'proveedores': 'Proveedores',
-        'reportes': 'Reportes',
-        'tesoreria': 'Tesorería',
-        'utilidades': 'Utilidades',
-        'usuarios': 'Usuarios',
-        'ventas': 'Ventas'
-    }
-    
-    # Obtener content types de las apps del sistema
-    app_labels = [
-        'articulos', 'bodegas', 'caja', 'clientes', 'compras', 'documentos',
-        'empresas', 'facturacion_electronica', 'informes', 'inventario',
-        'pedidos', 'produccion', 'proveedores', 'reportes', 
-        'tesoreria', 'utilidades', 'usuarios', 'ventas'
-    ]
-    
-    for app_label in app_labels:
-        content_types = ContentType.objects.filter(app_label=app_label)
-        permisos = Permission.objects.filter(content_type__in=content_types).order_by('content_type__model', 'codename')
-        
-        if permisos.exists():
-            # Traducir cada permiso
-            permisos_traducidos = []
-            for permiso in permisos:
-                permiso.nombre_traducido = traducir_permiso(permiso)
-                permisos_traducidos.append(permiso)
-            
-            # Usar el nombre traducido de la app como clave, pero guardar también el app_label original
-            nombre_app = nombres_apps.get(app_label, app_label.title())
-            # Crear un diccionario con nombre y app_label para el template
-            permisos_por_app[nombre_app] = {
-                'permisos': permisos_traducidos,
-                'app_label_slug': app_label,  # Para usar en IDs del acordeón
-                'nombre': nombre_app  # Nombre traducido para mostrar
-            }
+    permisos_por_app = obtener_permisos_por_app()
     
     context = {
         'form': form,
@@ -677,21 +733,16 @@ def grupo_create(request):
 def grupo_edit(request, grupo_id):
     """Editar grupo existente"""
     from django.contrib.auth.models import Permission
-    from django.contrib.contenttypes.models import ContentType
     
     grupo = get_object_or_404(Group, id=grupo_id)
     
     if request.method == 'POST':
         form = GrupoForm(request.POST, instance=grupo)
-        
-        # Procesar permisos
         permisos_seleccionados = request.POST.getlist('permissions')
         
         if form.is_valid():
             try:
                 grupo = form.save()
-                
-                # Actualizar permisos del grupo
                 grupo.permissions.clear()
                 for perm_id in permisos_seleccionados:
                     try:
@@ -707,60 +758,7 @@ def grupo_edit(request, grupo_id):
     else:
         form = GrupoForm(instance=grupo)
     
-    # Obtener todos los permisos organizados por aplicación
-    permisos_por_app = {}
-    
-    # Nombres de aplicaciones en español
-    nombres_apps = {
-        'articulos': 'Artículos',
-        'bodegas': 'Bodegas',
-        'caja': 'Caja',
-        'clientes': 'Clientes',
-        'compras': 'Compras',
-        'documentos': 'Documentos',
-        'empresas': 'Empresas',
-        'facturacion_electronica': 'Facturación Electrónica',
-        'informes': 'Informes',
-        'inventario': 'Inventario',
-        'pedidos': 'Pedidos',
-        'produccion': 'Producción',
-        'proveedores': 'Proveedores',
-        'reportes': 'Reportes',
-        'tesoreria': 'Tesorería',
-        'utilidades': 'Utilidades',
-        'usuarios': 'Usuarios',
-        'ventas': 'Ventas'
-    }
-    
-    # Obtener content types de las apps del sistema
-    app_labels = [
-        'articulos', 'bodegas', 'caja', 'clientes', 'compras', 'documentos',
-        'empresas', 'facturacion_electronica', 'informes', 'inventario',
-        'pedidos', 'produccion', 'proveedores', 'reportes', 
-        'tesoreria', 'utilidades', 'usuarios', 'ventas'
-    ]
-    
-    for app_label in app_labels:
-        content_types = ContentType.objects.filter(app_label=app_label)
-        permisos = Permission.objects.filter(content_type__in=content_types).order_by('content_type__model', 'codename')
-        
-        if permisos.exists():
-            # Traducir cada permiso
-            permisos_traducidos = []
-            for permiso in permisos:
-                permiso.nombre_traducido = traducir_permiso(permiso)
-                permisos_traducidos.append(permiso)
-            
-            # Usar el nombre traducido de la app como clave, pero guardar también el app_label original
-            nombre_app = nombres_apps.get(app_label, app_label.title())
-            # Crear un diccionario con nombre y app_label para el template
-            permisos_por_app[nombre_app] = {
-                'permisos': permisos_traducidos,
-                'app_label_slug': app_label,  # Para usar en IDs del acordeón
-                'nombre': nombre_app  # Nombre traducido para mostrar
-            }
-    
-    # Obtener permisos actuales del grupo
+    permisos_por_app = obtener_permisos_por_app()
     permisos_actuales = grupo.permissions.values_list('id', flat=True)
     
     context = {
