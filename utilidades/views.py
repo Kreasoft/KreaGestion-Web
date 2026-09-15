@@ -216,6 +216,7 @@ def get_campos_destino(tipo_importacion):
         'ventas': [
             {'campo': 'numero_venta', 'nombre': 'N° Venta / Folio', 'requerido': True},
             {'campo': 'fecha', 'nombre': 'Fecha de Emisión (YYYY-MM-DD)', 'requerido': False},
+            {'campo': 'fecha_vencimiento', 'nombre': 'Fecha de Vencimiento (YYYY-MM-DD)', 'requerido': False},
             {'campo': 'tipo_documento', 'nombre': 'Tipo Documento (factura, boleta, guia, vale, ticket)', 'requerido': False},
             {'campo': 'cliente_rut', 'nombre': 'RUT Cliente', 'requerido': False},
             {'campo': 'cliente_nombre', 'nombre': 'Nombre Cliente', 'requerido': False},
@@ -226,6 +227,20 @@ def get_campos_destino(tipo_importacion):
             {'campo': 'forma_pago', 'nombre': 'Forma de Pago', 'requerido': False},
             {'campo': 'estado', 'nombre': 'Estado (confirmada, anulada, borrador)', 'requerido': False},
             {'campo': 'observaciones', 'nombre': 'Observaciones / Detalle', 'requerido': False},
+            {'campo': 'articulo_codigo', 'nombre': 'Código Artículo (si la tabla incluye detalle)', 'requerido': False},
+            {'campo': 'articulo_nombre', 'nombre': 'Nombre Artículo (si la tabla incluye detalle)', 'requerido': False},
+            {'campo': 'cantidad', 'nombre': 'Cantidad (si la tabla incluye detalle)', 'requerido': False},
+            {'campo': 'precio_unitario', 'nombre': 'Precio Unitario (si la tabla incluye detalle)', 'requerido': False},
+        ],
+        'ventas_detalle': [
+            {'campo': 'numero_venta', 'nombre': 'N° Venta / Folio de la Venta', 'requerido': True},
+            {'campo': 'tipo_documento', 'nombre': 'Tipo Documento (factura, boleta, guia, vale, ticket)', 'requerido': False},
+            {'campo': 'articulo_codigo', 'nombre': 'Código del Artículo / Producto', 'requerido': True},
+            {'campo': 'articulo_nombre', 'nombre': 'Nombre del Artículo (si no existe en catálogo)', 'requerido': False},
+            {'campo': 'cantidad', 'nombre': 'Cantidad Vendida', 'requerido': True},
+            {'campo': 'precio_unitario', 'nombre': 'Precio Unitario', 'requerido': True},
+            {'campo': 'precio_total', 'nombre': 'Total de Línea (opcional, se calcula si está vacío)', 'requerido': False},
+            {'campo': 'comentario', 'nombre': 'Comentario / Glosa de Línea', 'requerido': False},
         ],
     }
     
@@ -276,6 +291,8 @@ def ejecutar_importacion(request):
                 resultado = importar_articulos(datos, mapeo, request.empresa)
             elif tipo_importacion == 'ventas':
                 resultado = importar_ventas(datos, mapeo, request.empresa)
+            elif tipo_importacion == 'ventas_detalle':
+                resultado = importar_ventas_detalle(datos, mapeo, request.empresa)
             else:
                 return JsonResponse({'success': False, 'message': 'Tipo de importación no válido'})
             
@@ -658,6 +675,21 @@ def importar_ventas(datos, mapeo, empresa):
                         except ValueError:
                             pass
 
+            # Fecha de vencimiento
+            fecha_venc_val = datos_venta.get('fecha_vencimiento')
+            fecha_vencimiento = None
+            if fecha_venc_val:
+                if isinstance(fecha_venc_val, (datetime, date)):
+                    fecha_vencimiento = fecha_venc_val.date() if isinstance(fecha_venc_val, datetime) else fecha_venc_val
+                elif isinstance(fecha_venc_val, str):
+                    fecha_venc_str = fecha_venc_val.strip().split(' ')[0]
+                    for fmt in ('%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d'):
+                        try:
+                            fecha_vencimiento = datetime.strptime(fecha_venc_str, fmt).date()
+                            break
+                        except ValueError:
+                            pass
+
             # Tipo de documento
             tipo_doc_raw = str(datos_venta.get('tipo_documento') or 'boleta').strip().lower()
             if 'fact' in tipo_doc_raw or tipo_doc_raw in ('33', '34'):
@@ -734,6 +766,7 @@ def importar_ventas(datos, mapeo, empresa):
                 numero_venta=numero_venta,
                 defaults={
                     'fecha': fecha,
+                    'fecha_vencimiento': fecha_vencimiento,
                     'cliente': cliente,
                     'forma_pago': forma_pago,
                     'tipo_documento_planeado': tipo_documento if tipo_documento != 'vale' else 'boleta',
@@ -748,6 +781,41 @@ def importar_ventas(datos, mapeo, empresa):
                     'observaciones': obs,
                 }
             )
+
+            # Si la fila incluye artículo/detalle (tabla única desnormalizada)
+            art_codigo = str(datos_venta.get('articulo_codigo') or '').strip()
+            if art_codigo:
+                from ventas.models import VentaDetalle
+                art_nombre = str(datos_venta.get('articulo_nombre') or '').strip()
+                cant_val = _to_dec(datos_venta.get('cantidad'))
+                cantidad = cant_val if cant_val > Decimal('0') else Decimal('1.000')
+                pu_val = _to_dec(datos_venta.get('precio_unitario'))
+                if pu_val <= Decimal('0') and total > Decimal('0'):
+                    pu_val = round(total / cantidad, 2)
+
+                articulo = Articulo.objects.filter(empresa=empresa, codigo=art_codigo).first()
+                if not articulo:
+                    cat_default = CategoriaArticulo.objects.filter(empresa=empresa).first()
+                    um_default = UnidadMedida.objects.filter(empresa=empresa).first()
+                    articulo = Articulo.objects.create(
+                        empresa=empresa,
+                        codigo=art_codigo,
+                        nombre=art_nombre or f"Artículo {art_codigo}",
+                        categoria=cat_default,
+                        unidad_medida=um_default,
+                        precio_costo='0.00',
+                        precio_venta=str(round(pu_val / Decimal('1.19'), 2)) if pu_val > 0 else '0.00',
+                        precio_final=str(round(pu_val, 2)) if pu_val > 0 else '0.00',
+                    )
+
+                VentaDetalle.objects.create(
+                    venta=venta,
+                    articulo=articulo,
+                    cantidad=cantidad,
+                    precio_unitario=pu_val,
+                    precio_total=round(cantidad * pu_val, 2),
+                )
+
             if created:
                 importados += 1
             else:
@@ -761,6 +829,141 @@ def importar_ventas(datos, mapeo, empresa):
         'success': True,
         'importados': importados,
         'actualizados': actualizados,
+        'omitidos': omitidos,
+        'errores': errores,
+        'total': len(datos)
+    }
+
+
+def importar_ventas_detalle(datos, mapeo, empresa):
+    """Importar detalles / líneas de venta desde base de datos externa"""
+    from ventas.models import Venta, VentaDetalle
+    from decimal import Decimal
+    from django.utils import timezone
+
+    importados = 0
+    omitidos = 0
+    errores = []
+
+    def _to_dec(val):
+        if val is None or val == '':
+            return Decimal('0.00')
+        try:
+            s = str(val).replace('$', '').replace(' ', '').replace(',', '.')
+            return Decimal(s)
+        except Exception:
+            return Decimal('0.00')
+
+    articulos_cache = {}
+    ventas_cache = {}
+
+    for fila in datos:
+        try:
+            datos_det = {}
+            for campo_destino, campo_origen in mapeo.items():
+                if campo_origen and campo_origen in fila:
+                    valor = fila[campo_origen]
+                    datos_det[campo_destino] = valor
+
+            numero_venta = str(datos_det.get('numero_venta') or '').strip()
+            art_codigo = str(datos_det.get('articulo_codigo') or '').strip()
+
+            if not numero_venta or not art_codigo:
+                omitidos += 1
+                continue
+
+            tipo_doc_raw = str(datos_det.get('tipo_documento') or '').strip().lower()
+            tipo_documento = None
+            if tipo_doc_raw:
+                if 'fact' in tipo_doc_raw or tipo_doc_raw in ('33', '34'):
+                    tipo_documento = 'factura'
+                elif 'guia' in tipo_doc_raw or 'guía' in tipo_doc_raw or tipo_doc_raw == '52':
+                    tipo_documento = 'guia'
+                elif 'vale' in tipo_doc_raw:
+                    tipo_documento = 'vale'
+                elif 'ticket' in tipo_doc_raw:
+                    tipo_documento = 'ticket'
+                elif 'cotiz' in tipo_doc_raw:
+                    tipo_documento = 'cotizacion'
+                else:
+                    tipo_documento = 'boleta'
+
+            cache_key = f"{tipo_documento or 'any'}_{numero_venta}"
+            venta = ventas_cache.get(cache_key)
+
+            if not venta:
+                qs = Venta.objects.filter(empresa=empresa, numero_venta=numero_venta)
+                if tipo_documento:
+                    venta = qs.filter(tipo_documento=tipo_documento).first()
+                if not venta:
+                    venta = qs.first()
+
+                if not venta:
+                    venta = Venta.objects.create(
+                        empresa=empresa,
+                        numero_venta=numero_venta,
+                        tipo_documento=tipo_documento or 'boleta',
+                        tipo_documento_planeado=tipo_documento or 'boleta',
+                        fecha=timezone.localdate(),
+                        estado='confirmada',
+                        total=Decimal('0.00'),
+                        subtotal=Decimal('0.00'),
+                        neto=Decimal('0.00'),
+                        iva=Decimal('0.00'),
+                        observaciones='Venta creada automáticamente por importación de detalles',
+                    )
+                ventas_cache[cache_key] = venta
+
+            articulo = articulos_cache.get(art_codigo)
+            if not articulo:
+                articulo = Articulo.objects.filter(empresa=empresa, codigo=art_codigo).first()
+                if not articulo:
+                    art_nombre = str(datos_det.get('articulo_nombre') or '').strip()
+                    cat_default = CategoriaArticulo.objects.filter(empresa=empresa).first()
+                    um_default = UnidadMedida.objects.filter(empresa=empresa).first()
+                    articulo = Articulo.objects.create(
+                        empresa=empresa,
+                        codigo=art_codigo,
+                        nombre=art_nombre or f"Artículo {art_codigo}",
+                        categoria=cat_default,
+                        unidad_medida=um_default,
+                        precio_costo='0.00',
+                        precio_venta='0.00',
+                        precio_final='0.00',
+                    )
+                articulos_cache[art_codigo] = articulo
+
+            cant_dec = _to_dec(datos_det.get('cantidad'))
+            cantidad = cant_dec if cant_dec > Decimal('0') else Decimal('1.000')
+
+            pu_dec = _to_dec(datos_det.get('precio_unitario'))
+            pt_dec = _to_dec(datos_det.get('precio_total'))
+
+            if pu_dec <= Decimal('0') and pt_dec > Decimal('0'):
+                pu_dec = round(pt_dec / cantidad, 2)
+            elif pt_dec <= Decimal('0') and pu_dec > Decimal('0'):
+                pt_dec = round(cantidad * pu_dec, 2)
+
+            comentario = str(datos_det.get('comentario') or '').strip()
+
+            VentaDetalle.objects.create(
+                venta=venta,
+                articulo=articulo,
+                cantidad=cantidad,
+                precio_unitario=pu_dec,
+                precio_total=pt_dec,
+                comentario=comentario,
+            )
+
+            importados += 1
+
+        except Exception as e:
+            num_err = fila.get('NUMERO', fila.get('FOLIO', fila.get('numero', 'N/A')))
+            errores.append(f"Error en fila detalle (Venta {num_err}): {str(e)}")
+
+    return {
+        'success': True,
+        'importados': importados,
         'omitidos': omitidos,
         'errores': errores,
         'total': len(datos)
