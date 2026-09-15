@@ -97,9 +97,9 @@ def restaurar_backup(request):
         return JsonResponse({'success': True, 'message': message, **resumen})
     except RespaldoError as exc:
         return JsonResponse({'success': False, 'message': str(exc)}, status=400)
-    except Exception:
-        logger.exception('Error al restaurar empresa %s', request.empresa.pk)
-        return JsonResponse({'success': False, 'message': 'No se pudo restaurar por una incompatibilidad de datos. No se aplicaron cambios.'}, status=400)
+    except Exception as exc:
+        logger.exception('Error al restaurar empresa %s: %s', request.empresa.pk, str(exc))
+        return JsonResponse({'success': False, 'message': f'Error al restaurar: {str(exc)}'}, status=400)
 
 
 @login_required

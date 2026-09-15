@@ -965,7 +965,19 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
         return redirect('facturacion_electronica:dte_detail', pk=dte_id)
     
     # ASEGURAR TIMBRE PDF417 si falta o es placeholder, pero tenemos el TED
-    if dte.timbre_electronico and (not dte.timbre_pdf417 or dte.timbre_pdf417.size < 3000):
+    timbre_necesita_generacion = False
+    if dte.timbre_electronico:
+        try:
+            if not dte.timbre_pdf417 or not dte.timbre_pdf417.name:
+                timbre_necesita_generacion = True
+            elif not dte.timbre_pdf417.storage.exists(dte.timbre_pdf417.name):
+                timbre_necesita_generacion = True
+            elif dte.timbre_pdf417.size < 3000:
+                timbre_necesita_generacion = True
+        except Exception:
+            timbre_necesita_generacion = True
+
+    if timbre_necesita_generacion:
         try:
             from .pdf417_generator import PDF417Generator
             # Guardar el timbre (esta funcion llama a dte.timbre_pdf417.save que actualiza la DB)

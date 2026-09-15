@@ -507,7 +507,19 @@ async function restaurarBackup() {
         const response = await fetch('{% url "utilidades:restaurar_backup" %}', {
             method: 'POST', headers: {'X-CSRFToken': '{{ csrf_token }}'}, body: form
         });
-        const data = await response.json();
+        const responseText = await response.text();
+        let data = {};
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            if (response.status === 504 || response.status === 502) {
+                throw new Error('El servidor tardó demasiado tiempo en responder (Timeout 504/502). Para archivos grandes, use en consola: python manage.py restaurar_empresa');
+            } else if (response.status === 413) {
+                throw new Error('El archivo excede el tamaño máximo permitido por el servidor web (Error 413).');
+            } else {
+                throw new Error(`Error en servidor (${response.status}): ${response.statusText || 'Respuesta no válida'}`);
+            }
+        }
         if (!response.ok || !data.success) throw new Error(data.message || 'No se pudo restaurar el respaldo.');
         input.value = '';
         await Swal.fire('Restauración completada', data.message, 'success');

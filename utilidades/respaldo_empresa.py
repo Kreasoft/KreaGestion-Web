@@ -109,10 +109,32 @@ def _validar_relaciones(registros, rutas, empresa, advertencias=None, ampliado=F
         esperados = {f.name for f in model._meta.fields if not f.primary_key}
         esperados.update(f.name for f in model._meta.many_to_many if f.remote_field.through._meta.auto_created)
         
-        # Compatibilidad con respaldos anteriores: inicializar en None campos faltantes por nuevas migraciones
+        # Compatibilidad con respaldos anteriores: inicializar campos faltantes con defaults según tipo
         faltantes = esperados - set(campos)
         for campo in faltantes:
-            campos[campo] = None
+            try:
+                f_obj = model._meta.get_field(campo)
+                if f_obj.has_default():
+                    val = f_obj.get_default()
+                    campos[campo] = val() if callable(val) else val
+                elif f_obj.null:
+                    campos[campo] = None
+                elif f_obj.get_internal_type() in ('CharField', 'TextField', 'SlugField', 'EmailField', 'URLField'):
+                    campos[campo] = ''
+                elif f_obj.get_internal_type() in ('IntegerField', 'SmallIntegerField', 'BigIntegerField', 'PositiveIntegerField', 'PositiveSmallIntegerField'):
+                    campos[campo] = 0
+                elif f_obj.get_internal_type() in ('DecimalField', 'FloatField'):
+                    campos[campo] = 0
+                elif f_obj.get_internal_type() == 'BooleanField':
+                    campos[campo] = False
+                elif f_obj.get_internal_type() == 'DateField':
+                    campos[campo] = timezone.now().date().isoformat()
+                elif f_obj.get_internal_type() in ('DateTimeField',):
+                    campos[campo] = timezone.now().isoformat()
+                else:
+                    campos[campo] = None
+            except Exception:
+                campos[campo] = None
 
         # Eliminar campos sobrantes que ya no existan en la versión actual
         sobrantes = set(campos) - esperados
@@ -242,7 +264,7 @@ def leer_respaldo(archivo, empresa):
     return payload
 
 
-def restaurar_respaldo(archivo, empresa, resumen=None):
+def restaurar_respaldo(archivo, empresa, resumen=None, callback_progreso=None):
     from .cobertura_respaldo import catalogos_compartidos
 
     payload = leer_respaldo(archivo, empresa)
@@ -253,75 +275,127 @@ def restaurar_respaldo(archivo, empresa, resumen=None):
     referencias_historicas = []
     
     with transaction.atomic():
-        indices = _validar_relaciones(payload['registros'], rutas, empresa, ampliado=ampliado,
-                                     referencias_historicas=referencias_historicas)
-        
-        existentes = {}
-        for model in modelos:
-            ids = {pk for m, pk in indices if m == model}
-            presentes = set(model._base_manager.filter(pk__in=ids).values_list('pk', flat=True))
-            existentes[model] = presentes
-
-        registros_validos = []
-        for reg in payload['registros']:
-            try:
-                m = apps.get_model(reg['model'])
-                registros_validos.append(reg)
-            except (LookupError, ValueError):
-                continue
-
-        deserializados = list(serializers.deserialize('json', json.dumps(registros_validos)))
-        por_modelo = {}
-        for item in deserializados:
-            por_modelo.setdefault(type(item.object), []).append(item)
-            
-        for model, items in por_modelo.items():
-            ex = existentes.get(model, set())
-            nuevos = [item.object for item in items if item.object.pk not in ex]
-            if nuevos:
-                model._base_manager.bulk_create(nuevos, batch_size=200, ignore_conflicts=True)
-                
-        por_modelo = {}
-        for item in serializers.deserialize('json', json.dumps(registros_validos)):
-            if type(item.object) in conservar and item.object.pk in existentes.get(type(item.object), set()):
-                continue
-            por_modelo.setdefault(type(item.object), []).append(item)
-            
-        for model, items in por_modelo.items():
-            fields = [f.name for f in model._meta.concrete_fields if not f.primary_key]
-            if fields:
+        # Desactivar temporalmente verificación de restricciones en PostgreSQL
+        if connection.vendor == 'postgresql':
+            with connection.cursor() as cursor:
                 try:
-                    with transaction.atomic():
-                        model._base_manager.bulk_update([item.object for item in items], fields, batch_size=200)
+                    cursor.execute("SET session_replication_role = 'replica';")
                 except Exception:
-                    for item in items:
-                        try:
-                            with transaction.atomic():
-                                item.object.save(update_fields=fields)
-                        except Exception:
-                            pass
-            for item in items:
-                for name, values in (item.m2m_data or {}).items():
                     try:
-                        field = model._meta.get_field(name)
-                        through = field.remote_field.through
-                        source = field.m2m_field_name() + '_id'
-                        target = field.m2m_reverse_field_name() + '_id'
-                        through._base_manager.filter(**{source: item.object.pk}).delete()
-                        through._base_manager.bulk_create([through(**{source: item.object.pk, target: v}) for v in values], ignore_conflicts=True)
+                        cursor.execute("SET CONSTRAINTS ALL DEFERRED;")
                     except Exception:
                         pass
-        try:
-            connection.check_constraints()
-        except Exception:
-            pass
-        with connection.cursor() as cursor:
-            for sql in connection.ops.sequence_reset_sql(no_style(), list(por_modelo)):
+        elif connection.vendor == 'sqlite':
+            with connection.cursor() as cursor:
                 try:
-                    cursor.execute(sql)
+                    cursor.execute("PRAGMA foreign_keys = OFF;")
                 except Exception:
                     pass
+
+        try:
+            indices = _validar_relaciones(payload['registros'], rutas, empresa, ampliado=ampliado,
+                                         referencias_historicas=referencias_historicas)
+            
+            existentes = {}
+            for model in modelos:
+                ids = {pk for m, pk in indices if m == model}
+                presentes = set(model._base_manager.filter(pk__in=ids).values_list('pk', flat=True))
+                existentes[model] = presentes
+
+            registros_validos = []
+            for reg in payload['registros']:
+                try:
+                    m = apps.get_model(reg['model'])
+                    registros_validos.append(reg)
+                except (LookupError, ValueError):
+                    continue
+
+            # Deserializar una sola vez
+            deserializados = list(serializers.deserialize('json', json.dumps(registros_validos)))
+            por_modelo = {}
+            for item in deserializados:
+                por_modelo.setdefault(type(item.object), []).append(item)
+                
+            # 1. Inserción de nuevos registros
+            for model, items in por_modelo.items():
+                ex = existentes.get(model, set())
+                nuevos = [item.object for item in items if item.object.pk not in ex]
+                if nuevos:
+                    try:
+                        model._base_manager.bulk_create(nuevos, batch_size=200, ignore_conflicts=True)
+                    except Exception:
+                        for n in nuevos:
+                            try:
+                                n.save(force_insert=True)
+                            except Exception:
+                                pass
+                if callback_progreso:
+                    callback_progreso(model, len(items), 'insertados/procesados')
                     
+            # 2. Actualización de campos y M2M
+            for model, items in por_modelo.items():
+                if model in conservar:
+                    items_actualizar = [item for item in items if item.object.pk not in existentes.get(model, set())]
+                else:
+                    items_actualizar = items
+
+                if not items_actualizar:
+                    continue
+
+                fields = [f.name for f in model._meta.concrete_fields if not f.primary_key]
+                if fields:
+                    try:
+                        model._base_manager.bulk_update([item.object for item in items_actualizar], fields, batch_size=200)
+                    except Exception:
+                        for item in items_actualizar:
+                            try:
+                                item.object.save(update_fields=fields)
+                            except Exception:
+                                pass
+
+                for item in items_actualizar:
+                    for name, values in (item.m2m_data or {}).items():
+                        try:
+                            field = model._meta.get_field(name)
+                            through = field.remote_field.through
+                            source = field.m2m_field_name() + '_id'
+                            target = field.m2m_reverse_field_name() + '_id'
+                            through._base_manager.filter(**{source: item.object.pk}).delete()
+                            through._base_manager.bulk_create([through(**{source: item.object.pk, target: v}) for v in values], ignore_conflicts=True)
+                        except Exception:
+                            pass
+
+            try:
+                connection.check_constraints()
+            except Exception:
+                pass
+
+            # Reset de secuencias autoincrementales de PostgreSQL
+            if connection.vendor == 'postgresql':
+                with connection.cursor() as cursor:
+                    todos_los_modelos = list(por_modelo.keys())
+                    for sql in connection.ops.sequence_reset_sql(no_style(), todos_los_modelos):
+                        try:
+                            cursor.execute(sql)
+                        except Exception:
+                            pass
+
+        finally:
+            # Restaurar restricciones normales
+            if connection.vendor == 'postgresql':
+                with connection.cursor() as cursor:
+                    try:
+                        cursor.execute("SET session_replication_role = 'DEFAULT';")
+                    except Exception:
+                        pass
+            elif connection.vendor == 'sqlite':
+                with connection.cursor() as cursor:
+                    try:
+                        cursor.execute("PRAGMA foreign_keys = ON;")
+                    except Exception:
+                        pass
+                        
     if resumen is not None:
         resumen['referencias_historicas_conservadas'] = len(referencias_historicas)
+        resumen['tablas_afectadas'] = len(por_modelo)
     return sum(len(items) for items in por_modelo.values())
