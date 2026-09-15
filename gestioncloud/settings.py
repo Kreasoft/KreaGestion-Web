@@ -102,6 +102,12 @@ TEMPLATES = [
 				'empresas.context_processors.empresa_context',
 				'core.context_processors.global_notifications_processor',
 			],
+			'builtins': [
+				'ventas.templatetags.format_filters',
+			],
+			'libraries': {
+				'format_filters': 'ventas.templatetags.format_filters',
+			},
 		},
 	},
 ]
