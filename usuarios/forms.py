@@ -47,7 +47,16 @@ class UsuarioCreateForm(UserCreationForm):
     grupo = forms.ModelChoiceField(
         queryset=Group.objects.all(),
         required=False,
-        label='Grupo/Rol',
+        label='Grupo / Perfil de Permisos',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
+    tipo_usuario = forms.ChoiceField(
+        choices=PerfilUsuario.TIPO_USUARIO_CHOICES,
+        required=True,
+        initial='administrador',
+        label='Tipo de Usuario / Rol Principal',
         widget=forms.Select(attrs={
             'class': 'form-control'
         })
@@ -72,7 +81,7 @@ class UsuarioCreateForm(UserCreationForm):
     
     class Meta:
         model = User
-        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'empresa', 'grupo', 'sucursal', 'is_staff']
+        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2', 'empresa', 'tipo_usuario', 'grupo', 'sucursal', 'is_staff']
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -113,26 +122,30 @@ class UsuarioCreateForm(UserCreationForm):
         user.email = self.cleaned_data['email']
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
-        user.is_staff = self.cleaned_data.get('is_staff', False)
+        tipo = self.cleaned_data.get('tipo_usuario', 'administrador')
+        if tipo == 'administrador':
+            user.is_staff = True
+        else:
+            user.is_staff = self.cleaned_data.get('is_staff', False)
         
         if commit:
             user.save()
             
             # Crear o actualizar perfil asociado a la empresa
-            # Usamos get_or_create porque la señal post_save puede haber creado el perfil
             perfil, created = PerfilUsuario.objects.get_or_create(
                 usuario=user,
                 defaults={
                     'empresa': self.cleaned_data['empresa'],
-                    'sucursal': self.cleaned_data.get('sucursal')
+                    'sucursal': self.cleaned_data.get('sucursal'),
+                    'tipo_usuario': tipo
                 }
             )
             
-            # Si el perfil ya existía, actualizamos la empresa y sucursal
-            if not created:
-                perfil.empresa = self.cleaned_data['empresa']
-                perfil.sucursal = self.cleaned_data.get('sucursal')
-                perfil.save()
+            # Actualizamos datos del perfil
+            perfil.empresa = self.cleaned_data['empresa']
+            perfil.sucursal = self.cleaned_data.get('sucursal')
+            perfil.tipo_usuario = tipo
+            perfil.save()
             
             # Asignar grupo si se especificó
             grupo = self.cleaned_data.get('grupo')
@@ -172,7 +185,15 @@ class UsuarioUpdateForm(forms.ModelForm):
     grupo = forms.ModelChoiceField(
         queryset=Group.objects.all(),
         required=False,
-        label='Grupo/Rol',
+        label='Grupo / Perfil de Permisos',
+        widget=forms.Select(attrs={
+            'class': 'form-control'
+        })
+    )
+    tipo_usuario = forms.ChoiceField(
+        choices=PerfilUsuario.TIPO_USUARIO_CHOICES,
+        required=True,
+        label='Tipo de Usuario / Rol Principal',
         widget=forms.Select(attrs={
             'class': 'form-control'
         })
@@ -242,9 +263,10 @@ class UsuarioUpdateForm(forms.ModelForm):
             if grupo_actual:
                 self.fields['grupo'].initial = grupo_actual
             
-            # Precargar la sucursal actual del usuario
+            # Precargar la sucursal y tipo_usuario actual del usuario
             if hasattr(self.instance, 'perfil') and self.instance.perfil:
                 self.fields['sucursal'].initial = self.instance.perfil.sucursal
+                self.fields['tipo_usuario'].initial = self.instance.perfil.tipo_usuario
                 # Filtrar sucursales por la empresa del usuario
                 if self.instance.perfil.empresa:
                     self.fields['sucursal'].queryset = self.instance.perfil.empresa.sucursales.filter(
@@ -268,14 +290,20 @@ class UsuarioUpdateForm(forms.ModelForm):
         nueva_password = self.cleaned_data.get('password1')
         if nueva_password:
             user.set_password(nueva_password)
+            
+        tipo = self.cleaned_data.get('tipo_usuario')
+        if tipo == 'administrador':
+            user.is_staff = True
         
         if commit:
             user.save()
             
             # Actualizar el perfil
-            if hasattr(user, 'perfil'):
+            if hasattr(user, 'perfil') and user.perfil:
                 user.perfil.es_activo = user.is_active
                 user.perfil.sucursal = self.cleaned_data.get('sucursal')
+                if tipo:
+                    user.perfil.tipo_usuario = tipo
                 user.perfil.save()
             
             # Actualizar grupo

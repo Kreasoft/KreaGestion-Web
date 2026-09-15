@@ -196,6 +196,16 @@ def usuario_asignar_grupo(request, user_id):
         if grupo_id and grupo_id != '':
             grupo = get_object_or_404(Group, id=grupo_id)
             usuario.groups.add(grupo)
+            g_lower = grupo.name.lower()
+            if hasattr(usuario, 'perfil') and usuario.perfil:
+                if 'admin' in g_lower:
+                    usuario.perfil.tipo_usuario = 'administrador'
+                    usuario.is_staff = True
+                elif 'cajer' in g_lower:
+                    usuario.perfil.tipo_usuario = 'cajero'
+                elif 'vendedor' in g_lower:
+                    usuario.perfil.tipo_usuario = 'vendedor'
+                usuario.perfil.save()
             message = f'Usuario asignado al grupo "{grupo.name}" correctamente.'
         else:
             message = 'Grupo removido del usuario correctamente.'

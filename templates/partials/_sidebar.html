@@ -533,7 +533,7 @@
 
     <!-- Submenú de Tesorería -->
     {% if request.user.perfil.tipo_usuario != 'cajero' %}
-        {% if user.is_superuser %}
+        {% if user.is_superuser or request.user.perfil.es_administrador or perms.tesoreria.view_cuentacorrienteproveedor or perms.tesoreria.view_cuentacorrientecliente %}
         <div class="nav-item has-submenu">
             <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#tesoreriaSubmenu"
                 aria-expanded="{% if request.resolver_match.app_name == 'tesoreria' %}true{% else %}false{% endif %}">
@@ -544,14 +544,14 @@
             <div class="collapse submenu {% if request.resolver_match.app_name == 'tesoreria' %}show{% endif %}"
                 id="tesoreriaSubmenu">
                 <div class="submenu-items">
-                    {% if user.is_superuser %}
+                    {% if user.is_superuser or request.user.perfil.es_administrador or perms.tesoreria.view_cuentacorrienteproveedor %}
                     <a href="{% url 'tesoreria:cuenta_corriente_proveedor_list' %}"
                         class="nav-link submenu-link {% if 'proveedor' in request.path %}active{% endif %}">
                         <i class="fas fa-file-invoice-dollar me-2" style="color: #8B7355;"></i>
                         <span>Cuentas por Pagar</span>
                     </a>
                     {% endif %}
-                    {% if user.is_superuser %}
+                    {% if user.is_superuser or request.user.perfil.es_administrador or perms.tesoreria.view_cuentacorrientecliente %}
                     <a href="{% url 'tesoreria:cuenta_corriente_cliente_list' %}"
                         class="nav-link submenu-link {% if 'cliente' in request.path and 'tesoreria' in request.path %}active{% endif %}">
                         <i class="fas fa-file-invoice me-2" style="color: #A0826D;"></i>
@@ -566,7 +566,7 @@
 
     <!-- Submenú de Informes -->
     {% if request.user.perfil.tipo_usuario != 'cajero' %}
-        {% if user.is_superuser %}
+        {% if user.is_superuser or request.user.perfil.es_administrador %}
         <div class="nav-item has-submenu">
             <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#informesSubmenu"
                 aria-expanded="{% if request.resolver_match.app_name == 'informes' %}true{% else %}false{% endif %}">
@@ -614,7 +614,7 @@
 
     <!-- Submenú de Configuración -->
     {% if request.user.perfil.tipo_usuario != 'cajero' %}
-        {% if perms.empresas.view_empresa or user.is_superuser %}
+        {% if perms.empresas.view_empresa or user.is_superuser or request.user.perfil.es_administrador %}
         <div class="nav-item has-submenu">
             <a href="#" class="nav-link submenu-toggle" data-bs-toggle="collapse" data-bs-target="#configuracionSubmenu"
                 aria-expanded="{% if request.resolver_match.app_name == 'empresas' or request.resolver_match.app_name == 'usuarios' or request.resolver_match.app_name == 'utilidades' %}true{% else %}false{% endif %}">
@@ -625,14 +625,14 @@
             <div class="collapse submenu {% if request.resolver_match.app_name == 'empresas' or request.resolver_match.app_name == 'usuarios' or request.resolver_match.app_name == 'utilidades' %}show{% endif %}"
                 id="configuracionSubmenu">
                 <div class="submenu-items">
-                    {% if perms.empresas.view_empresa or user.is_superuser %}
+                    {% if perms.empresas.view_empresa or user.is_superuser or request.user.perfil.es_administrador %}
                     <a href="{% url 'empresas:empresa_list' %}"
                         class="nav-link submenu-link {% if 'empresas/lista' in request.path %}active{% endif %}">
                         <i class="fas fa-building me-2" style="color: #8B7355;"></i>
                         <span>Empresas</span>
                     </a>
                     {% endif %}
-                    {% if perms.empresas.view_sucursal or user.is_superuser %}
+                    {% if perms.empresas.view_sucursal or user.is_superuser or request.user.perfil.es_administrador %}
                     <a href="{% url 'empresas:sucursal_list' %}"
                         class="nav-link submenu-link {% if 'sucursales' in request.path %}active{% endif %}">
                         <i class="fas fa-store me-2" style="color: #8B7355;"></i>
@@ -641,14 +641,14 @@
                     {% endif %}
 
                     <div class="submenu-separator"></div>
-                    {% if user.is_superuser %}
+                    {% if user.is_superuser or request.user.perfil.es_administrador or perms.auth.view_user %}
                     <a href="{% url 'usuarios:usuario_list' %}"
                         class="nav-link submenu-link {% if 'usuarios' in request.path %}active{% endif %}">
                         <i class="fas fa-users-cog me-2" style="color: #D4A574;"></i>
                         <span>Usuarios</span>
                     </a>
                     {% endif %}
-                    {% if user.is_superuser %}
+                    {% if user.is_superuser or request.user.perfil.es_administrador %}
                     <a href="{% url 'utilidades:dashboard' %}"
                         class="nav-link submenu-link {% if 'utilidades' in request.path %}active{% endif %}">
                         <i class="fas fa-tools me-2" style="color: #D4A574;"></i>
