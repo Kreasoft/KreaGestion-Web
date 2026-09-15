@@ -806,8 +806,8 @@ class DTEService:
         )
 
         rut_envia = obtener_rut_certificado(certificado_path, password) or self.empresa.rut
-        fecha_resolucion = self.empresa.resolucion_fecha
-        numero_resolucion = int(self.empresa.resolucion_numero or 0)
+        fecha_resolucion = self.empresa.resolucion_fecha_activa
+        numero_resolucion = int(self.empresa.resolucion_numero_activa or 0)
 
         # En certificacion, la caratula debe usar exactamente la resolucion
         # registrada por el SII para el contribuyente, o el envio cae en CRT-3-19.
@@ -817,13 +817,15 @@ class DTEService:
                 fecha_resolucion = datos_resolucion['fecha']
                 numero_resolucion = int(datos_resolucion['numero'] or 0)
 
-                if (
-                    self.empresa.resolucion_fecha != fecha_resolucion
-                    or int(self.empresa.resolucion_numero or 0) != numero_resolucion
-                ):
-                    self.empresa.resolucion_fecha = fecha_resolucion
-                    self.empresa.resolucion_numero = numero_resolucion
-                    self.empresa.save(update_fields=['resolucion_fecha', 'resolucion_numero'])
+                update_fields = []
+                if self.empresa.resolucion_fecha_certificacion != fecha_resolucion:
+                    self.empresa.resolucion_fecha_certificacion = fecha_resolucion
+                    update_fields.append('resolucion_fecha_certificacion')
+                if int(self.empresa.resolucion_numero_certificacion or 0) != numero_resolucion:
+                    self.empresa.resolucion_numero_certificacion = numero_resolucion
+                    update_fields.append('resolucion_numero_certificacion')
+                if update_fields:
+                    self.empresa.save(update_fields=update_fields)
 
         fecha_resolucion_str = fecha_resolucion.strftime('%Y-%m-%d') if fecha_resolucion else '2014-08-22'
 

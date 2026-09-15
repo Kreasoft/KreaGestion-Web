@@ -112,6 +112,28 @@ class Empresa(models.Model):
                 if not self.fecha_limite_pago:
                     self.fecha_limite_pago = (timezone.now() + timezone.timedelta(days=15)).date()
         
+        # Sincronizar resoluciones de ambiente activo manteniendo aislamiento estricto
+        if self.ambiente_sii == 'produccion':
+            if self.resolucion_numero is not None and self.resolucion_numero_produccion is None:
+                self.resolucion_numero_produccion = self.resolucion_numero
+            elif self.resolucion_numero_produccion is not None:
+                self.resolucion_numero = self.resolucion_numero_produccion
+
+            if self.resolucion_fecha is not None and self.resolucion_fecha_produccion is None:
+                self.resolucion_fecha_produccion = self.resolucion_fecha
+            elif self.resolucion_fecha_produccion is not None:
+                self.resolucion_fecha = self.resolucion_fecha_produccion
+        else:  # certificacion
+            if self.resolucion_numero is not None and self.resolucion_numero_certificacion is None:
+                self.resolucion_numero_certificacion = self.resolucion_numero
+            elif self.resolucion_numero_certificacion is not None:
+                self.resolucion_numero = self.resolucion_numero_certificacion
+
+            if self.resolucion_fecha is not None and self.resolucion_fecha_certificacion is None:
+                self.resolucion_fecha_certificacion = self.resolucion_fecha
+            elif self.resolucion_fecha_certificacion is not None:
+                self.resolucion_fecha = self.resolucion_fecha_certificacion
+
         super().save(*args, **kwargs)
         
         # Si es una empresa nueva, crear sucursal principal automáticamente
@@ -284,7 +306,7 @@ class Empresa(models.Model):
         help_text="Oficina regional del SII donde está registrada la empresa"
     )
 
-    # Resoluciones SII
+    # Resoluciones SII (Generales / Compatibilidad)
     resolucion_fecha = models.DateField(
         null=True,
         blank=True,
@@ -295,6 +317,47 @@ class Empresa(models.Model):
         blank=True,
         verbose_name="Número Resolución SII"
     )
+
+    # Resoluciones SII por Ambiente (Separación estricta Certificación vs Producción)
+    resolucion_numero_certificacion = models.IntegerField(
+        null=True,
+        blank=True,
+        default=0,
+        verbose_name="N° Resolución Certificación",
+        help_text="Número de resolución en ambiente de pruebas (típicamente 0)"
+    )
+    resolucion_fecha_certificacion = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha Resolución Certificación",
+        help_text="Fecha de resolución en ambiente de pruebas (típicamente 2003-01-01)"
+    )
+    resolucion_numero_produccion = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="N° Resolución Producción",
+        help_text="Número de resolución oficial otorgada por el SII para producción"
+    )
+    resolucion_fecha_produccion = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha Resolución Producción",
+        help_text="Fecha de resolución oficial del SII para producción"
+    )
+
+    @property
+    def resolucion_numero_activa(self):
+        """Retorna el número de resolución correspondiente al ambiente SII activo."""
+        if self.ambiente_sii == 'produccion':
+            return self.resolucion_numero_produccion if self.resolucion_numero_produccion is not None else (self.resolucion_numero or 0)
+        return self.resolucion_numero_certificacion if self.resolucion_numero_certificacion is not None else (self.resolucion_numero or 0)
+
+    @property
+    def resolucion_fecha_activa(self):
+        """Retorna la fecha de resolución correspondiente al ambiente SII activo."""
+        if self.ambiente_sii == 'produccion':
+            return self.resolucion_fecha_produccion or self.resolucion_fecha
+        return self.resolucion_fecha_certificacion or self.resolucion_fecha
     
     # Correos Electrónicos
     email_intercambio = models.EmailField(

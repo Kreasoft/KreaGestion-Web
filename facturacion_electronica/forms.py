@@ -6,6 +6,7 @@ from facturacion_electronica.models import ArchivoCAF
 from empresas.models import Sucursal
 import xml.etree.ElementTree as ET
 from datetime import datetime
+import re
 
 
 class CargarCAFForm(forms.ModelForm):
@@ -103,6 +104,24 @@ class CargarCAFForm(forms.ModelForm):
             if da is None:
                 raise forms.ValidationError('No se encontró elemento DA en el CAF')
             
+            # Validar RUT Emisor (<RE>) contra la empresa activa
+            re_element = da.find('.//RE') or da.find('RE')
+            re_rut = re_element.text.strip() if (re_element is not None and re_element.text) else ''
+            
+            if self.empresa and re_rut:
+                empresa_rut_clean = re.sub(r'[^0-9Kk]', '', str(self.empresa.rut or '')).upper()
+                re_rut_clean = re.sub(r'[^0-9Kk]', '', re_rut).upper()
+                if empresa_rut_clean and re_rut_clean and re_rut_clean != empresa_rut_clean:
+                    raise forms.ValidationError(
+                        f'El archivo CAF pertenece al RUT {re_rut} y NO corresponde a la empresa activa '
+                        f'"{self.empresa.razon_social}" (RUT {self.empresa.rut}). '
+                        f'No está permitido cargar CAFs de otra empresa.'
+                    )
+
+            # Extraer Tipo de Documento (<TD>)
+            td_element = da.find('.//TD') or da.find('TD')
+            td_caf = td_element.text.strip() if (td_element is not None and td_element.text) else None
+
             # Extraer datos
             rng = da.find('.//RNG')
             if rng is None:
@@ -137,10 +156,14 @@ class CargarCAFForm(forms.ModelForm):
                 'firma_electronica': firma_electronica,
                 'contenido_caf': contenido,
                 'folio_actual': folio_desde - 1,  # Inicialmente sin uso
+                'tipo_documento_caf': td_caf,
+                'rut_emisor_caf': re_rut,
             }
             
             return archivo
             
+        except forms.ValidationError:
+            raise
         except ET.ParseError as e:
             raise forms.ValidationError(f'Error al parsear XML: {str(e)}')
         except Exception as e:
@@ -152,6 +175,16 @@ class CargarCAFForm(forms.ModelForm):
         
         if hasattr(self, 'caf_data') and self.empresa:
             tipo_documento = cleaned_data.get('tipo_documento')
+            td_caf = self.caf_data.get('tipo_documento_caf')
+            if tipo_documento and td_caf and str(tipo_documento) != str(td_caf):
+                nombre_form = dict(ArchivoCAF.TIPO_DOCUMENTO_CHOICES).get(tipo_documento, tipo_documento)
+                nombre_caf = dict(ArchivoCAF.TIPO_DOCUMENTO_CHOICES).get(td_caf, td_caf)
+                raise forms.ValidationError(
+                    f'El archivo CAF corresponde a "{nombre_caf}" (código {td_caf}), '
+                    f'pero en el formulario seleccionó "{nombre_form}" (código {tipo_documento}). '
+                    f'Por favor seleccione el tipo de documento correcto.'
+                )
+
             ambiente = getattr(self.empresa, 'ambiente_sii', 'certificacion') or 'certificacion'
             cleaned_data['ambiente'] = ambiente
             

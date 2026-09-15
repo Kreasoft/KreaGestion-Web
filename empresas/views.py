@@ -590,8 +590,8 @@ def editar_empresa_activa(request):
 				else:
 					messages.error(request, 'Hubo un error al guardar las configuraciones.')
 
-		# Si tiene certificado_digital o resolucion_fecha, es el formulario FE específico
-		elif 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST:
+		# Si tiene certificado_digital o resoluciones, es el formulario FE específico
+		elif 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST or 'resolucion_numero_certificacion' in request.POST or 'resolucion_numero_produccion' in request.POST:
 			fe_form = FacturacionElectronicaForm(request.POST, request.FILES, instance=empresa_activa)
 			if fe_form.is_valid():
 				fe_form.save()

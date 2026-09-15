@@ -216,6 +216,10 @@ def cargar_caf(request):
             except Exception as e:
                 # Otros errores
                 messages.error(request, f'❌ Error al cargar el CAF: {str(e)}')
+        else:
+            for field, errs in form.errors.items():
+                for err in errs:
+                    messages.error(request, f'❌ {err}')
     else:
         from facturacion_electronica.forms import CargarCAFForm
         form = CargarCAFForm(empresa=request.empresa)

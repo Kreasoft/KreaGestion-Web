@@ -202,8 +202,9 @@ class FacturacionElectronicaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Asegurar formato correcto de fecha
-        if 'resolucion_fecha' in self.fields:
-            self.fields['resolucion_fecha'].input_formats = ['%Y-%m-%d']
+        for campo in ('resolucion_fecha', 'resolucion_fecha_certificacion', 'resolucion_fecha_produccion'):
+            if campo in self.fields:
+                self.fields[campo].input_formats = ['%Y-%m-%d']
     
     def clean_codigo_actividad_economica(self):
         from facturacion_electronica.validacion_envio import normalizar_acteco
@@ -222,6 +223,19 @@ class FacturacionElectronicaForm(forms.ModelForm):
         if not self.cleaned_data.get('password_certificado') and self.instance.pk:
             original = Empresa.objects.get(pk=self.instance.pk)
             instance.password_certificado = original.password_certificado
+
+        # Sincronizar campos de resolución según ambiente
+        if instance.ambiente_sii == 'produccion':
+            if instance.resolucion_numero_produccion is not None:
+                instance.resolucion_numero = instance.resolucion_numero_produccion
+            if instance.resolucion_fecha_produccion is not None:
+                instance.resolucion_fecha = instance.resolucion_fecha_produccion
+        else:  # certificacion
+            if instance.resolucion_numero_certificacion is not None:
+                instance.resolucion_numero = instance.resolucion_numero_certificacion
+            if instance.resolucion_fecha_certificacion is not None:
+                instance.resolucion_fecha = instance.resolucion_fecha_certificacion
+
         if commit:
             instance.save()
         return instance
@@ -242,6 +256,10 @@ class FacturacionElectronicaForm(forms.ModelForm):
             'oficina_sii',
             'resolucion_fecha',
             'resolucion_numero',
+            'resolucion_numero_certificacion',
+            'resolucion_fecha_certificacion',
+            'resolucion_numero_produccion',
+            'resolucion_fecha_produccion',
             'email_intercambio',
             'email_contacto_sii',
         ]
@@ -262,11 +280,24 @@ class FacturacionElectronicaForm(forms.ModelForm):
                 format='%Y-%m-%d'
             ),
             'resolucion_numero': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Número de resolución'}),
+            'resolucion_numero_certificacion': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0'}),
+            'resolucion_fecha_certificacion': forms.DateInput(
+                attrs={'class': 'form-control', 'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'resolucion_numero_produccion': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 80'}),
+            'resolucion_fecha_produccion': forms.DateInput(
+                attrs={'class': 'form-control', 'type': 'date'},
+                format='%Y-%m-%d'
+            ),
             'email_intercambio': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email para recibir acuses'}),
             'email_contacto_sii': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email registrado en SII'}),
         }
         labels = {
-            # labels dict remains
+            'resolucion_numero_certificacion': 'N° Resolución Certificación',
+            'resolucion_fecha_certificacion': 'Fecha Resolución Certificación',
+            'resolucion_numero_produccion': 'N° Resolución Producción',
+            'resolucion_fecha_produccion': 'Fecha Resolución Producción',
         }
 
     def clean(self):

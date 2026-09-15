@@ -1457,25 +1457,58 @@
                                 <div class="card shadow-sm mb-4">
                                     <div class="card-header-piedra" style="padding: 8px 16px;">
                                         <h6 class="mb-0" style="color: var(--color-piedra-texto); font-weight: 700;">
-                                            <i class="fas fa-file-alt me-2"></i>Resolución y Contacto SII
-                                        </h5>
+                                            <i class="fas fa-file-alt me-2"></i>Resoluciones por Ambiente y Contacto SII
+                                        </h6>
                                     </div>
                                     <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-3">
-                                                <label for="{{ fe_form.resolucion_fecha.id_for_label }}" class="form-label">
-                                                    {{ fe_form.resolucion_fecha.label }}
-                                                </label>
-                                                {{ fe_form.resolucion_fecha }}
+                                        <!-- Certificación -->
+                                        <div class="p-3 mb-3 rounded" style="background: #F8F9FA; border-left: 4px solid #17a2b8;">
+                                            <h6 class="fw-bold mb-2 text-info" style="font-size: 0.9rem;">
+                                                <i class="fas fa-vial me-2"></i>Ambiente Certificación (Pruebas)
+                                            </h6>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="{{ fe_form.resolucion_numero_certificacion.id_for_label }}" class="form-label">
+                                                        {{ fe_form.resolucion_numero_certificacion.label }}
+                                                    </label>
+                                                    {{ fe_form.resolucion_numero_certificacion }}
+                                                    <small class="text-muted" style="font-size: 0.72rem;">Habitualmente 0 para pruebas SII</small>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="{{ fe_form.resolucion_fecha_certificacion.id_for_label }}" class="form-label">
+                                                        {{ fe_form.resolucion_fecha_certificacion.label }}
+                                                    </label>
+                                                    {{ fe_form.resolucion_fecha_certificacion }}
+                                                    <small class="text-muted" style="font-size: 0.72rem;">Fecha asignada para certificación</small>
+                                                </div>
                                             </div>
-                                            
-                                            <div class="col-md-6 mb-3">
-                                                <label for="{{ fe_form.resolucion_numero.id_for_label }}" class="form-label">
-                                                    {{ fe_form.resolucion_numero.label }}
-                                                </label>
-                                                {{ fe_form.resolucion_numero }}
+                                        </div>
+
+                                        <!-- Producción -->
+                                        <div class="p-3 mb-3 rounded" style="background: #FDFBF7; border-left: 4px solid #28a745;">
+                                            <h6 class="fw-bold mb-2 text-success" style="font-size: 0.9rem;">
+                                                <i class="fas fa-shield-alt me-2"></i>Ambiente Producción (Oficial SII)
+                                            </h6>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="{{ fe_form.resolucion_numero_produccion.id_for_label }}" class="form-label">
+                                                        {{ fe_form.resolucion_numero_produccion.label }}
+                                                    </label>
+                                                    {{ fe_form.resolucion_numero_produccion }}
+                                                    <small class="text-muted" style="font-size: 0.72rem;">N° de resolución oficial otorgada por SII</small>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="{{ fe_form.resolucion_fecha_produccion.id_for_label }}" class="form-label">
+                                                        {{ fe_form.resolucion_fecha_produccion.label }}
+                                                    </label>
+                                                    {{ fe_form.resolucion_fecha_produccion }}
+                                                    <small class="text-muted" style="font-size: 0.72rem;">Fecha de resolución oficial en producción</small>
+                                                </div>
                                             </div>
-                                            
+                                        </div>
+
+                                        <!-- Contacto SII -->
+                                        <div class="row pt-2">
                                             <div class="col-md-6 mb-3">
                                                 <label for="{{ fe_form.email_intercambio.id_for_label }}" class="form-label">
                                                     {{ fe_form.email_intercambio.label }}
@@ -1575,18 +1608,18 @@
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">
-                                                <i class="fas fa-file-alt me-2"></i>Resolución SII
+                                                <i class="fas fa-file-alt me-2"></i>Resolución SII (Ambiente Activo: {{ empresa.get_ambiente_sii_display }})
                                             </label>
-                                            <p class="mb-0">
-                                                {% if empresa.resolucion_numero %}
-                                                    N° {{ empresa.resolucion_numero }}
-                                                    {% if empresa.resolucion_fecha %}
-                                                        <small class="text-muted">({{ empresa.resolucion_fecha|date:"d-m-Y" }})</small>
-                                                    {% endif %}
-                                                {% else %}
-                                                    <span class="text-muted">No registrada</span>
+                                            <p class="mb-1 fw-bold">
+                                                N° {{ empresa.resolucion_numero_activa }}
+                                                {% if empresa.resolucion_fecha_activa %}
+                                                    <small class="text-muted">({{ empresa.resolucion_fecha_activa|date:"d-m-Y" }})</small>
                                                 {% endif %}
                                             </p>
+                                            <small class="text-muted d-block" style="font-size: 0.78rem;">
+                                                <span class="badge bg-light text-dark border me-1">Cert: N° {{ empresa.resolucion_numero_certificacion|default:"0" }} ({{ empresa.resolucion_fecha_certificacion|date:"d-m-Y"|default:"-" }})</span>
+                                                <span class="badge bg-light text-dark border">Prod: N° {{ empresa.resolucion_numero_produccion|default:"-" }} ({{ empresa.resolucion_fecha_produccion|date:"d-m-Y"|default:"-" }})</span>
+                                            </small>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">
