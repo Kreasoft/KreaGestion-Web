@@ -4278,6 +4278,59 @@ def _resolver_dte_de_venta(venta):
     return DocumentoTributarioElectronico.objects.filter(venta=venta).order_by('-id').first()
 
 
+class SafeAttrProxy:
+    """Objeto seguro para evitar VariableDoesNotExist en cadenas de atributos en templates."""
+    def __getattr__(self, name):
+        return SafeAttrProxy()
+    def __str__(self):
+        return ""
+    def __bool__(self):
+        return False
+
+
+class DTEProxy:
+    """Proxy de compatibilidad cuando una venta no tiene objeto DTE asociado en BD."""
+    def __init__(self, venta):
+        self._venta = venta
+        self.id = None
+        self.pk = None
+        self.venta = venta
+        self.empresa = getattr(venta, 'empresa', None)
+        self.empresa_id = getattr(venta, 'empresa_id', None)
+        self.fecha_emision = getattr(venta, 'fecha', None)
+        self.folio = getattr(venta, 'numero_venta', None)
+        tipo = getattr(venta, 'tipo_documento', '')
+        if tipo in ('factura', 'factura_electronica'):
+            self.tipo_dte = '33'
+        elif tipo in ('boleta', 'boleta_electronica'):
+            self.tipo_dte = '39'
+        elif tipo == 'guia':
+            self.tipo_dte = '52'
+        else:
+            self.tipo_dte = '39'
+        self.monto_neto = getattr(venta, 'neto', 0)
+        self.monto_iva = getattr(venta, 'iva', 0)
+        self.monto_total = getattr(venta, 'total', 0)
+        self.monto_exento = getattr(venta, 'exento', 0)
+        self.datos_pdf417 = None
+        self.timbre_pdf417 = None
+        self.ambiente = 0
+        self.estado_sii = 'NO_ENVIADO'
+        self.track_id = None
+        cliente = getattr(venta, 'cliente', None)
+        self.rut_receptor = getattr(cliente, 'rut', '') if cliente else '66666666-6'
+        self.razon_social_receptor = getattr(cliente, 'nombre', '') if cliente else 'Cliente Genérico'
+        self.giro_receptor = getattr(cliente, 'giro', '') if cliente else ''
+        self.direccion_receptor = getattr(cliente, 'direccion', '') if cliente else ''
+        self.comuna_receptor = getattr(cliente, 'comuna', '') if cliente else ''
+        self.ciudad_receptor = getattr(cliente, 'ciudad', '') if cliente else ''
+        self.contacto_receptor = getattr(cliente, 'telefono', '') if cliente else ''
+        self.observaciones = getattr(venta, 'observaciones', '')
+
+    def __getattr__(self, name):
+        return SafeAttrProxy()
+
+
 @login_required
 def venta_html(request, pk):
     """Vista HTML de venta (detecta automáticamente el tipo de documento)"""
@@ -4449,11 +4502,14 @@ def venta_html(request, pk):
             tipo_para_copias = 'vale'
         n_copias = estacion.get_copias_por_tipo(tipo_para_copias)
 
+    dte_context = dte if dte else DTEProxy(venta)
+
     context = {
         'venta': venta,
         'detalles': detalles,
         'empresa': empresa,
-        'dte': dte,  # DTE si existe (puede ser None)
+        'dte': dte_context,  # Objeto DTE o DTEProxy seguro para templates
+        'dte_real': dte,     # DTE de BD (None si no existe)
         'nombre_impresora': nombre_impresora,  # Nombre de impresora física
         'formas_pago_list': formas_pago_list,  # Lista de formas de pago múltiples
         'copias_range': range(n_copias),
