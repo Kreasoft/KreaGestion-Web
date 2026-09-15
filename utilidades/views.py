@@ -778,6 +778,7 @@ def importar_ventas(datos, mapeo, empresa):
                     'monto_pagado': total if estado == 'confirmada' else Decimal('0.00'),
                     'saldo_pendiente': Decimal('0.00'),
                     'estado': estado,
+                    'facturado': True if estado == 'confirmada' else False,
                     'observaciones': obs,
                 }
             )

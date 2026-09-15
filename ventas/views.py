@@ -5108,18 +5108,12 @@ def libro_ventas(request):
     ventas = Venta.objects.filter(
         empresa=request.empresa,
         estado='confirmada',
-        facturado=True,  # Solo incluir documentos ya finalizados/cobrados en caja
         dte__isnull=True,
-        tipo_documento__in=['boleta', 'factura']
+        tipo_documento__in=['boleta', 'factura', 'factura_electronica']
     ).exclude(
         Q(numero_venta__icontains='test') | 
-        Q(tipo_documento__in=['cotizacion', 'guia'])
-    ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo').only(
-        'id', 'fecha', 'fecha_creacion', 'numero_venta', 'tipo_documento', 'cliente__id', 'cliente__nombre',
-        'cliente__rut', 'vendedor__id', 'vendedor__nombre', 'forma_pago__id', 'forma_pago__nombre',
-        'estacion_trabajo__id', 'estacion_trabajo__nombre', 'neto', 'iva', 'total',
-        'estado', 'observaciones'
-    )
+        Q(tipo_documento__in=['cotizacion', 'guia', 'vale', 'ticket'])
+    ).select_related('cliente', 'vendedor', 'forma_pago', 'estacion_trabajo')
 
     
     # Consulta DTEs (Documentos Tributarios Electrónicos)
@@ -5145,12 +5139,31 @@ def libro_ventas(request):
     
     # Filtrar por tipo de documento
     if tipo_documento:
-        if tipo_documento in ['33', '34', '39', '41', '52', '56', '61']:
-            # Es un DTE
+        if tipo_documento == '33':
+            dtes = dtes.filter(tipo_dte='33')
+            ventas = ventas.filter(tipo_documento__in=['factura', 'factura_electronica'])
+        elif tipo_documento == '34':
+            dtes = dtes.filter(tipo_dte='34')
+            ventas = ventas.filter(tipo_documento='factura_exenta')
+        elif tipo_documento == '39':
+            dtes = dtes.filter(tipo_dte='39')
+            ventas = ventas.filter(tipo_documento='boleta')
+        elif tipo_documento == '41':
+            dtes = dtes.filter(tipo_dte='41')
+            ventas = ventas.filter(tipo_documento='boleta_exenta')
+        elif tipo_documento == '52':
+            dtes = dtes.filter(tipo_dte='52')
+            ventas = ventas.filter(tipo_documento='guia')
+        elif tipo_documento in ['56', '61']:
             dtes = dtes.filter(tipo_dte=tipo_documento)
             ventas = ventas.none()
+        elif tipo_documento in ['factura', 'factura_electronica']:
+            ventas = ventas.filter(tipo_documento__in=['factura', 'factura_electronica'])
+            dtes = dtes.filter(tipo_dte='33')
+        elif tipo_documento == 'boleta':
+            ventas = ventas.filter(tipo_documento='boleta')
+            dtes = dtes.filter(tipo_dte='39')
         else:
-            # Es una venta del POS
             ventas = ventas.filter(tipo_documento=tipo_documento)
             dtes = dtes.none()
     
@@ -5212,7 +5225,7 @@ def libro_ventas(request):
         venta.fecha_documento = _fecha_documento_libro(venta, es_dte=False)
         venta.es_dte = False
         # Mapeo de tipos para ordenamiento consistente
-        tipo_map = {'factura': '33', 'boleta': '39', 'guia': '52', 'nota_credito': '61', 'nota_debito': '56'}
+        tipo_map = {'factura': '33', 'factura_electronica': '33', 'boleta': '39', 'guia': '52', 'nota_credito': '61', 'nota_debito': '56'}
         venta.sort_tipo = tipo_map.get(venta.tipo_documento, '99')
         try:
             import re
@@ -5331,12 +5344,18 @@ def libro_ventas(request):
             continue
         dte_stats_map[t]['cantidad'] += 1
         dte_stats_map[t]['total'] += (d.monto_total or _Dec('0'))
-    stats_dtes_tipo = [
+
+    tipo_map_stats = {'factura': '33', 'factura_electronica': '33', 'boleta': '39', 'guia': '52'}
+    for sv in stats_ventas_tipo:
+        td = sv['tipo_documento']
+        codigo_sii = tipo_map_stats.get(td, td)
+        dte_stats_map[codigo_sii]['cantidad'] += sv['cantidad']
+        dte_stats_map[codigo_sii]['total'] += (sv['total'] or _Dec('0'))
+
+    stats_por_tipo = [
         {'tipo_documento': k, 'cantidad': v['cantidad'], 'total': v['total']}
         for k, v in dte_stats_map.items()
     ]
-
-    stats_por_tipo = list(stats_ventas_tipo) + stats_dtes_tipo
     
     # Paginación. En modo impresión se incluyen todos los documentos
     # filtrados para generar un libro completo y no solo la página visible.
@@ -6840,12 +6859,11 @@ def libro_ventas_excel(request):
     ventas = Venta.objects.filter(
         empresa=request.empresa,
         estado='confirmada',
-        facturado=True,
-        tipo_documento__in=['boleta', 'factura'],
+        tipo_documento__in=['boleta', 'factura', 'factura_electronica'],
         dte__isnull=True,
     ).filter(q_ventas_periodo).exclude(
         Q(numero_venta__icontains='test') |
-        Q(tipo_documento__in=['cotizacion', 'guia'])
+        Q(tipo_documento__in=['cotizacion', 'guia', 'vale', 'ticket'])
     ).select_related('cliente', 'vendedor', 'forma_pago', 'sucursal')
 
     dtes = DocumentoTributarioElectronico.objects.filter(
@@ -6855,9 +6873,30 @@ def libro_ventas_excel(request):
     ).select_related('venta', 'venta__cliente', 'venta__vendedor', 'venta__sucursal')
 
     if tipo_documento:
-        if tipo_documento in ['33', '34', '39', '41', '52', '56', '61']:
+        if tipo_documento == '33':
+            dtes = dtes.filter(tipo_dte='33')
+            ventas = ventas.filter(tipo_documento__in=['factura', 'factura_electronica'])
+        elif tipo_documento == '34':
+            dtes = dtes.filter(tipo_dte='34')
+            ventas = ventas.filter(tipo_documento='factura_exenta')
+        elif tipo_documento == '39':
+            dtes = dtes.filter(tipo_dte='39')
+            ventas = ventas.filter(tipo_documento='boleta')
+        elif tipo_documento == '41':
+            dtes = dtes.filter(tipo_dte='41')
+            ventas = ventas.filter(tipo_documento='boleta_exenta')
+        elif tipo_documento == '52':
+            dtes = dtes.filter(tipo_dte='52')
+            ventas = ventas.filter(tipo_documento='guia')
+        elif tipo_documento in ['56', '61']:
             dtes = dtes.filter(tipo_dte=tipo_documento)
             ventas = ventas.none()
+        elif tipo_documento in ['factura', 'factura_electronica']:
+            ventas = ventas.filter(tipo_documento__in=['factura', 'factura_electronica'])
+            dtes = dtes.filter(tipo_dte='33')
+        elif tipo_documento == 'boleta':
+            ventas = ventas.filter(tipo_documento='boleta')
+            dtes = dtes.filter(tipo_dte='39')
         else:
             ventas = ventas.filter(tipo_documento=tipo_documento)
             dtes = dtes.none()

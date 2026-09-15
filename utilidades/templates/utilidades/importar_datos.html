@@ -791,11 +791,79 @@ function ejecutarImportacion() {
     formData.append('tabla', tablaSeleccionada);
     formData.append('mapeo', JSON.stringify(mapeoActual));
     
+    let importInterval = null;
+    let importTimerInterval = null;
+    let currentPct = 5;
+    let secondsElapsed = 0;
+
+    const stages = [
+        { upTo: 25, text: 'Conectando con base de datos MySQL...', subtext: 'Extrayendo registros de la tabla seleccionada...' },
+        { upTo: 50, text: 'Validando columnas y estructura...', subtext: 'Mapeando campos y normalizando datos...' },
+        { upTo: 80, text: 'Importando y guardando registros...', subtext: 'Escribiendo en la base de datos...' },
+        { upTo: 92, text: 'Consolidando relaciones y cálculos...', subtext: 'Verificando integridad y finalizando proceso...' },
+    ];
+
     Swal.fire({
-        title: 'Importando Datos',
-        html: 'Procesando registros...<br>Esto puede tomar unos momentos.',
+        title: '<span style="color: #5D4037; font-weight: 700; font-size: 1.25rem;"><i class="fas fa-file-import me-2" style="color: #8B7355;"></i>Importando Información</span>',
+        html: `
+            <div class="import-progress-container p-2 text-start">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span id="import-stage-text" class="fw-bold" style="color: #6F5B44; font-size: 0.85rem;">
+                        <i class="fas fa-spinner fa-spin me-2" style="color: #8B7355;"></i>Iniciando conexión con MySQL...
+                    </span>
+                    <span id="import-percent-text" class="badge rounded-pill" style="background: #8B7355; color: white; font-size: 0.85rem; font-weight: 700;">
+                        5%
+                    </span>
+                </div>
+                
+                <div class="progress mb-2" style="height: 20px; border-radius: 10px; background-color: #E8DCC8; overflow: hidden; box-shadow: inset 0 1px 3px rgba(0,0,0,0.15);">
+                    <div id="import-progress-bar" 
+                         class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         style="width: 5%; background: linear-gradient(90deg, #8B7355 0%, #B8956A 50%, #5F8D62 100%); transition: width 0.35s ease;"
+                         aria-valuenow="5" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mt-2" style="font-size: 0.78rem; color: #8C7B6B;">
+                    <span id="import-subtext"><i class="fas fa-database me-1"></i>Leyendo tabla origen...</span>
+                    <span id="import-timer"><i class="far fa-clock me-1"></i>Tiempo: <strong id="import-seconds" style="color: #5D4037;">0</strong>s</span>
+                </div>
+            </div>
+        `,
         allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => {
+            importTimerInterval = setInterval(() => {
+                secondsElapsed++;
+                const el = document.getElementById('import-seconds');
+                if (el) el.textContent = secondsElapsed;
+            }, 1000);
+
+            importInterval = setInterval(() => {
+                if (currentPct < 90) {
+                    let increment = currentPct < 30 ? 4 : (currentPct < 65 ? 2 : 1);
+                    currentPct += increment;
+                    
+                    const bar = document.getElementById('import-progress-bar');
+                    const pctText = document.getElementById('import-percent-text');
+                    const stageText = document.getElementById('import-stage-text');
+                    const subtext = document.getElementById('import-subtext');
+                    
+                    if (bar) bar.style.width = currentPct + '%';
+                    if (pctText) pctText.textContent = Math.round(currentPct) + '%';
+                    
+                    for (let stage of stages) {
+                        if (currentPct <= stage.upTo) {
+                            if (stageText) stageText.innerHTML = `<i class="fas fa-spinner fa-spin me-2" style="color: #8B7355;"></i>` + stage.text;
+                            if (subtext) subtext.innerHTML = `<i class="fas fa-sync-alt fa-spin me-1"></i>` + stage.subtext;
+                            break;
+                        }
+                    }
+                }
+            }, 350);
+        }
     });
     
     fetch('{% url "utilidades:ejecutar_importacion" %}', {
@@ -805,13 +873,45 @@ function ejecutarImportacion() {
     })
     .then(response => response.json())
     .then(data => {
-        Swal.close();
+        clearInterval(importInterval);
+        clearInterval(importTimerInterval);
+
+        const bar = document.getElementById('import-progress-bar');
+        const pctText = document.getElementById('import-percent-text');
+        const stageText = document.getElementById('import-stage-text');
+        const subtext = document.getElementById('import-subtext');
+        
         if (data.success) {
-            mostrarResultado(data);
-            irAPaso(4);
+            if (bar) {
+                bar.style.width = '100%';
+                bar.style.background = 'linear-gradient(90deg, #5F8D62 0%, #38A169 100%)';
+            }
+            if (pctText) {
+                pctText.textContent = '100%';
+                pctText.style.background = '#38A169';
+            }
+            if (stageText) {
+                stageText.innerHTML = `<i class="fas fa-check-circle text-success me-2"></i>¡Importación Exitosa!`;
+            }
+            if (subtext) {
+                subtext.innerHTML = `<i class="fas fa-check text-success me-1"></i>${data.importados} registros procesados`;
+            }
+            
+            setTimeout(() => {
+                Swal.close();
+                mostrarResultado(data);
+                irAPaso(4);
+            }, 750);
         } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+            Swal.close();
+            Swal.fire({ icon: 'error', title: 'Error en Importación', text: data.message });
         }
+    })
+    .catch(error => {
+        clearInterval(importInterval);
+        clearInterval(importTimerInterval);
+        Swal.close();
+        Swal.fire({ icon: 'error', title: 'Error de Red', text: 'Error de comunicación: ' + error.message });
     });
 }
 

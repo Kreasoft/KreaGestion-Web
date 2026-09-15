@@ -151,13 +151,12 @@ def dashboard(request):
         else:
             stock_normal += 1
     
-    # Ventas de los últimos 30 días: por fecha de venta (DateField) O fecha de creación (DateTime)
+    # Ventas de los últimos 30 días: por fecha de venta (DateField)
     inicio_periodo = (timezone.now() - timedelta(days=30)).date()
     ventas_query = Venta.objects.filter(
         empresa=request.empresa,
-        estado__in=['confirmada', 'borrador']
-    ).filter(
-        Q(fecha__gte=inicio_periodo) | Q(fecha_creacion__date__gte=inicio_periodo)
+        estado__in=['confirmada', 'borrador'],
+        fecha__gte=inicio_periodo
     )
     
     # Filtrar ventas por sucursal si está seleccionada
@@ -176,20 +175,19 @@ def dashboard(request):
     if sucursal_seleccionada:
         ventas_confirmadas = ventas_confirmadas.filter(sucursal=sucursal_seleccionada)
     ventas_30_confirmadas = ventas_confirmadas.filter(
-        Q(fecha__gte=inicio_periodo) | Q(fecha_creacion__date__gte=inicio_periodo)
+        fecha__gte=inicio_periodo
     )
     resumen_ventas = ventas_30_confirmadas.aggregate(total=Sum('total'), cantidad=Count('id'))
     ventas_30_total = resumen_ventas['total'] or 0
     ventas_30_cantidad = resumen_ventas['cantidad'] or 0
     ticket_promedio = ventas_30_total / ventas_30_cantidad if ventas_30_cantidad else 0
     ventas_hoy = ventas_confirmadas.filter(
-        Q(fecha=hoy) | Q(fecha_creacion__date=hoy)
+        fecha=hoy
     ).aggregate(total=Sum('total'))['total'] or 0
     inicio_anterior = inicio_periodo - timedelta(days=30)
     fin_anterior = inicio_periodo - timedelta(days=1)
     ventas_anterior = ventas_confirmadas.filter(
-        Q(fecha__range=(inicio_anterior, fin_anterior)) |
-        Q(fecha_creacion__date__range=(inicio_anterior, fin_anterior))
+        fecha__range=(inicio_anterior, fin_anterior)
     ).aggregate(total=Sum('total'))['total'] or 0
     variacion_ventas = float((ventas_30_total - ventas_anterior) * 100 / ventas_anterior) if ventas_anterior else (100.0 if ventas_30_total else 0.0)
 
@@ -235,9 +233,8 @@ def dashboard(request):
     # --- Top 5 productos más vendidos (Lógica Robusta de 2 Pasos) ---
     top_productos_query = VentaDetalle.objects.filter(
         venta__empresa=request.empresa,
-        venta__estado__in=['confirmada', 'borrador']
-    ).filter(
-        Q(venta__fecha__gte=inicio_periodo) | Q(venta__fecha_creacion__date__gte=inicio_periodo)
+        venta__estado__in=['confirmada', 'borrador'],
+        venta__fecha__gte=inicio_periodo
     )
     if sucursal_seleccionada:
         top_productos_query = top_productos_query.filter(venta__sucursal=sucursal_seleccionada)
@@ -309,9 +306,8 @@ def dashboard(request):
     # Ventas por categoría del mes
     ventas_categoria_query = VentaDetalle.objects.filter(
         venta__empresa=request.empresa,
-        venta__estado__in=['confirmada', 'borrador']
-    ).filter(
-        Q(venta__fecha__gte=inicio_periodo) | Q(venta__fecha_creacion__date__gte=inicio_periodo)
+        venta__estado__in=['confirmada', 'borrador'],
+        venta__fecha__gte=inicio_periodo
     )
     
     # Filtrar por sucursal si está seleccionada

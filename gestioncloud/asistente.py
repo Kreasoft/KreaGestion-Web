@@ -41,9 +41,9 @@ def snapshot_empresa(empresa, sucursal=None):
     def _cant(qs):
         return qs.count()
 
-    ventas_hoy_qs = ventas.filter(Q(fecha=hoy) | Q(fecha_creacion__date=hoy))
-    ventas_ayer_qs = ventas.filter(Q(fecha=ayer) | Q(fecha_creacion__date=ayer))
-    ventas_mes_qs = ventas.filter(Q(fecha__gte=inicio_mes) | Q(fecha_creacion__date__gte=inicio_mes))
+    ventas_hoy_qs = ventas.filter(fecha=hoy)
+    ventas_ayer_qs = ventas.filter(fecha=ayer)
+    ventas_mes_qs = ventas.filter(fecha__gte=inicio_mes)
 
     cobrar = DocumentoCliente.objects.filter(
         empresa=empresa,
