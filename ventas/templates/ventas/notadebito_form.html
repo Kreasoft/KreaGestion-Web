@@ -1533,26 +1533,55 @@ document.addEventListener('DOMContentLoaded', function() {
     calculateTotals();
 
     // ========================================
-    // BÚSQUEDA AUTOMÁTICA DE DOCUMENTOS AFECTADOS
+    // BÚSQUEDA DE DOCUMENTO AFECTADO (SOLO CON BOTÓN O ENTER)
     // ========================================
 
     let isSearching = false;
     // Función para buscar documento afectado
-      function buscarDocumentoAfectado() {
-        const tipoDoc = document.querySelector('select[name="tipo_doc_afectado"]').value;
-        const numeroDoc = document.querySelector('input[name="numero_doc_afectado"]').value.trim();
+    function buscarDocumentoAfectado() {
+        const tipoDocSelect = document.querySelector('select[name="tipo_doc_afectado"]');
+        const numeroDocInput = document.querySelector('input[name="numero_doc_afectado"]');
+        const tipoDoc = tipoDocSelect ? tipoDocSelect.value : '';
+        const numeroDoc = numeroDocInput ? numeroDocInput.value.trim() : '';
 
         console.log('🔍 Buscando documento:', {tipoDoc, numeroDoc});
 
-        if (!tipoDoc || !numeroDoc) {
-            console.log('⚠️ Faltan datos');
+        if (!tipoDoc) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Tipo Requerido',
+                text: 'Por favor seleccione el tipo de documento afectado.',
+                timer: 2500,
+                showConfirmButton: true
+            });
             return;
         }
+
+        if (!numeroDoc) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Número Requerido',
+                text: 'Por favor ingrese el número del documento a referenciar.',
+                timer: 2500,
+                showConfirmButton: true
+            });
+            if (numeroDocInput) numeroDocInput.focus();
+            return;
+        }
+
         if (isSearching) {
             console.log('⏳ Búsqueda en curso, se omite llamada duplicada');
             return;
         }
         isSearching = true;
+
+        const buscarBtn = document.getElementById('buscarDocumentoBtn');
+        let btnHtmlOriginal = '';
+        if (buscarBtn) {
+            btnHtmlOriginal = buscarBtn.innerHTML;
+            buscarBtn.disabled = true;
+            buscarBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Buscando...';
+        }
 
         fetch('{% url "ventas:ajax_buscar_documento_afectado" %}', {
             method: 'POST',
@@ -1584,10 +1613,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.cliente_id) {
                     const clienteSelect = document.querySelector('select[name="cliente"]');
                     if (clienteSelect) {
-                        if ($(clienteSelect).hasClass('select2-hidden-accessible')) {
-                            $(clienteSelect).val(String(data.cliente_id)).trigger('change');
+                        if (!$(clienteSelect).find("option[value='" + data.cliente_id + "']").length && data.cliente) {
+                            const newOption = new Option(data.cliente + (data.rut_cliente ? " (" + data.rut_cliente + ")" : ""), data.cliente_id, true, true);
+                            $(clienteSelect).append(newOption);
                         } else {
                             clienteSelect.value = data.cliente_id;
+                        }
+                        if ($(clienteSelect).hasClass('select2-hidden-accessible')) {
+                            $(clienteSelect).val(String(data.cliente_id)).trigger('change');
                         }
                         console.log('✅ Cliente actualizado:', data.cliente_id);
                     }
@@ -1608,8 +1641,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const resumenBodega = document.getElementById('resumenBodega');
                         if (resumenBodega) resumenBodega.textContent = data.bodega_nombre || '-';
                         console.log('✅ Bodega actualizada a ID:', data.bodega_id);
-                    } else {
-                        console.error('❌ No se encontró el selector de bodega');
                     }
                 } else {
                     console.warn('⚠️ No se recibió bodega_id del servidor');
@@ -1628,7 +1659,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 const txt = bodegaSelect.options[bodegaSelect.selectedIndex]?.text || '-';
                                 resumenBodega.textContent = txt;
                             }
-                            console.log('✅ Bodega asignada por fallback (frontend):', firstVal);
                         }
                     }
                 }
@@ -1657,9 +1687,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('documentoResumen').style.display = 'block';
 
                 // 6. Campos ocultos
-                document.getElementById('id_fecha_doc_afectado_hidden').value = data.fecha;
-                document.getElementById('id_cliente_hidden').value = data.cliente;
-                document.getElementById('id_rut_cliente_hidden').value = data.rut_cliente;
+                document.getElementById('id_fecha_doc_afectado_hidden').value = data.fecha || '';
+                document.getElementById('id_cliente_hidden').value = data.cliente || '';
+                document.getElementById('id_rut_cliente_hidden').value = data.rut_cliente || '';
                 document.getElementById('id_cliente_id_hidden').value = data.cliente_id || '';
                 document.getElementById('id_bodega_id_hidden').value = data.bodega_id || '';
                 document.getElementById('id_vendedor_id_hidden').value = data.vendedor_id || '';
@@ -1667,7 +1697,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 7. Mostrar items de la factura afectada
                 if (data.items && data.items.length > 0) {
                     console.log('📦 Mostrando items de la factura afectada:', data.items.length);
-                    console.log('📦 Items completos:', data.items);
                     mostrarItemsFacturaAfectada(data.items);
                     
                     // Para ND, si el usuario selecciona aumento de monto, se pueden precargar los items del documento.
@@ -1678,17 +1707,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 } else {
                     console.warn('⚠️ No se recibieron items del servidor');
-                    console.log('data.items:', data.items);
-                    console.log('data.items es array?', Array.isArray(data.items));
-                    console.log('data.items.length:', data.items ? data.items.length : 'undefined');
                     document.getElementById('panelItemsAfectados').style.display = 'none';
                 }
 
                 // 8. Cerrar panel
                 document.getElementById('panelDocumento').classList.add('collapsed');
 
-                mostrarMensaje('✅ Documento cargado: ' + data.cliente, 'success');
-                isSearching = false;
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Documento Encontrado',
+                    text: `Documento N° ${numeroDoc} cargado correctamente (${data.cliente || 'Cliente'}).`,
+                    timer: 2500,
+                    showConfirmButton: false
+                });
 
             } else {
                 document.getElementById('id_fecha_doc_afectado_hidden').value = '';
@@ -1699,13 +1730,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('id_vendedor_id_hidden').value = '';
                 document.getElementById('documentoResumen').style.display = 'none';
                 document.getElementById('panelItemsAfectados').style.display = 'none';
-                mostrarMensaje(data.message || 'Documento no encontrado', 'warning');
-                isSearching = false;
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Documento no encontrado',
+                    text: data.message || `No se encontró el documento N° ${numeroDoc} para el tipo seleccionado.`,
+                    confirmButtonText: 'Entendido'
+                });
             }
         })
         .catch(error => {
             console.error('❌ Error:', error);
-            mostrarMensaje('Error al buscar documento', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al buscar',
+                text: 'Hubo un error de comunicación al consultar el documento afectado.',
+                confirmButtonText: 'Aceptar'
+            });
             document.getElementById('id_fecha_doc_afectado_hidden').value = '';
             document.getElementById('id_cliente_hidden').value = '';
             document.getElementById('id_rut_cliente_hidden').value = '';
@@ -1714,7 +1755,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('id_vendedor_id_hidden').value = '';
             document.getElementById('documentoResumen').style.display = 'none';
             document.getElementById('panelItemsAfectados').style.display = 'none';
+        })
+        .finally(() => {
             isSearching = false;
+            if (buscarBtn) {
+                buscarBtn.disabled = false;
+                buscarBtn.innerHTML = btnHtmlOriginal || '<i class="fas fa-search"></i> Buscar';
+            }
         });
     }
     // Función para mostrar items de la factura afectada
@@ -1947,38 +1994,13 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Buscar al escribir
+        // Buscar solo al presionar Enter en el campo de número
         const numeroDocInput = document.querySelector('input[name="numero_doc_afectado"]');
         if (numeroDocInput) {
-            numeroDocInput.addEventListener('input', function() {
-                clearTimeout(this.searchTimeout);
-                this.searchTimeout = setTimeout(buscarDocumentoAfectado, 1500);
-            });
-            
-            numeroDocInput.addEventListener('keypress', function(e) {
+            numeroDocInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     buscarDocumentoAfectado();
-                }
-            });
-        }
-
-        // Buscar al cambiar tipo
-        const tipoDocSelect = document.querySelector('select[name="tipo_doc_afectado"]');
-        if (tipoDocSelect) {
-            tipoDocSelect.addEventListener('change', function() {
-                const numeroDoc = document.querySelector('input[name="numero_doc_afectado"]').value.trim();
-                if (numeroDoc) {
-                    buscarDocumentoAfectado();
-                } else {
-                    document.getElementById('id_fecha_doc_afectado_hidden').value = '';
-                    document.getElementById('id_cliente_hidden').value = '';
-                    document.getElementById('id_rut_cliente_hidden').value = '';
-                    document.getElementById('id_cliente_id_hidden').value = '';
-                    document.getElementById('id_bodega_id_hidden').value = '';
-                    document.getElementById('id_vendedor_id_hidden').value = '';
-                    document.getElementById('documentoResumen').style.display = 'none';
-                    document.getElementById('panelItemsAfectados').style.display = 'none';
                 }
             });
         }
