@@ -495,8 +495,19 @@
                                         {% for error in form.logo.errors %}{{ error }}{% endfor %}
                                     </div>
                                 {% endif %}
-                                <div id="logoPreview" class="logo-preview-inline">
-                                    {% if empresa.logo %}<img src="{{ empresa.logo.url }}" alt="Logo actual" title="Logo actual">{% endif %}
+                                <div id="logoPreviewContainer" class="mt-1 p-1 bg-white border rounded d-flex align-items-center justify-content-between" style="min-height: 38px; border-color: #D4C4A8 !important;">
+                                    <div id="logoPreview" style="max-height: 34px; max-width: 110px; display: flex; align-items: center;">
+                                        {% if empresa.logo %}
+                                            <img src="{{ empresa.logo.url }}" alt="Logo actual" title="Logo actual guardado" style="max-height: 32px; max-width: 100px; object-fit: contain;">
+                                        {% else %}
+                                            <span class="text-muted" style="font-size: 0.65rem;"><i class="fas fa-image me-1"></i>Sin logo</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if empresa.logo %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success px-1 py-1" style="font-size: 0.6rem;">
+                                            <i class="fas fa-check-circle me-1"></i>Guardado
+                                        </span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -1264,6 +1275,20 @@
                             <!-- Formulario Facturación Electrónica -->
                             <form method="post" enctype="multipart/form-data">
                                 {% csrf_token %}
+                                <input type="hidden" name="form_type" value="facturacion">
+                                
+                                {% if fe_form.errors %}
+                                <div class="alert alert-danger mb-3">
+                                    <h6 class="alert-heading mb-1"><i class="fas fa-exclamation-triangle me-2"></i>Por favor corrija los siguientes errores:</h6>
+                                    <ul class="mb-0 small">
+                                        {% for field, errors in fe_form.errors.items %}
+                                            {% for error in errors %}
+                                                <li><strong>{{ field }}:</strong> {{ error }}</li>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
                                 
                                 <div class="card shadow-sm mb-4">
                                     <div class="card-header-piedra" style="padding: 8px 16px;">
@@ -1909,18 +1934,30 @@ document.getElementById('{{ form.rut.id_for_label }}').addEventListener('input',
 });
 
 // Vista previa del logo
-document.getElementById('{{ form.logo.id_for_label }}').addEventListener('change', function(e) {
+document.getElementById('{{ form.logo.id_for_label }}')?.addEventListener('change', function(e) {
     const file = e.target.files[0];
     const preview = document.getElementById('logoPreview');
+    const container = document.getElementById('logoPreviewContainer');
     
     if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-            preview.innerHTML = `<img src="${e.target.result}" alt="Vista previa del logo" title="Vista previa del logo">`;
+            preview.innerHTML = `<img src="${e.target.result}" alt="Vista previa del logo" style="max-height: 32px; max-width: 100px; object-fit: contain;">`;
+            if (container) {
+                let badge = container.querySelector('.badge');
+                if (badge) {
+                    badge.className = 'badge bg-warning bg-opacity-10 text-warning border border-warning px-1 py-1';
+                    badge.innerHTML = '<i class="fas fa-clock me-1"></i>Pendiente guardar';
+                } else {
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'badge bg-warning bg-opacity-10 text-warning border border-warning px-1 py-1';
+                    newBadge.style.fontSize = '0.6rem';
+                    newBadge.innerHTML = '<i class="fas fa-clock me-1"></i>Pendiente guardar';
+                    container.appendChild(newBadge);
+                }
+            }
         };
         reader.readAsDataURL(file);
-    } else {
-        preview.innerHTML = '';
     }
 });
 
@@ -2043,7 +2080,7 @@ async function detectarImpresoras() {
 // Event listener para el botón
 document.getElementById('btn-detectar-impresoras')?.addEventListener('click', detectarImpresoras);
 
-// Detectar automáticamente al cargar la página (solo si estamos en la pestaña de impresoras)
+// Detectar automáticamente al cargar la página
 document.addEventListener('DOMContentLoaded', function() {
     const tabImpresoras = document.getElementById('impresoras-tab');
     if (tabImpresoras) {
@@ -2056,6 +2093,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Si hay errores en Facturación Electrónica, activar esa pestaña automáticamente
+    {% if fe_form.errors %}
+    const feTabBtn = document.getElementById('facturacion-tab');
+    if (feTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+        const tab = new bootstrap.Tab(feTabBtn);
+        tab.show();
+    }
+    {% endif %}
 });
 </script>
 

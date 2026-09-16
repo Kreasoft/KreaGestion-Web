@@ -610,15 +610,23 @@ def editar_empresa_activa(request):
 				else:
 					messages.error(request, 'Hubo un error al guardar las configuraciones.')
 
-		# Si tiene certificado_digital o resoluciones, es el formulario FE específico
-		elif 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST or 'resolucion_numero_certificacion' in request.POST or 'resolucion_numero_produccion' in request.POST:
+		# Si tiene certificado_digital, resoluciones o form_type='facturacion', es el formulario FE específico
+		elif request.POST.get('form_type') == 'facturacion' or 'certificado_digital' in request.FILES or 'resolucion_fecha' in request.POST or 'resolucion_numero' in request.POST or 'resolucion_numero_certificacion' in request.POST or 'resolucion_numero_produccion' in request.POST:
 			fe_form = FacturacionElectronicaForm(request.POST, request.FILES, instance=empresa_activa)
 			if fe_form.is_valid():
 				fe_form.save()
 				messages.success(request, 'Configuración de Facturación Electrónica guardada correctamente.')
 				return redirect('empresas:editar_empresa_activa')
 			else:
-				messages.error(request, 'Hubo errores en el formulario de Facturación Electrónica.')
+				error_list = []
+				for field, errors in fe_form.errors.items():
+					field_label = fe_form.fields[field].label if field in fe_form.fields and fe_form.fields[field].label else field
+					for error in errors:
+						error_list.append(f"{field_label}: {error}")
+				if error_list:
+					messages.error(request, f"Hubo errores en el formulario de Facturación Electrónica: {', '.join(error_list)}")
+				else:
+					messages.error(request, 'Hubo errores en el formulario de Facturación Electrónica.')
 		# Si tiene prefijo_ajustes pero NO tiene nombre/rut, es el formulario de folios
 		elif 'prefijo_ajustes' in request.POST and 'nombre' not in request.POST:
 			# Solo actualizar configuración, mantener datos de empresa
@@ -710,7 +718,7 @@ def editar_empresa_activa(request):
 				print("="*80)
 				
 				messages.success(request, f'Empresa "{empresa_activa.nombre}" actualizada correctamente.')
-				return redirect('dashboard')
+				return redirect('empresas:editar_empresa_activa')
 			else:
 				print("DEBUG - FORMULARIOS INVÁLIDOS")
 				print(f"DEBUG - Errores del formulario empresa: {form.errors}")

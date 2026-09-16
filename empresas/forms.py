@@ -201,18 +201,16 @@ class FacturacionElectronicaForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Asegurar formato correcto de fecha
+        # Asegurar compatibilidad con formatos de fecha habituales
         for campo in ('resolucion_fecha', 'resolucion_fecha_certificacion', 'resolucion_fecha_produccion'):
             if campo in self.fields:
-                self.fields[campo].input_formats = ['%Y-%m-%d']
+                self.fields[campo].input_formats = ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d']
     
     def clean_codigo_actividad_economica(self):
         from facturacion_electronica.validacion_envio import normalizar_acteco
         valor = (self.cleaned_data.get('codigo_actividad_economica') or '').strip()
         if not valor:
-            raise ValidationError(
-                'El código de actividad económica (Acteco) es obligatorio. El SII no acepta 0.'
-            )
+            return ''
         normalizado = normalizar_acteco(valor)
         if not normalizado:
             raise ValidationError('El Acteco debe ser un número mayor a 0 (código SII, ej. 620200).')
@@ -302,58 +300,56 @@ class FacturacionElectronicaForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        # Solo validar certificado si se está activando facturación electrónica
+        # Solo validar si se está activando facturación electrónica
         facturacion_electronica = cleaned.get('facturacion_electronica', False)
         
         if facturacion_electronica:
-            # Obtener certificado: nuevo subido o existente en la instancia
-            cert_file = cleaned.get('certificado_digital')
-            if not cert_file and self.instance and self.instance.pk:
-                # Si es edición y no se subió nuevo certificado, usar el existente
-                cert_file = self.instance.certificado_digital
-            
-            password = cleaned.get('password_certificado')
-            if not password and self.instance and self.instance.pk:
-                # Si es edición y no se proporcionó password, usar el existente
-                password = self.instance.password_certificado or ''
+            acteco = (cleaned.get('codigo_actividad_economica') or '').strip()
+            if not acteco:
+                self.add_error(
+                    'codigo_actividad_economica',
+                    'El código de actividad económica (Acteco) es obligatorio cuando la Facturación Electrónica está activada. Ingrese su código SII (ej. 620200).'
+                )
+
+            # Determinar si se subió un nuevo certificado o se escribió una nueva contraseña
+            has_new_file = bool(self.files and self.files.get('certificado_digital'))
+            new_password_val = (cleaned.get('password_certificado') or '').strip()
+            has_new_password = bool(new_password_val)
+            es_nuevo = not self.instance.pk if self.instance else True
+
+            cert_file = self.files.get('certificado_digital') if has_new_file else (self.instance.certificado_digital if self.instance and self.instance.pk else None)
+            password = new_password_val if has_new_password else (self.instance.password_certificado if self.instance and self.instance.pk else '')
             
             # Si es una empresa nueva (sin pk) y se activa FE, requerir certificado
-            if not self.instance.pk and not cert_file:
-                raise ValidationError({
-                    'certificado_digital': 'Debe adjuntar un certificado digital (.p12/.pfx) para activar Facturación Electrónica.'
-                })
+            if es_nuevo and not cert_file:
+                self.add_error(
+                    'certificado_digital',
+                    'Debe adjuntar un certificado digital (.p12/.pfx) para activar Facturación Electrónica.'
+                )
             
-            # Si hay un certificado (nuevo o existente), validarlo
-            if cert_file:
+            # Solo validar la desencriptación del certificado si el usuario subió un nuevo archivo o ingresó una nueva contraseña
+            if (has_new_file or has_new_password) and cert_file:
                 try:
                     from facturacion_electronica.firma_electronica import FirmadorDTE
                     import tempfile
                     import os
                     
-                    # Si es un archivo subido recientemente (InMemoryUploadedFile o TemporaryUploadedFile),
-                    # necesitamos manejarlo de forma diferente
+                    # Si es un archivo subido recientemente (InMemoryUploadedFile o TemporaryUploadedFile)
                     if hasattr(cert_file, 'temporary_file_path'):
-                        # Archivo temporal de TemporaryUploadedFile
                         cert_path = cert_file.temporary_file_path()
                         FirmadorDTE(cert_path, password or '')
                     elif hasattr(cert_file, 'path'):
-                        # Archivo ya guardado en disco
                         cert_path = cert_file.path
                         FirmadorDTE(cert_path, password or '')
                     elif hasattr(cert_file, 'read'):
-                        # InMemoryUploadedFile - leer contenido y crear archivo temporal
                         cert_content = cert_file.read()
-                        cert_file.seek(0)  # Resetear el puntero para que pueda ser leído de nuevo
-                        
-                        # Crear archivo temporal
+                        cert_file.seek(0)
                         with tempfile.NamedTemporaryFile(delete=False, suffix='.pfx') as tmp_file:
                             tmp_file.write(cert_content)
                             tmp_path = tmp_file.name
-                        
                         try:
                             FirmadorDTE(tmp_path, password or '')
                         finally:
-                            # Limpiar archivo temporal
                             if os.path.exists(tmp_path):
                                 os.unlink(tmp_path)
                     else:
@@ -361,11 +357,11 @@ class FacturacionElectronicaForm(forms.ModelForm):
                         FirmadorDTE(cert_path, password or '')
                     
                 except ValueError as e:
-                    raise ValidationError({
-                        'certificado_digital': f'Certificado digital inválido o contraseña incorrecta: {e}'
-                    })
+                    self.add_error(
+                        'certificado_digital',
+                        f'Certificado digital inválido o contraseña incorrecta: {e}'
+                    )
                 except Exception as e:
-                    # Si hay otro error (archivo no encontrado, etc), solo advertir pero no bloquear
                     import logging
                     logger = logging.getLogger(__name__)
                     logger.warning(f'Error al validar certificado (no bloqueante): {e}')

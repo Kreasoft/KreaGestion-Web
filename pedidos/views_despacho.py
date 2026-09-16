@@ -130,11 +130,11 @@ def orden_despacho_create(request):
                         if not orden.fecha_vencimiento:
                             orden.fecha_vencimiento = calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
                         if not orden.forma_pago:
-                            orden.forma_pago = getattr(pedido.cliente, 'forma_pago_defecto', None) or pedido.forma_pago
+                            orden.forma_pago = getattr(pedido.cliente, 'forma_pago_defecto', None) or getattr(pedido, 'forma_pago', None) or getattr(pedido, 'condiciones_pago', None)
                         if not orden.vendedor:
-                            orden.vendedor = pedido.vendedor or getattr(pedido.cliente, 'vendedor', None)
+                            orden.vendedor = getattr(pedido, 'vendedor', None) or getattr(pedido.cliente, 'vendedor', None)
                         if not orden.bodega:
-                            orden.bodega = pedido.bodega
+                            orden.bodega = getattr(pedido, 'bodega', None)
                         if not orden.direccion_entrega:
                             orden.direccion_entrega = getattr(pedido, 'direccion_despacho', '') or getattr(pedido.cliente, 'direccion', '') or ''
                         
@@ -210,9 +210,9 @@ def orden_despacho_create(request):
                 'orden_pedido': pedido,
                 'fecha_despacho': fecha_despacho,
                 'fecha_vencimiento': fecha_vencimiento,
-                'bodega': pedido.bodega,
-                'vendedor': pedido.vendedor or getattr(pedido.cliente, 'vendedor', None),
-                'forma_pago': getattr(pedido.cliente, 'forma_pago_defecto', None) or pedido.forma_pago,
+                'bodega': getattr(pedido, 'bodega', None),
+                'vendedor': getattr(pedido, 'vendedor', None) or getattr(pedido.cliente, 'vendedor', None),
+                'forma_pago': getattr(pedido.cliente, 'forma_pago_defecto', None) or getattr(pedido, 'forma_pago', None) or getattr(pedido, 'condiciones_pago', None),
                 'direccion_entrega': getattr(pedido, 'direccion_despacho', '') or getattr(pedido.cliente, 'direccion', '') or '',
             }
         else:
