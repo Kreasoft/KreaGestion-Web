@@ -123,6 +123,21 @@ def orden_despacho_create(request):
                         orden.estado = 'pendiente'
                         if not orden.numero_despacho:
                             orden.generar_numero_despacho()
+                        
+                        # Si no se ingresó fecha de vencimiento, calcularla a partir de la fecha de despacho y plazo del cliente
+                        from core.fechas import calcular_fecha_vencimiento
+                        plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
+                        if not orden.fecha_vencimiento:
+                            orden.fecha_vencimiento = calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
+                        if not orden.forma_pago:
+                            orden.forma_pago = getattr(pedido.cliente, 'forma_pago_defecto', None) or pedido.forma_pago
+                        if not orden.vendedor:
+                            orden.vendedor = pedido.vendedor or getattr(pedido.cliente, 'vendedor', None)
+                        if not orden.bodega:
+                            orden.bodega = pedido.bodega
+                        if not orden.direccion_entrega:
+                            orden.direccion_entrega = getattr(pedido, 'direccion_despacho', '') or getattr(pedido.cliente, 'direccion', '') or ''
+                        
                         orden.save()
                         formset.instance = orden
                         formset.save()
@@ -185,7 +200,25 @@ def orden_despacho_create(request):
                                 messages.error(request, f'Error en Artículo {i+1} ({field}): {error_item}')
     
     else:
-        initial_data = {'orden_pedido': pedido} if pedido else {}
+        from core.fechas import calcular_fecha_vencimiento
+        from django.utils import timezone
+        fecha_despacho = timezone.localdate()
+        if pedido:
+            plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
+            fecha_vencimiento = calcular_fecha_vencimiento(fecha_despacho, plazo_cliente)
+            initial_data = {
+                'orden_pedido': pedido,
+                'fecha_despacho': fecha_despacho,
+                'fecha_vencimiento': fecha_vencimiento,
+                'bodega': pedido.bodega,
+                'vendedor': pedido.vendedor or getattr(pedido.cliente, 'vendedor', None),
+                'forma_pago': getattr(pedido.cliente, 'forma_pago_defecto', None) or pedido.forma_pago,
+                'direccion_entrega': getattr(pedido, 'direccion_despacho', '') or getattr(pedido.cliente, 'direccion', '') or '',
+            }
+        else:
+            initial_data = {
+                'fecha_despacho': fecha_despacho,
+            }
         form = OrdenDespachoForm(initial=initial_data, empresa=request.empresa)
         formset = DetalleOrdenDespachoFormSet()
     
@@ -229,13 +262,16 @@ def orden_despacho_detail(request, pk):
 
     from bodegas.models import Bodega
     from ventas.models import Vendedor, FormaPago
+    from core.fechas import calcular_fecha_vencimiento
 
     tiene_factura = any(doc['tipo'] == 'Factura' for doc in documentos)
     bodegas = Bodega.objects.filter(empresa=request.empresa, activa=True).order_by('nombre')
     vendedores = Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
     formas_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
-
     
+    plazo_cliente = getattr(orden.orden_pedido.cliente, 'plazo_pago', 0) or 0
+    fecha_vencimiento_sugerida = orden.fecha_vencimiento or calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
+
     context = {
         'orden': orden,
         'documentos': documentos,
@@ -244,6 +280,7 @@ def orden_despacho_detail(request, pk):
         'bodegas': bodegas,
         'vendedores': vendedores,
         'formas_pago': formas_pago,
+        'fecha_vencimiento_sugerida': fecha_vencimiento_sugerida,
     }
     
     return render(request, 'pedidos/orden_despacho_detail.html', context)
@@ -423,7 +460,10 @@ def ajax_items_pedido(request):
             'rut': cliente.rut,
             'direccion': cliente.direccion or '',
             'comuna': cliente.comuna if isinstance(cliente.comuna, str) else (cliente.comuna.nombre if cliente.comuna else ''),
-            'region': ''  # La región se puede obtener de otra manera si es necesario
+            'region': '',
+            'plazo_pago': int(getattr(cliente, 'plazo_pago', 0) or 0),
+            'forma_pago_id': getattr(cliente.forma_pago_defecto, 'id', None),
+            'vendedor_id': getattr(cliente.vendedor, 'id', None),
         }
         
         # Si comuna es un objeto con región, obtenerla
@@ -431,7 +471,15 @@ def ajax_items_pedido(request):
             if cliente.comuna.region:
                 cliente_data['region'] = cliente.comuna.region.nombre if hasattr(cliente.comuna.region, 'nombre') else str(cliente.comuna.region)
 
-        return JsonResponse({'success': True, 'items': items_data, 'cliente': cliente_data})
+        pedido_data = {
+            'id': pedido.id,
+            'bodega_id': getattr(pedido, 'bodega_id', None),
+            'vendedor_id': getattr(pedido, 'vendedor_id', None),
+            'forma_pago_id': getattr(pedido, 'forma_pago_id', None),
+            'direccion_despacho': getattr(pedido, 'direccion_despacho', '') or '',
+        }
+
+        return JsonResponse({'success': True, 'items': items_data, 'cliente': cliente_data, 'pedido': pedido_data})
     
     except OrdenPedido.DoesNotExist:
         return JsonResponse({'error': 'Pedido no encontrado', 'pedido_id': pedido_id, 'empresa_id': empresa_id}, status=404)
@@ -482,6 +530,14 @@ def generar_factura_despacho(request, pk):
             forma_pago_id = request.POST.get('forma_pago')
             fecha_vencimiento = request.POST.get('fecha_vencimiento')
 
+            from core.fechas import resolver_fecha_vencimiento
+            plazo = getattr(orden.orden_pedido.cliente, 'plazo_pago', 0) or 0
+            fecha_vencimiento_final = resolver_fecha_vencimiento(
+                orden.fecha_despacho,
+                plazo,
+                fecha_vencimiento or orden.fecha_vencimiento
+            )
+
             update_fields = []
             if bodega_id:
                 orden.bodega_id = bodega_id
@@ -492,8 +548,8 @@ def generar_factura_despacho(request, pk):
             if forma_pago_id:
                 orden.forma_pago_id = forma_pago_id
                 update_fields.append('forma_pago')
-            if fecha_vencimiento:
-                orden.fecha_vencimiento = fecha_vencimiento
+            if fecha_vencimiento_final:
+                orden.fecha_vencimiento = fecha_vencimiento_final
                 update_fields.append('fecha_vencimiento')
             
             if update_fields:
@@ -509,6 +565,7 @@ def generar_factura_despacho(request, pk):
             messages.error(request, f'Error al generar Factura: {str(e)}')
             
     return redirect('pedidos:orden_despacho_detail', pk=pk)
+
 
 
 

@@ -407,6 +407,83 @@
     .art-select-drop .art-opt { display: flex; align-items: center; gap: 8px; width: 100%; }
     .art-select-drop .art-opt-nom { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .art-select-drop .art-opt-meta { flex-shrink: 0; font-size: 0.62rem; font-weight: 700; white-space: nowrap; }
+
+    /* Dropdown Proveedor 2 Columnas y fuente compacta */
+    .proveedor-container .select2-container--default .select2-selection--single {
+        height: 28px !important;
+        min-height: 28px !important;
+        border-color: #D4C4A8 !important;
+    }
+    .proveedor-container .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 26px !important;
+        font-size: 0.70rem !important;
+        padding-left: 6px !important;
+        color: #495057 !important;
+    }
+    .proveedor-container .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 26px !important;
+    }
+    .select2-container--open .select2-dropdown.prov-select-drop {
+        min-width: 520px !important;
+        width: auto !important;
+        font-size: 0.68rem !important;
+        border: 1px solid var(--stone-primary) !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.12) !important;
+    }
+    .prov-select-drop .select2-search--dropdown .select2-search__field {
+        height: 24px !important; min-height: 24px !important; font-size: 0.68rem !important; padding: 2px 6px !important;
+        border: 1px solid #D4C4A8 !important; border-radius: 4px !important;
+    }
+    .prov-select-drop .select2-results__options { max-height: 340px !important; }
+    .prov-select-drop .prov-header {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        background: #f5f0eb;
+        border-bottom: 1px solid #D7CCC8;
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: #6F5B44;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .prov-select-drop .prov-header .col-rut,
+    .prov-select-drop .prov-opt-rut {
+        width: 110px;
+        min-width: 110px;
+        flex-shrink: 0;
+    }
+    .prov-select-drop .prov-opt-rut {
+        font-weight: 700;
+        color: #8B7355;
+        font-family: monospace, sans-serif;
+    }
+    .prov-select-drop .prov-header .col-nom,
+    .prov-select-drop .prov-opt-nom {
+        flex: 1;
+        min-width: 0;
+    }
+    .prov-select-drop .select2-results__option {
+        font-size: 0.68rem !important; padding: 3px 8px !important; line-height: 1.25 !important;
+        color: #5D4037 !important;
+    }
+    .prov-select-drop .select2-results__option--highlighted,
+    .prov-select-drop .select2-results__option--highlighted .prov-opt-rut {
+        background: #8B7355 !important;
+        color: #fff !important;
+    }
+    .prov-select-drop .prov-opt {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+    .prov-select-drop .prov-opt-nom {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 </style>
 {% endblock %}
 
@@ -729,8 +806,39 @@
                 templateSelection: function (opt) { return opt.text; }
             });
         }
+        function formatProveedorOpt(opt) {
+            if (!opt.id) return opt.text;
+            var text = (opt.text || '').trim();
+            var rut = '';
+            var nombre = text;
+            var dashIdx = text.indexOf(' - ');
+            if (dashIdx !== -1) {
+                rut = text.substring(0, dashIdx).trim();
+                nombre = text.substring(dashIdx + 3).trim();
+            }
+            var $row = $('<div class="prov-opt"></div>');
+            $('<span class="prov-opt-rut"></span>').text(rut || 'S/RUT').appendTo($row);
+            $('<span class="prov-opt-nom"></span>').text(nombre).attr('title', nombre).appendTo($row);
+            return $row;
+        }
+        function initProveedorSelect2($sel) {
+            $sel.select2({
+                theme: 'default',
+                width: '100%',
+                placeholder: 'Seleccione proveedor...',
+                dropdownAutoWidth: true,
+                dropdownCssClass: 'prov-select-drop',
+                dropdownParent: $(document.body),
+                templateResult: formatProveedorOpt,
+                templateSelection: function (opt) { return opt.text; }
+            });
+        }
         function initSelect2Global() {
-            $('.form-select').not('.articulo-select').not('#empty-form-template .form-select').each(function() {
+            var $prov = $('#id_proveedor, select[name="proveedor"]');
+            if ($prov.length && !$prov.hasClass('select2-hidden-accessible')) {
+                initProveedorSelect2($prov);
+            }
+            $('.form-select').not('.articulo-select').not('#id_proveedor').not('select[name="proveedor"]').not('#empty-form-template .form-select').each(function() {
                 if (!$(this).hasClass('select2-hidden-accessible')) {
                     $(this).select2({ theme: 'default', width: '100%', placeholder: 'Seleccione...' });
                 }
@@ -742,6 +850,13 @@
             });
         }
         initSelect2Global();
+
+        $(document).on('select2:open', function() {
+            var $drop = $('.select2-dropdown.prov-select-drop');
+            if ($drop.length && !$drop.find('.prov-header').length) {
+                $drop.find('.select2-results').before('<div class="prov-header"><span class="col-rut">RUT</span><span class="col-nom">PROVEEDOR</span></div>');
+            }
+        });
 
         $(document).on('change', '.articulo-select', function() {
             var opt = this.options[this.selectedIndex];

@@ -538,6 +538,34 @@ $(document).ready(function() {
         $('input[name="tipo_documento"]:checked').closest('.doc-option-card').addClass('selected');
     }
 
+    let currentPlazoPago = {% if pedido %}{{ pedido.cliente.plazo_pago|default:0 }}{% elif orden %}{{ orden.orden_pedido.cliente.plazo_pago|default:0 }}{% else %}0{% endif %};
+
+    function calcularYActualizarVencimiento(plazo) {
+        if (plazo !== undefined && plazo !== null) {
+            currentPlazoPago = parseInt(plazo, 10) || 0;
+        }
+        const fechaSalidaVal = $('#id_fecha_despacho').val();
+        if (!fechaSalidaVal) return;
+        
+        const partes = fechaSalidaVal.split('-');
+        if (partes.length !== 3) return;
+        
+        const y = parseInt(partes[0], 10);
+        const m = parseInt(partes[1], 10);
+        const d = parseInt(partes[2], 10);
+        if (!y || !m || !d) return;
+        
+        const fechaObj = new Date(y, m - 1, d);
+        fechaObj.setDate(fechaObj.getDate() + currentPlazoPago);
+        
+        const yyyy = fechaObj.getFullYear();
+        const mm = String(fechaObj.getMonth() + 1).padStart(2, '0');
+        const dd = String(fechaObj.getDate()).padStart(2, '0');
+        const fechaVencFormatted = `${yyyy}-${mm}-${dd}`;
+        
+        $('#id_fecha_vencimiento').val(fechaVencFormatted);
+    }
+
     // Función para cargar datos del pedido vía API
     function loadPedidoData(pedidoId) {
         if (!pedidoId) {
@@ -555,6 +583,27 @@ $(document).ready(function() {
                     $('#cliente_nombre').text(data.cliente.nombre || '-');
                     $('#cliente_rut').text(data.cliente.rut || '-');
                     $('#cliente_direccion').text(`${data.cliente.direccion || ''}, ${data.cliente.comuna || ''}, ${data.cliente.region || ''}`);
+
+                    // Calcular y asignar fecha de vencimiento según los días de pago del cliente
+                    calcularYActualizarVencimiento(data.cliente.plazo_pago);
+
+                    // Prellenar datos de cobranza/bodega si no han sido fijados
+                    if (data.pedido) {
+                        if (!$('#id_bodega').val() && data.pedido.bodega_id) {
+                            $('#id_bodega').val(data.pedido.bodega_id).trigger('change');
+                        }
+                        if (!$('#id_vendedor').val()) {
+                            const vendId = data.pedido.vendedor_id || data.cliente.vendedor_id;
+                            if (vendId) $('#id_vendedor').val(vendId).trigger('change');
+                        }
+                        if (!$('#id_forma_pago').val()) {
+                            const fpId = data.cliente.forma_pago_id || data.pedido.forma_pago_id;
+                            if (fpId) $('#id_forma_pago').val(fpId).trigger('change');
+                        }
+                        if (!$.trim($('#id_direccion_entrega').val() || '')) {
+                            $('#id_direccion_entrega').val(data.pedido.direccion_despacho || data.cliente.direccion || '');
+                        }
+                    }
 
                     const itemsContainer = $('#items-container');
                     itemsContainer.empty();
@@ -647,6 +696,11 @@ $(document).ready(function() {
     // Cargar pedido al cambiar el select
     $('#id_orden_pedido').on('change', function() {
         loadPedidoData($(this).val());
+    });
+
+    // Al cambiar la fecha de despacho, recalcular fecha de vencimiento
+    $('#id_fecha_despacho').on('change', function() {
+        calcularYActualizarVencimiento();
     });
 
     // Recalcular totales al cambiar cantidad
