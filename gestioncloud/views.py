@@ -60,10 +60,11 @@ def dashboard(request):
             return response
     
     # --- Ruteo por tipo de usuario ---
-    try:
-        tipo_usuario = request.user.perfil.tipo_usuario
-    except:
+    perfil = getattr(request.user, 'perfil', None)
+    if request.user.is_superuser or request.user.is_staff or (perfil and perfil.es_administrador):
         tipo_usuario = 'administrador'
+    else:
+        tipo_usuario = perfil.tipo_usuario if perfil else 'administrador'
         
     if tipo_usuario == 'vendedor':
         return dashboard_vendedor(request)

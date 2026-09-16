@@ -123,6 +123,11 @@ class UsuarioCreateForm(UserCreationForm):
         user.first_name = self.cleaned_data['first_name']
         user.last_name = self.cleaned_data['last_name']
         tipo = self.cleaned_data.get('tipo_usuario', 'administrador')
+        grupo = self.cleaned_data.get('grupo')
+        
+        if grupo and 'admin' in grupo.name.lower():
+            tipo = 'administrador'
+            
         if tipo == 'administrador':
             user.is_staff = True
         else:
@@ -148,8 +153,8 @@ class UsuarioCreateForm(UserCreationForm):
             perfil.save()
             
             # Asignar grupo si se especificó
-            grupo = self.cleaned_data.get('grupo')
             if grupo:
+                user.groups.clear()
                 user.groups.add(grupo)
                 
         return user
@@ -292,23 +297,32 @@ class UsuarioUpdateForm(forms.ModelForm):
             user.set_password(nueva_password)
             
         tipo = self.cleaned_data.get('tipo_usuario')
+        grupo = self.cleaned_data.get('grupo')
+        
+        if grupo and 'admin' in grupo.name.lower():
+            tipo = 'administrador'
+            
         if tipo == 'administrador':
             user.is_staff = True
         
         if commit:
             user.save()
             
-            # Actualizar el perfil
-            if hasattr(user, 'perfil') and user.perfil:
-                user.perfil.es_activo = user.is_active
-                user.perfil.sucursal = self.cleaned_data.get('sucursal')
-                if tipo:
-                    user.perfil.tipo_usuario = tipo
-                user.perfil.save()
+            # Actualizar o crear el perfil
+            from empresas.models import Empresa
+            empresa_default = Empresa.objects.first()
+            perfil, _ = PerfilUsuario.objects.get_or_create(
+                usuario=user,
+                defaults={'empresa': empresa_default, 'tipo_usuario': tipo or 'administrador'}
+            )
+            perfil.es_activo = user.is_active
+            perfil.sucursal = self.cleaned_data.get('sucursal')
+            if tipo:
+                perfil.tipo_usuario = tipo
+            perfil.save()
             
             # Actualizar grupo
             user.groups.clear()
-            grupo = self.cleaned_data.get('grupo')
             if grupo:
                 user.groups.add(grupo)
                 

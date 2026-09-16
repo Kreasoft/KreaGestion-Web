@@ -40,7 +40,14 @@ class PerfilUsuario(models.Model):
 	@property
 	def es_administrador(self):
 		"""Verifica si el usuario es administrador de empresa"""
-		return self.tipo_usuario == 'administrador'
+		if self.tipo_usuario == 'administrador':
+			return True
+		if hasattr(self, 'usuario') and self.usuario:
+			if self.usuario.is_superuser or self.usuario.is_staff:
+				return True
+			if self.usuario.groups.filter(name__icontains='admin').exists():
+				return True
+		return False
 	
 	@property
 	def es_vendedor(self):
