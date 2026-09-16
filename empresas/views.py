@@ -447,7 +447,12 @@ def empresa_suspendida(request):
     Si el usuario es administrador, permite ver planes y pagar.
     """
     empresa = request.empresa
-    es_admin = request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.tipo_usuario == 'administrador')
+    perfil = getattr(request.user, 'perfil', None)
+    es_admin = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or (perfil and perfil.es_administrador)
+    )
     
     context = {
         'empresa': empresa,
@@ -462,7 +467,13 @@ def seleccionar_plan(request, plan_id):
     """
     Permite a un administrador seleccionar o cambiar el plan de la empresa.
     """
-    if not (request.user.is_superuser or (hasattr(request.user, 'perfil') and request.user.perfil.tipo_usuario == 'administrador')):
+    perfil = getattr(request.user, 'perfil', None)
+    es_admin = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or (perfil and perfil.es_administrador)
+    )
+    if not es_admin:
         messages.error(request, "Acceso denegado. Solo administradores pueden cambiar el plan.")
         return redirect('dashboard')
         
@@ -546,7 +557,16 @@ def editar_empresa_activa(request):
 	"""
 	Vista para editar la empresa activa
 	"""
-	if not request.user.is_superuser:
+	perfil = getattr(request.user, 'perfil', None)
+	es_admin = (
+		request.user.is_superuser
+		or request.user.is_staff
+		or (perfil and perfil.es_administrador)
+		or request.user.has_perm('empresas.change_empresa')
+		or request.user.has_perm('empresas.change_configuracionempresa')
+		or request.user.has_perm('empresas.view_empresa')
+	)
+	if not es_admin:
 		messages.error(request, 'Solo los administradores pueden editar empresas.')
 		return redirect('dashboard')
 

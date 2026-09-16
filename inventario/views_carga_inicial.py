@@ -21,7 +21,15 @@ def carga_inicial_inventario(request):
     """
     Vista principal para carga inicial de inventario
     """
-    if not request.user.is_superuser:
+    perfil = getattr(request.user, 'perfil', None)
+    es_admin = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or (perfil and perfil.es_administrador)
+        or request.user.has_perm('inventario.add_cargainicial')
+        or request.user.has_perm('inventario.change_cargainicial')
+    )
+    if not es_admin:
         messages.error(request, 'Solo los administradores pueden realizar carga inicial de inventario.')
         return redirect('inventario:inventario_list')
     
@@ -258,7 +266,15 @@ def edicion_manual_inventario(request):
     """
     Vista para edición manual de inventario inicial
     """
-    if not request.user.is_superuser:
+    perfil = getattr(request.user, 'perfil', None)
+    es_admin = (
+        request.user.is_superuser
+        or request.user.is_staff
+        or (perfil and perfil.es_administrador)
+        or request.user.has_perm('inventario.add_cargainicial')
+        or request.user.has_perm('inventario.change_cargainicial')
+    )
+    if not es_admin:
         messages.error(request, 'Solo los administradores pueden realizar carga inicial de inventario.')
         return redirect('inventario:inventario_list')
     
