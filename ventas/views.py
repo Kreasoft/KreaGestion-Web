@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
 from datetime import datetime, time, timedelta
-from core.decorators import requiere_empresa
+from core.decorators import requiere_empresa, requiere_permiso
 from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
 from facturacion_electronica.ind_traslado import TIPO_DESPACHO_SII_CHOICES
 from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TerminalPOS, TIPO_DOCUMENTO_CHOICES, DispositivoMovil, ensure_terminalpos_table, ensure_estacion_caja_impresion
@@ -3798,7 +3798,7 @@ def vale_termica(request, pk):
 
 @login_required
 @requiere_empresa
-@permission_required('ventas.view_cotizacion', raise_exception=True)
+@requiere_permiso(['ventas.view_cotizacion', 'ventas.view_venta'])
 def cotizacion_list(request):
     """Lista de cotizaciones"""
     cotizaciones = Venta.objects.filter(
@@ -3862,7 +3862,7 @@ def cotizacion_list(request):
 
 @login_required
 @requiere_empresa
-@permission_required('ventas.view_cotizacion', raise_exception=True)
+@requiere_permiso(['ventas.view_cotizacion', 'ventas.view_venta'])
 def cotizacion_detail(request, pk):
     """Detalle de cotización"""
     cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
@@ -4075,7 +4075,7 @@ def cotizacion_pdf(request, pk):
 
 @login_required
 @requiere_empresa
-@permission_required('ventas.view_cotizacion', raise_exception=True)
+@requiere_permiso(['ventas.view_cotizacion', 'ventas.view_venta'])
 def cotizacion_enviar_email(request, pk):
     """Envía la cotización por correo, con el PDF adjunto."""
     from django.conf import settings

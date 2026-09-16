@@ -224,6 +224,12 @@ class Venta(models.Model):
         verbose_name = "Venta"
         verbose_name_plural = "Ventas"
         ordering = ['-fecha_creacion']
+        permissions = [
+            ('view_cotizacion', 'Can view cotización'),
+            ('add_cotizacion', 'Can add cotización'),
+            ('change_cotizacion', 'Can change cotización'),
+            ('delete_cotizacion', 'Can delete cotización'),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=['empresa', 'tipo_documento', 'numero_venta'],
