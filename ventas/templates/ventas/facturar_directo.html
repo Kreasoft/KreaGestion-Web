@@ -1339,6 +1339,9 @@ function mostrarResultadoEmision(data) {
     const link = document.getElementById('print-link');
     const submitBtn = document.getElementById('submit-btn');
     const resendBtn = document.getElementById('resend-btn');
+    const esExito = Boolean(data.envio && data.envio.success);
+    const docNombre = docLabels[tipoDte] || 'Documento';
+
     if (data.dte_id) {
         dteEmitidoId = data.dte_id;
         if (data.print_url) {
@@ -1347,14 +1350,49 @@ function mostrarResultadoEmision(data) {
         }
         submitBtn.disabled = true;
         submitBtn.dataset.locked = '1';
-        if (data.envio && data.envio.success) {
+        submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> Documento emitido';
+        if (esExito) {
             resendBtn.classList.add('d-none');
         } else {
             resendBtn.classList.remove('d-none');
+            resendBtn.disabled = false;
+            delete resendBtn.dataset.processing;
+            resendBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Reenviar al SII';
         }
     }
-    status.className = (data.envio && data.envio.success) ? 'status-box ok' : 'status-box err';
+    status.className = esExito ? 'status-box ok' : 'status-box err';
     status.textContent = data.message || 'No se pudo completar el envío.';
+
+    if (typeof Swal !== 'undefined') {
+        const folioTxt = data.folio ? `Folio N° <strong>${data.folio}</strong>` : '';
+        if (esExito) {
+            Swal.fire({
+                icon: 'success',
+                title: `${docNombre} Emitido y Enviado`,
+                html: `<div class="py-2">${folioTxt ? `<div class="mb-2 text-primary" style="font-size: 1.1rem;">${docNombre} ${folioTxt}</div>` : ''}<span>${data.message || 'El documento se emitió y envió correctamente al SII.'}</span></div>`,
+                timer: 4500,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: '<i class="fas fa-check me-1"></i> Cerrar',
+                confirmButtonColor: '#5D4037',
+                showCloseButton: true,
+                allowOutsideClick: true
+            });
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: `${docNombre} Emitido con Observación`,
+                html: `<div class="py-2">${folioTxt ? `<div class="mb-2 text-warning" style="font-size: 1.1rem;">${docNombre} ${folioTxt}</div>` : ''}<span>${data.message || 'El documento se emitió pero hubo un problema al enviar al SII.'}</span></div>`,
+                timer: 6000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: '<i class="fas fa-times me-1"></i> Cerrar',
+                confirmButtonColor: '#C76F43',
+                showCloseButton: true,
+                allowOutsideClick: true
+            });
+        }
+    }
 }
 
 async function postFacturador(payload, boton) {
@@ -1383,23 +1421,66 @@ async function postFacturador(payload, boton) {
     } catch (err) {
         status.className = 'status-box err';
         status.textContent = err.message;
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al Procesar',
+                text: err.message || 'No se pudo completar la operación.',
+                timer: 6000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#8B7355',
+                showCloseButton: true,
+                allowOutsideClick: true
+            });
+        }
     } finally {
         delete boton.dataset.processing;
-        if (boton.id === 'submit-btn' && boton.dataset.locked !== '1') {
-            boton.disabled = false;
-            updateItemSummary();
+        if (boton.id === 'submit-btn') {
+            if (boton.dataset.locked === '1') {
+                boton.disabled = true;
+            } else {
+                boton.disabled = false;
+                boton.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Emitir y enviar';
+                updateItemSummary();
+            }
         }
-        if (boton.id === 'resend-btn') boton.disabled = false;
+        if (boton.id === 'resend-btn') {
+            boton.disabled = false;
+            boton.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Reenviar al SII';
+        }
     }
 }
 
 document.getElementById('submit-btn').addEventListener('click', async () => {
+    const submitBtn = document.getElementById('submit-btn');
     const status = document.getElementById('status');
+    
+    // Bloqueo inmediato para evitar doble clic o múltiples envíos
+    if (submitBtn.disabled || submitBtn.dataset.processing === '1' || submitBtn.dataset.locked === '1') {
+        return;
+    }
+
     if (dteEmitidoId) {
         status.className = 'status-box err';
         status.textContent = 'Este documento ya se emitió. Use Reenviar al SII para no gastar otro folio.';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Documento ya emitido',
+                text: 'Este documento ya fue emitido. Use "Reenviar al SII" si necesita reenviarlo.',
+                timer: 4000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#5D4037',
+                showCloseButton: true
+            });
+        }
         return;
     }
+
     const rows = Array.from(document.querySelectorAll('#items-body tr'));
     const items = rows.map(row => ({
         articulo_id: row.querySelector('.item-articulo').value,
@@ -1411,11 +1492,43 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
         total: row.querySelector('.line-total').value,
     })).filter(item => item.articulo_id);
 
+    if (items.length === 0) {
+        status.className = 'status-box err';
+        status.textContent = 'Debe agregar al menos un artículo al documento.';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Detalle vacío',
+                text: 'Debe agregar al menos un artículo con precio antes de emitir.',
+                timer: 4000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#5D4037',
+                showCloseButton: true
+            });
+        }
+        return;
+    }
+
     const maxItems = maxItemsConfig[tipoDte] || 20;
     if (items.length > maxItems) {
         updateItemSummary(items.length);
         status.className = 'status-box err';
         status.textContent = `El documento supera el máximo permitido de ${maxItems} ítems.`;
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Límite de ítems excedido',
+                text: `El documento supera el máximo permitido de ${maxItems} ítems.`,
+                timer: 4000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#5D4037',
+                showCloseButton: true
+            });
+        }
         return;
     }
     const sinPrecio = rows.find(row => {
@@ -1431,8 +1544,26 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
         const nombre = (sinPrecio.querySelector('.item-desc').value || 'un producto').trim();
         status.className = 'status-box err';
         status.textContent = `“${nombre}” tiene precio o total 0. Este documento no se emite así. Corrija el precio.`;
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Precio Inválido',
+                text: `“${nombre}” tiene precio o total 0. Corrija el precio antes de emitir.`,
+                timer: 4000,
+                timerProgressBar: true,
+                showConfirmButton: true,
+                confirmButtonText: 'Cerrar',
+                confirmButtonColor: '#5D4037',
+                showCloseButton: true
+            });
+        }
         return;
     }
+
+    // Deshabilitación inmediata y estado visual de carga
+    submitBtn.disabled = true;
+    submitBtn.dataset.processing = '1';
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Emitiendo y enviando...';
 
     status.className = 'status-box';
     status.textContent = 'Emitiendo...';
@@ -1457,15 +1588,21 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
         fecha_llegada: document.getElementById('fecha_llegada').value,
         rut_transportista: document.getElementById('rut_transportista').value,
         items
-    }, document.getElementById('submit-btn'));
+    }, submitBtn);
 });
 
 document.getElementById('resend-btn').addEventListener('click', async () => {
+    const resendBtn = document.getElementById('resend-btn');
     const status = document.getElementById('status');
-    if (!dteEmitidoId) return;
+    if (!dteEmitidoId || resendBtn.disabled || resendBtn.dataset.processing === '1') return;
+    
+    resendBtn.disabled = true;
+    resendBtn.dataset.processing = '1';
+    resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Reenviando al SII...';
+
     status.className = 'status-box';
     status.textContent = 'Reenviando al SII el mismo folio...';
-    await postFacturador({ reenviar_dte_id: dteEmitidoId }, document.getElementById('resend-btn'));
+    await postFacturador({ reenviar_dte_id: dteEmitidoId }, resendBtn);
 });
 
 function updateItemSummary(forcedCount = null) {
