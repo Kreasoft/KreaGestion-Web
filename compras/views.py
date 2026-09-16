@@ -172,6 +172,29 @@ def orden_compra_detail(request, pk):
     return render(request, 'compras/orden_compra_detail.html', context)
 
 
+def extraer_errores_formulario(form, formset=None):
+    """Extrae un resumen legible de todos los errores de un formulario y formset"""
+    errores = []
+    if form:
+        for field, err_list in form.errors.items():
+            if field == '__all__':
+                for err in err_list:
+                    errores.append(str(err))
+            else:
+                label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                for err in err_list:
+                    errores.append(f"{label}: {err}")
+    if formset:
+        for i, f_err in enumerate(formset.errors):
+            if f_err:
+                for field, err_list in f_err.items():
+                    for err in err_list:
+                        errores.append(f"Fila {i+1} ({field}): {err}")
+        for err in formset.non_form_errors():
+            errores.append(f"Ítems: {err}")
+    return errores
+
+
 @login_required
 @requiere_empresa
 @permission_required('compras.add_ordencompra', raise_exception=True)
@@ -235,7 +258,11 @@ def orden_compra_create(request):
                 print("Error al guardar:", str(e))
                 messages.error(request, f'Error al crear la orden: {str(e)}')
         else:
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            err_list = extraer_errores_formulario(form, formset)
+            if err_list:
+                messages.error(request, 'Por favor corrige los siguientes errores: ' + ' | '.join(err_list))
+            else:
+                messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
         form = OrdenCompraForm(empresa=empresa)
         formset = ItemOrdenCompraFormSet()
@@ -304,7 +331,11 @@ def orden_compra_update(request, pk):
                 messages.error(request, f'Error al actualizar la orden: {str(e)}')
         else:
             print("Formulario no válido - no se guarda")
-            messages.error(request, 'Por favor corrige los errores en el formulario.')
+            err_list = extraer_errores_formulario(form, formset)
+            if err_list:
+                messages.error(request, 'Por favor corrige los siguientes errores: ' + ' | '.join(err_list))
+            else:
+                messages.error(request, 'Por favor corrige los errores en el formulario.')
     else:
         form = OrdenCompraForm(instance=orden, empresa=empresa)
         # Inicializar formset con los items existentes

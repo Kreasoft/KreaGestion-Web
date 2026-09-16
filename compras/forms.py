@@ -56,33 +56,49 @@ class OrdenCompraForm(forms.ModelForm):
         if self.empresa:
             self.fields['proveedor'].queryset = Proveedor.objects.filter(empresa=self.empresa)
             self.fields['bodega'].queryset = Bodega.objects.filter(empresa=self.empresa)
-        
-        # Generar número de orden automáticamente SOLO para nuevas órdenes
+
+        # Generar número de orden de previsualización para nuevas órdenes
         if not self.instance.pk and self.empresa:
             try:
                 from empresas.models import ConfiguracionEmpresa
                 configuracion = ConfiguracionEmpresa.objects.get(empresa=self.empresa)
-                # NO incrementar el contador aquí, solo mostrar el próximo número
                 numero_preview = f"{configuracion.prefijo_orden_compra}-{configuracion.siguiente_orden_compra:06d}"
                 self.fields['numero_orden'].initial = numero_preview
-                # NO guardamos numero_orden_generado aquí
-            except Exception as e:
-                print(f"Error obteniendo número de orden: {e}")
-                # Fallback al método anterior si no hay configuración
+            except Exception:
                 ultima_orden = OrdenCompra.objects.filter(empresa=self.empresa).order_by('-id').first()
-                if ultima_orden:
+                if ultima_orden and '-' in ultima_orden.numero_orden:
                     try:
-                        # Intentar extraer el número del formato OC-000001
-                        if '-' in ultima_orden.numero_orden:
-                            numero = int(ultima_orden.numero_orden.split('-')[-1]) + 1
-                        else:
-                            numero = int(ultima_orden.numero_orden) + 1
+                        numero = int(ultima_orden.numero_orden.split('-')[-1]) + 1
                     except ValueError:
                         numero = 1
                 else:
                     numero = 1
-                numero_formateado = f"OC-{numero:06d}"
-                self.fields['numero_orden'].initial = numero_formateado
+                self.fields['numero_orden'].initial = f"OC-{numero:06d}"
+
+        # Hacer opcionales los campos autocalculados, autogenerados o no estrictamente requeridos
+        campos_opcionales = [
+            'numero_orden', 'fecha_entrega_esperada', 'bodega', 'observaciones', 
+            'condiciones_pago', 'plazo_entrega', 'subtotal', 'descuento_porcentaje_1',
+            'descuento_porcentaje_2', 'descuento_porcentaje_3', 'descuento_monto_directo',
+            'descuentos_totales', 'neto_ajustado', 'iva_ajustado', 'impuesto_especifico',
+            'impuestos_totales', 'total_orden'
+        ]
+        for f in campos_opcionales:
+            if f in self.fields:
+                self.fields[f].required = False
+
+    def clean_numero_orden(self):
+        num = self.cleaned_data.get('numero_orden')
+        if not self.instance.pk:
+            return num or 'PENDIENTE'
+        return num
+
+    def clean(self):
+        cleaned_data = super().clean()
+        from django.utils import timezone
+        if not cleaned_data.get('fecha_entrega_esperada'):
+            cleaned_data['fecha_entrega_esperada'] = cleaned_data.get('fecha_orden') or timezone.now().date()
+        return cleaned_data
 
 
 class ItemOrdenCompraForm(forms.ModelForm):

@@ -245,7 +245,7 @@ CSRF_FAILURE_VIEW = 'gestioncloud.views_errores.csrf_invalido'
 
 AUTHENTICATION_BACKENDS = [
 	'axes.backends.AxesStandaloneBackend',
-	'django.contrib.auth.backends.ModelBackend',
+	'usuarios.backends.StrictPermissionBackend',
 ]
 
 # django-axes: bloqueo por intentos fallidos de login
