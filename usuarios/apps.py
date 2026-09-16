@@ -13,6 +13,8 @@ class UsuariosConfig(AppConfig):
         def strict_has_perm(self, perm, obj=None):
             if not self.is_active:
                 return False
+            if self.is_superuser:
+                return True
             return _user_has_perm(self, perm, obj)
             
         PermissionsMixin.has_perm = strict_has_perm

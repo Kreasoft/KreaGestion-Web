@@ -1,4 +1,4 @@
-﻿from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.models import Permission
 
 class StrictPermissionBackend(ModelBackend):
@@ -45,9 +45,13 @@ class StrictPermissionBackend(ModelBackend):
     def has_perm(self, user_obj, perm, obj=None):
         if not user_obj.is_active:
             return False
+        if user_obj.is_superuser:
+            return True
         return perm in self.get_all_permissions(user_obj, obj)
 
     def has_module_perms(self, user_obj, app_label):
         if not user_obj.is_active:
             return False
+        if user_obj.is_superuser:
+            return True
         return any(perm.startswith(app_label + '.') for perm in self.get_all_permissions(user_obj))
