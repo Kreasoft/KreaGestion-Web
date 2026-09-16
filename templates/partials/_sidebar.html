@@ -38,12 +38,12 @@
                             </span>
                         {% else %}
                             <span class="badge" style="font-size: 0.55rem; padding: 0.15em 0.4em; background: #8B7355; color: #fff;">
-                                {{ request.user.groups.first.name|default:request.user.perfil.tipo_usuario|title }}
+                                {% firstof request.user.groups.first.name request.user.perfil.tipo_usuario|title '' %}
                             </span>
                         {% endif %}
-                        {% if request.user.perfil.sucursal or sucursal_activa %}
-                            <span class="sidebar-user-branch text-truncate text-muted" style="font-size: 0.60rem; color: #8B7355 !important;" title="{{ sucursal_activa.nombre|default:request.user.perfil.sucursal.nombre }}">
-                                • {{ sucursal_activa.nombre|default:request.user.perfil.sucursal.nombre }}
+                        {% if sucursal_activa or request.user.perfil.sucursal %}
+                            <span class="sidebar-user-branch text-truncate text-muted" style="font-size: 0.60rem; color: #8B7355 !important;" title="{% firstof sucursal_activa.nombre request.user.perfil.sucursal.nombre '' %}">
+                                &bull; {% firstof sucursal_activa.nombre request.user.perfil.sucursal.nombre '' %}
                             </span>
                         {% endif %}
                     </div>
