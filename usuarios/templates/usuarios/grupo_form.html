@@ -106,14 +106,27 @@
                             </span>
                         </div>
 
-                        <!-- Botones de selección masiva -->
-                        <div class="mb-1 d-flex gap-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="seleccionarTodos()" style="border-color: #D4C4A8; color: #6F5B44;">
-                                <i class="fas fa-check-double me-1"></i> Todos
-                            </button>
-                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deseleccionarTodos()" style="border-color: #D4C4A8; color: #6F5B44;">
-                                <i class="fas fa-times me-1"></i> Ninguno
-                            </button>
+                        <!-- Barra de búsqueda y botones de selección masiva -->
+                        <div class="row g-2 mb-2 align-items-center">
+                            <div class="col-md-7">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white" style="border-color: #D4C4A8; color: #8B7355;"><i class="fas fa-search"></i></span>
+                                    <input type="text" id="buscadorPermisos" class="form-control" placeholder="Buscar permiso (ej: cotización, inventario, dte, factura)..." style="height: 30px !important; font-size: 0.78rem !important; border-color: #D4C4A8;">
+                                    <button class="btn btn-outline-secondary" type="button" id="btnLimpiarBusqueda" style="border-color: #D4C4A8; display: none;">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-5 text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="seleccionarTodos()" style="border-color: #D4C4A8; color: #6F5B44; font-size: 0.72rem;">
+                                        <i class="fas fa-check-double me-1"></i> Seleccionar Todos
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deseleccionarTodos()" style="border-color: #D4C4A8; color: #6F5B44; font-size: 0.72rem;">
+                                        <i class="fas fa-times me-1"></i> Ninguno
+                                    </button>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Acordeón de Permisos Estilo Piedra -->
@@ -121,7 +134,7 @@
                         <div class="accordion accordion-stone" id="permisosAccordion">
                             {% for nombre_app, datos_app in permisos_por_app.items %}
                             {% with app_slug=datos_app.app_label_slug permisos=datos_app.permisos nombre=datos_app.nombre %}
-                            <div class="accordion-item">
+                            <div class="accordion-item modulo-permiso-item" data-app="{{ app_slug }}">
                                 <h2 class="accordion-header" id="heading{{ app_slug }}">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
                                             data-bs-target="#collapse{{ app_slug }}" aria-expanded="false" 
@@ -221,6 +234,60 @@ document.addEventListener('DOMContentLoaded', function() {
         checkbox.addEventListener('change', actualizarContadorGlobal);
     });
     actualizarContadorGlobal();
+
+    // Filtro buscador en tiempo real
+    const buscador = document.getElementById('buscadorPermisos');
+    const btnLimpiar = document.getElementById('btnLimpiarBusqueda');
+    const items = document.querySelectorAll('.modulo-permiso-item');
+
+    if (buscador) {
+        buscador.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            if (btnLimpiar) btnLimpiar.style.display = query ? 'inline-block' : 'none';
+
+            items.forEach(item => {
+                const containers = item.querySelectorAll('.permiso-checkbox-container');
+                let matchesInItem = 0;
+
+                containers.forEach(container => {
+                    const label = container.textContent.toLowerCase();
+                    const match = !query || label.includes(query);
+                    const col = container.closest('.col-md-6, .col-lg-4') || container;
+                    if (match) {
+                        col.style.display = '';
+                        matchesInItem++;
+                    } else {
+                        col.style.display = 'none';
+                    }
+                });
+
+                const collapseEl = item.querySelector('.accordion-collapse');
+                const btnCollapse = item.querySelector('.accordion-button');
+
+                if (query) {
+                    if (matchesInItem > 0) {
+                        item.style.display = '';
+                        if (collapseEl && !collapseEl.classList.contains('show')) {
+                            collapseEl.classList.add('show');
+                            if (btnCollapse) btnCollapse.classList.remove('collapsed');
+                        }
+                    } else {
+                        item.style.display = 'none';
+                    }
+                } else {
+                    item.style.display = '';
+                }
+            });
+        });
+
+        if (btnLimpiar) {
+            btnLimpiar.addEventListener('click', function() {
+                buscador.value = '';
+                buscador.dispatchEvent(new Event('input'));
+                buscador.focus();
+            });
+        }
+    }
 });
 </script>
 {% endblock %}
