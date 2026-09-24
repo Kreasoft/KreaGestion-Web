@@ -38,7 +38,7 @@ def articulos_compra_qs(empresa):
 
 @login_required
 @requiere_empresa
-@permission_required('documentos.view_documento', raise_exception=True)
+@permission_required('documentos.view_documentocompra', raise_exception=True)
 def documento_compra_list(request):
     """Lista de documentos de compra"""
     # Obtener la empresa del usuario
@@ -139,7 +139,7 @@ def documento_compra_list(request):
 
 @login_required
 @requiere_empresa
-@permission_required('documentos.add_documento', raise_exception=True)
+@permission_required('documentos.add_documentocompra', raise_exception=True)
 def documento_compra_create(request):
     """Crear nuevo documento de compra"""
     # Obtener la empresa del usuario
@@ -309,7 +309,7 @@ def documento_compra_detail(request, pk):
 
 
 @login_required
-@permission_required('documentos.change_documento', raise_exception=True)
+@permission_required('documentos.change_documentocompra', raise_exception=True)
 def documento_compra_update(request, pk):
     """Editar documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
@@ -440,7 +440,7 @@ def documento_compra_update(request, pk):
 
 
 @login_required
-@permission_required('documentos.delete_documento', raise_exception=True)
+@permission_required('documentos.delete_documentocompra', raise_exception=True)
 def documento_compra_delete(request, pk):
     """Eliminar documento de compra"""
     documento = get_object_or_404(DocumentoCompra, pk=pk)
@@ -732,7 +732,7 @@ def orden_compra_detalle_json(request, pk):
 
 @login_required
 @requiere_empresa
-@permission_required('documentos.view_documento', raise_exception=True)
+@permission_required('documentos.view_documentocompra', raise_exception=True)
 def documento_compra_export_excel(request):
     """Exportar documentos de compra a Excel (Libro de Compras)"""
     # Obtener la empresa del usuario

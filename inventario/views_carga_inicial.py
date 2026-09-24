@@ -26,8 +26,8 @@ def carga_inicial_inventario(request):
         request.user.is_superuser
         or request.user.is_staff
         or (perfil and perfil.es_administrador)
-        or request.user.has_perm('inventario.add_cargainicial')
-        or request.user.has_perm('inventario.change_cargainicial')
+        or request.user.has_perm('inventario.add_inventario')
+        or request.user.has_perm('inventario.change_inventario')
     )
     if not es_admin:
         messages.error(request, 'Solo los administradores pueden realizar carga inicial de inventario.')
@@ -271,8 +271,8 @@ def edicion_manual_inventario(request):
         request.user.is_superuser
         or request.user.is_staff
         or (perfil and perfil.es_administrador)
-        or request.user.has_perm('inventario.add_cargainicial')
-        or request.user.has_perm('inventario.change_cargainicial')
+        or request.user.has_perm('inventario.add_inventario')
+        or request.user.has_perm('inventario.change_inventario')
     )
     if not es_admin:
         messages.error(request, 'Solo los administradores pueden realizar carga inicial de inventario.')

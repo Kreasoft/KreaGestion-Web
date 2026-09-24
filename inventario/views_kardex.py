@@ -262,7 +262,7 @@ def _obtener_datos_kardex(request):
 
 @login_required
 @requiere_empresa
-@permission_required('inventario.view_movimientoinventario', raise_exception=True)
+@permission_required('inventario.view_inventario', raise_exception=True)
 def kardex_articulo(request):
     """
     Kardex (Cartola) de movimientos de un artículo
@@ -274,7 +274,7 @@ def kardex_articulo(request):
 
 @login_required
 @requiere_empresa
-@permission_required('inventario.view_movimientoinventario', raise_exception=True)
+@permission_required('inventario.view_inventario', raise_exception=True)
 def kardex_articulo_excel(request):
     """Exporta el Kardex de articulo a un Excel real con formato corporativo."""
     context = _obtener_datos_kardex(request)

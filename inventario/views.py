@@ -126,7 +126,7 @@ def revertir_stock(inventario):
 
 @login_required
 @requiere_empresa
-@permission_required('inventario.view_movimientoinventario', raise_exception=True)
+@permission_required('inventario.view_inventario', raise_exception=True)
 def inventario_list(request):
     """Lista todos los movimientos de inventario"""
     inventarios = Inventario.objects.filter(empresa=request.empresa).select_related(
