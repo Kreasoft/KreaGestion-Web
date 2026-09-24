@@ -140,6 +140,46 @@ class DispositivoMovil(models.Model):
         return f"{self.nombre_dispositivo} ({'AUTORIZADO' if self.autorizado else 'PENDIENTE'})"
 
 
+class SolicitudAccesoMovil(models.Model):
+    """Registro de solicitudes de acceso a la App Móvil por número de teléfono."""
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('descartada', 'Descartada'),
+    ]
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, verbose_name="Empresa")
+    telefono = models.CharField(max_length=20, verbose_name="Teléfono")
+    dispositivo_info = models.CharField(max_length=255, blank=True, default="", verbose_name="Info Dispositivo")
+    ip_origen = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP Origen")
+    intentos = models.PositiveIntegerField(default=1, verbose_name="Nº Intentos")
+    fecha_primer_intento = models.DateTimeField(auto_now_add=True, verbose_name="Primer intento")
+    fecha_ultimo_intento = models.DateTimeField(auto_now=True, verbose_name="Último intento")
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente', verbose_name="Estado")
+    vendedor_asignado = models.ForeignKey(
+        'Vendedor', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Vendedor asignado"
+    )
+
+    class Meta:
+        verbose_name = "Solicitud de Acceso Móvil"
+        verbose_name_plural = "Solicitudes de Acceso Móvil"
+        ordering = ['-fecha_ultimo_intento']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['empresa', 'telefono'],
+                name='uniq_solicitud_empresa_telefono',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.telefono_display} ({self.get_estado_display()})"
+
+    @property
+    def telefono_display(self):
+        from .telefono_app import formatear_telefono_cl
+        return formatear_telefono_cl(self.telefono)
+
+
 class Venta(models.Model):
     """Modelo para gestionar ventas del POS"""
     

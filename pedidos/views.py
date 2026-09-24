@@ -306,11 +306,13 @@ def orden_pedido_pdf(request, pk):
     st_val = ParagraphStyle('Val', fontName='Helvetica', fontSize=8, leading=10.5, textColor=color_texto)
     st_val_b = ParagraphStyle('ValB', fontName='Helvetica-Bold', fontSize=8, leading=10.5, textColor=color_texto)
 
-    st_th = ParagraphStyle('Th', fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, textColor=color_acento, alignment=TA_CENTER)
-    st_th_r = ParagraphStyle('ThR', fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, textColor=color_acento, alignment=TA_RIGHT)
-    st_td = ParagraphStyle('Td', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=color_texto)
-    st_td_c = ParagraphStyle('TdC', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=color_texto, alignment=TA_CENTER)
-    st_td_r = ParagraphStyle('TdR', fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=color_texto, alignment=TA_RIGHT)
+    st_th = ParagraphStyle('Th', fontName='Helvetica-Bold', fontSize=7.2, leading=9, textColor=color_acento, alignment=TA_CENTER)
+    st_th_l = ParagraphStyle('ThL', fontName='Helvetica-Bold', fontSize=7.2, leading=9, textColor=color_acento, alignment=TA_LEFT)
+    st_th_r = ParagraphStyle('ThR', fontName='Helvetica-Bold', fontSize=7.2, leading=9, textColor=color_acento, alignment=TA_RIGHT)
+    st_td = ParagraphStyle('Td', fontName='Helvetica', fontSize=7.2, leading=9, textColor=color_texto)
+    st_td_code = ParagraphStyle('TdCode', fontName='Helvetica-Bold', fontSize=7, leading=8.5, textColor=color_texto, alignment=TA_CENTER)
+    st_td_c = ParagraphStyle('TdC', fontName='Helvetica', fontSize=7.2, leading=9, textColor=color_texto, alignment=TA_CENTER)
+    st_td_r = ParagraphStyle('TdR', fontName='Helvetica', fontSize=7.2, leading=9, textColor=color_texto, alignment=TA_RIGHT)
 
     def _fmt(val):
         if val is None:
@@ -439,7 +441,7 @@ def orden_pedido_pdf(request, pk):
     filas_items = [[
         Paragraph("#", st_th),
         Paragraph("CÓDIGO", st_th),
-        Paragraph("DESCRIPCIÓN DEL PRODUCTO", st_th),
+        Paragraph("DESCRIPCIÓN DEL PRODUCTO", st_th_l),
         Paragraph("CANTIDAD", st_th),
         Paragraph("P. UNITARIO", st_th_r),
         Paragraph("DESC %", st_th_r),
@@ -457,7 +459,7 @@ def orden_pedido_pdf(request, pk):
 
         filas_items.append([
             Paragraph(str(idx), st_td_c),
-            Paragraph(it.articulo.codigo or '—', st_td_c),
+            Paragraph(it.articulo.codigo or '—', st_td_code),
             Paragraph(desc_linea, st_td),
             Paragraph(cant_fmt, st_td_c),
             Paragraph(_fmt(it.precio_unitario), st_td_r),
@@ -470,14 +472,14 @@ def orden_pedido_pdf(request, pk):
 
     tabla_items = Table(
         filas_items,
-        colWidths=[8 * mm, 24 * mm, 74 * mm, 18 * mm, 23 * mm, 15 * mm, 24 * mm]
+        colWidths=[7 * mm, 36 * mm, 69 * mm, 14 * mm, 20 * mm, 13 * mm, 23 * mm]
     )
     tabla_items.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 0.7, color_borde),
         ('INNERGRID', (0, 0), (-1, -1), 0.3, color_borde),
         ('BACKGROUND', (0, 0), (-1, 0), color_fondo_th),
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5),
         ('LEFTPADDING', (0, 0), (-1, -1), 3),
         ('RIGHTPADDING', (0, 0), (-1, -1), 3),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -497,7 +499,7 @@ def orden_pedido_pdf(request, pk):
         st_emp_sub
     ))
 
-    caja_obs = Table([[obs_content]], colWidths=[108 * mm])
+    caja_obs = Table([[obs_content]], colWidths=[106 * mm])
     caja_obs.setStyle(TableStyle([
         ('BOX', (0, 0), (-1, -1), 0.7, color_borde),
         ('BACKGROUND', (0, 0), (-1, -1), color_fondo),
@@ -543,7 +545,7 @@ def orden_pedido_pdf(request, pk):
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
 
-    bloque_pie = Table([[caja_obs, tabla_tot]], colWidths=[110 * mm, 76 * mm])
+    bloque_pie = Table([[caja_obs, tabla_tot]], colWidths=[108 * mm, 74 * mm])
     bloque_pie.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -563,7 +565,7 @@ def orden_pedido_pdf(request, pk):
             Paragraph("<b>Recepción Conforme:</b><br/>Firma, RUT y Fecha", st_sig),
         ]
     ]
-    tabla_firmas = Table(filas_firmas, colWidths=[58 * mm, 58 * mm, 58 * mm], rowHeights=[14 * mm, 10 * mm])
+    tabla_firmas = Table(filas_firmas, colWidths=[60 * mm, 60 * mm, 62 * mm], rowHeights=[14 * mm, 10 * mm])
     tabla_firmas.setStyle(TableStyle([
         ('LINEABOVE', (0, 1), (0, 1), 0.7, color_gris),
         ('LINEABOVE', (1, 1), (1, 1), 0.7, color_gris),

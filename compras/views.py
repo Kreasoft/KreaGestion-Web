@@ -577,6 +577,10 @@ def sincronizar_facturas_recibidas_sii(request):
         with transaction.atomic():
             for datos in filas:
                 identificacion = {campo: datos.pop(campo) for campo in ('tipo_dte', 'folio', 'rut_emisor')}
+                datos.setdefault('xml_original', '')
+                datos.setdefault('xml_solicitado_a', '')
+                datos.setdefault('razon_social_emisor', '')
+                datos.setdefault('tipo_compra_rcv', '')
                 _, creado = DocumentoRecibidoSII.objects.update_or_create(
                     empresa=request.empresa, **identificacion, defaults=datos,
                 )

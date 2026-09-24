@@ -14,8 +14,10 @@ from decimal import Decimal
 from datetime import datetime, time, timedelta
 from core.decorators import requiere_empresa, requiere_permiso
 from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
-from facturacion_electronica.ind_traslado import TIPO_DESPACHO_SII_CHOICES
-from .models import Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TerminalPOS, TIPO_DOCUMENTO_CHOICES, DispositivoMovil, ensure_terminalpos_table, ensure_estacion_caja_impresion
+from .models import (
+    Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TerminalPOS, TIPO_DOCUMENTO_CHOICES,
+    DispositivoMovil, SolicitudAccesoMovil, ensure_terminalpos_table, ensure_estacion_caja_impresion
+)
 from .telefono_app import (
     AUTH_OFFLINE_HOURS,
     emitir_token_app,
@@ -378,43 +380,99 @@ def _aplicar_pagos_cierre_directo(venta, apertura, pagos, tipo_doc, numero, usua
 @permission_required('ventas.view_vendedor', raise_exception=True)
 def vendedor_list(request):
     """Lista de vendedores y autorización de celulares para la app móvil."""
-    if request.method == 'POST' and request.POST.get('action') == 'save_telefono_app':
-        vendedor_id = request.POST.get('device_vendedor_id')
-        telefono = normalizar_telefono_cl(request.POST.get('telefono') or '')
-        activar = request.POST.get('activar', 'on') == 'on'
+    if request.method == 'POST':
+        action = request.POST.get('action')
 
-        if not vendedor_id:
-            messages.error(request, 'Seleccione el vendedor.')
-            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
-        if not telefono:
-            messages.error(request, 'Ingrese un celular chileno, por ejemplo +56 9 63697225.')
-            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+        if action == 'aprobar_solicitud':
+            solicitud_id = request.POST.get('solicitud_id')
+            vendedor_id = request.POST.get('vendedor_id')
 
-        vendedor = Vendedor.objects.filter(pk=vendedor_id, empresa=request.empresa).first()
-        if not vendedor:
-            messages.error(request, 'Vendedor no encontrado.')
-            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+            if not solicitud_id or not vendedor_id:
+                messages.error(request, 'Datos incompletos para autorizar el dispositivo.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
 
-        ocupado = Vendedor.objects.filter(
-            empresa=request.empresa, telefono_app=telefono
-        ).exclude(pk=vendedor.pk).first()
-        if ocupado:
-            messages.error(request, f'El número {formatear_telefono_cl(telefono)} ya está en {ocupado.nombre}.')
-            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+            solicitud = get_object_or_404(SolicitudAccesoMovil, pk=solicitud_id, empresa=request.empresa)
+            vendedor = get_object_or_404(Vendedor, pk=vendedor_id, empresa=request.empresa)
 
-        vendedor.telefono_app = telefono
-        vendedor.app_movil_activa = activar
-        if activar:
+            ocupado = Vendedor.objects.filter(
+                empresa=request.empresa, telefono_app=solicitud.telefono
+            ).exclude(pk=vendedor.pk).first()
+            if ocupado:
+                messages.error(request, f'El número {solicitud.telefono_display} ya está asignado a {ocupado.nombre}.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+            vendedor.telefono_app = solicitud.telefono
+            vendedor.app_movil_activa = True
             vendedor.app_movil_activado_en = timezone.now()
             vendedor.app_movil_revocado_en = None
-        else:
-            vendedor.app_movil_revocado_en = timezone.now()
-        vendedor.save(update_fields=[
-            'telefono_app', 'app_movil_activa', 'app_movil_activado_en', 'app_movil_revocado_en', 'fecha_modificacion'
-        ])
-        estado = 'activo' if activar else 'registrado (sin acceso)'
-        messages.success(request, f'Celular {formatear_telefono_cl(telefono)} de {vendedor.nombre}: {estado}.')
-        return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+            vendedor.save(update_fields=[
+                'telefono_app', 'app_movil_activa', 'app_movil_activado_en', 'app_movil_revocado_en', 'fecha_modificacion'
+            ])
+
+            solicitud.estado = 'aprobada'
+            solicitud.vendedor_asignado = vendedor
+            solicitud.save(update_fields=['estado', 'vendedor_asignado', 'fecha_ultimo_intento'])
+
+            messages.success(request, f'Celular {solicitud.telefono_display} asignado a {vendedor.nombre} y activado correctamente.')
+            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+        elif action == 'descartar_solicitud':
+            solicitud_id = request.POST.get('solicitud_id')
+            if not solicitud_id:
+                messages.error(request, 'Solicitud no encontrada.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+            solicitud = get_object_or_404(SolicitudAccesoMovil, pk=solicitud_id, empresa=request.empresa)
+            solicitud.estado = 'descartada'
+            solicitud.save(update_fields=['estado', 'fecha_ultimo_intento'])
+
+            messages.success(request, f'Solicitud de {solicitud.telefono_display} descartada.')
+            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+        elif action == 'save_telefono_app':
+            vendedor_id = request.POST.get('device_vendedor_id')
+            telefono = normalizar_telefono_cl(request.POST.get('telefono') or '')
+            activar = request.POST.get('activar', 'on') == 'on'
+
+            if not vendedor_id:
+                messages.error(request, 'Seleccione el vendedor.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+            if not telefono:
+                messages.error(request, 'Ingrese un celular chileno, por ejemplo +56 9 63697225.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+            vendedor = Vendedor.objects.filter(pk=vendedor_id, empresa=request.empresa).first()
+            if not vendedor:
+                messages.error(request, 'Vendedor no encontrado.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+            ocupado = Vendedor.objects.filter(
+                empresa=request.empresa, telefono_app=telefono
+            ).exclude(pk=vendedor.pk).first()
+            if ocupado:
+                messages.error(request, f'El número {formatear_telefono_cl(telefono)} ya está en {ocupado.nombre}.')
+                return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
+
+            vendedor.telefono_app = telefono
+            vendedor.app_movil_activa = activar
+            if activar:
+                vendedor.app_movil_activado_en = timezone.now()
+                vendedor.app_movil_revocado_en = None
+            else:
+                vendedor.app_movil_revocado_en = timezone.now()
+            vendedor.save(update_fields=[
+                'telefono_app', 'app_movil_activa', 'app_movil_activado_en', 'app_movil_revocado_en', 'fecha_modificacion'
+            ])
+
+            # Si existía solicitud pendiente para este celular, actualizar estado
+            if activar:
+                SolicitudAccesoMovil.objects.filter(
+                    empresa=request.empresa, telefono=telefono, estado='pendiente'
+                ).update(estado='aprobada', vendedor_asignado=vendedor)
+
+            estado = 'activo' if activar else 'registrado (sin acceso)'
+            messages.success(request, f'Celular {formatear_telefono_cl(telefono)} de {vendedor.nombre}: {estado}.')
+            return redirect(reverse('ventas:vendedor_list') + '?tab=telefonos')
 
     vendedores = Vendedor.objects.filter(empresa=request.empresa).order_by('codigo')
 
@@ -440,9 +498,17 @@ def vendedor_list(request):
             Q(telefono_app__icontains=digits)
         )
 
+    # Solicitudes pendientes desde la App Móvil
+    solicitudes_pendientes = SolicitudAccesoMovil.objects.filter(
+        empresa=request.empresa, estado='pendiente'
+    ).order_by('-fecha_ultimo_intento')
+    solicitudes_pendientes_count = solicitudes_pendientes.count()
+
     pendientes_auth = Vendedor.objects.filter(
         empresa=request.empresa, telefono_app__gt='', app_movil_activa=False
     ).count()
+
+    total_pendientes = solicitudes_pendientes_count + pendientes_auth
 
     context = {
         'page_obj': page_obj,
@@ -451,6 +517,9 @@ def vendedor_list(request):
         'vendedores_activos': Vendedor.objects.filter(empresa=request.empresa, activo=True).order_by('nombre'),
         'tab': request.GET.get('tab', 'vendedores'),
         'pendientes_auth': pendientes_auth,
+        'solicitudes_pendientes': solicitudes_pendientes,
+        'solicitudes_pendientes_count': solicitudes_pendientes_count,
+        'total_pendientes': total_pendientes,
         'tel_q': tel_q,
         'auth_offline_hours': AUTH_OFFLINE_HOURS,
     }
@@ -6335,12 +6404,39 @@ def mobile_api_verify_device(request):
                 'error': 'Ingrese un celular chileno, por ejemplo +56 9 63697225.',
             }, status=400)
 
+        user_agent = (request.META.get('HTTP_USER_AGENT') or '')[:250]
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(',')[0].strip()
+        else:
+            ip = request.META.get('REMOTE_ADDR')
+
         vendedor = Vendedor.objects.filter(
             empresa=request.empresa,
             telefono_app=telefono,
         ).first()
 
         if not vendedor:
+            # Registrar o actualizar solicitud de acceso pendiente
+            solicitud, created = SolicitudAccesoMovil.objects.get_or_create(
+                empresa=request.empresa,
+                telefono=telefono,
+                defaults={
+                    'dispositivo_info': user_agent,
+                    'ip_origen': ip if ip else None,
+                    'intentos': 1,
+                    'estado': 'pendiente',
+                }
+            )
+            if not created:
+                solicitud.intentos = F('intentos') + 1
+                solicitud.estado = 'pendiente'
+                if user_agent:
+                    solicitud.dispositivo_info = user_agent
+                if ip:
+                    solicitud.ip_origen = ip
+                solicitud.save(update_fields=['intentos', 'estado', 'dispositivo_info', 'ip_origen', 'fecha_ultimo_intento'])
+
             return JsonResponse({
                 'success': True,
                 'authorized': False,
@@ -6350,6 +6446,14 @@ def mobile_api_verify_device(request):
             })
 
         autorizado = bool(vendedor.activo and vendedor.app_movil_activa and vendedor.telefono_app)
+        if autorizado:
+            # Actualizar solicitud como aprobada si existía
+            SolicitudAccesoMovil.objects.filter(
+                empresa=request.empresa,
+                telefono=telefono,
+                estado='pendiente'
+            ).update(estado='aprobada', vendedor_asignado=vendedor)
+
         token = emitir_token_app(request.empresa.id, vendedor.id, telefono) if autorizado else ''
 
         return JsonResponse({

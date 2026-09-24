@@ -461,7 +461,15 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
-                            {% if pendientes_auth %}
+                            {% if solicitudes_pendientes_count %}
+                            <a href="{% url 'ventas:vendedor_list' %}?tab=telefonos#solicitudes-pendientes" class="kpi-header-vendedores text-decoration-none" style="background: #D9534F;">
+                                <i class="fas fa-bell kpi-header-icon"></i>
+                                <div>
+                                    <div class="kpi-header-label">Solicitudes App</div>
+                                    <div class="kpi-header-value">{{ solicitudes_pendientes_count }} <span>por activar</span></div>
+                                </div>
+                            </a>
+                            {% elif pendientes_auth %}
                             <a href="{% url 'ventas:vendedor_list' %}?tab=telefonos" class="kpi-header-vendedores text-decoration-none" style="background: #C76F43;">
                                 <i class="fas fa-mobile-alt kpi-header-icon"></i>
                                 <div>
@@ -493,7 +501,11 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link {% if tab == 'telefonos' %}active{% endif %}" id="tab-telefonos" data-bs-toggle="tab" data-bs-target="#pane-telefonos" data-tab="telefonos" type="button" role="tab">
                             <i class="fas fa-mobile-alt me-1"></i>Teléfonos app
-                            {% if pendientes_auth %}<span class="badge-tab-pend">{{ pendientes_auth }}</span>{% endif %}
+                            {% if solicitudes_pendientes_count %}
+                                <span class="badge-tab-pend" style="background: #D9534F;" title="{{ solicitudes_pendientes_count }} solicitudes desde la app">{{ solicitudes_pendientes_count }}</span>
+                            {% elif pendientes_auth %}
+                                <span class="badge-tab-pend" title="{{ pendientes_auth }} teléfonos por autorizar">{{ pendientes_auth }}</span>
+                            {% endif %}
                         </button>
                     </li>
                 </ul>
@@ -598,6 +610,86 @@
                             El vendedor entra a la app con su celular <code>+56 9 63697225</code>. Administración lo registra y lo deja <strong>activo</strong>.
                             La primera vez necesita internet; después puede vender hasta {{ auth_offline_hours }} horas sin señal. Al reconectar, si le cancelaron el acceso, deja de vender.
                         </div>
+
+                        {% if solicitudes_pendientes %}
+                        <!-- Panel de Solicitudes de Acceso desde la App Móvil -->
+                        <div id="solicitudes-pendientes" class="mx-2 my-2" style="border: 2px solid #D9534F; border-radius: 8px; background: #FFFDFD; overflow: hidden; box-shadow: 0 4px 12px rgba(217, 83, 79, 0.15);">
+                            <div class="d-flex justify-content-between align-items-center px-3 py-2" style="background: linear-gradient(135deg, #FDE8E8 0%, #FCDADA 100%); border-bottom: 2px solid #F5B5B5;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-danger rounded-pill px-2 py-1" style="font-size: 0.75rem;"><i class="fas fa-bell me-1"></i>{{ solicitudes_pendientes_count }}</span>
+                                    <h6 class="mb-0 fw-bold" style="font-size: 0.85rem; color: #9E1C1C;">
+                                        Solicitudes de acceso pendientes (intentos desde la App Móvil)
+                                    </h6>
+                                </div>
+                                <span class="badge" style="background: #9E1C1C; color: #fff; font-size: 0.68rem; font-weight: 600;">
+                                    Asigne un vendedor y active el acceso
+                                </span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0" style="font-size: 0.78rem;">
+                                    <thead style="background: #FDF4F4; color: #7A2E2E; font-size: 0.68rem; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid #F5D0D0;">
+                                        <tr>
+                                            <th class="ps-3 py-2">Celular que solicita</th>
+                                            <th class="py-2 text-center">Intentos</th>
+                                            <th class="py-2">Último intento</th>
+                                            <th class="py-2">Dispositivo</th>
+                                            <th class="pe-3 py-2 text-end" style="min-width: 320px;">Asignar a Vendedor y Activar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for sol in solicitudes_pendientes %}
+                                        <tr style="vertical-align: middle; border-bottom: 1px solid #FAECEC;">
+                                            <td class="ps-3 py-2">
+                                                <strong style="color: #2D3748; font-size: 0.92rem; font-family: monospace;">
+                                                    <i class="fas fa-mobile-alt me-1 text-danger"></i>{{ sol.telefono_display }}
+                                                </strong>
+                                            </td>
+                                            <td class="py-2 text-center">
+                                                <span class="badge bg-danger text-white font-monospace px-2" style="font-size: 0.7rem;">{{ sol.intentos }} intento{{ sol.intentos|pluralize }}</span>
+                                            </td>
+                                            <td class="py-2" style="font-size: 0.72rem; color: #555;">
+                                                <i class="far fa-clock me-1 text-secondary"></i>{{ sol.fecha_ultimo_intento|date:"d/m/Y H:i" }}
+                                                <small class="d-block text-secondary" style="font-size: 0.65rem;">({{ sol.fecha_ultimo_intento|timesince }} atrás)</small>
+                                            </td>
+                                            <td class="py-2" style="max-width: 200px;">
+                                                <span class="text-truncate d-inline-block text-muted" style="max-width: 190px; font-size: 0.68rem;" title="{{ sol.dispositivo_info }}">
+                                                    {{ sol.dispositivo_info|default:"App Móvil / Web" }}
+                                                </span>
+                                                {% if sol.ip_origen %}<small class="d-block text-muted" style="font-size: 0.62rem;">IP: {{ sol.ip_origen }}</small>{% endif %}
+                                            </td>
+                                            <td class="pe-3 py-2 text-end">
+                                                <div class="d-flex justify-content-end align-items-center gap-1">
+                                                    <form method="post" class="d-flex align-items-center gap-1 mb-0">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="aprobar_solicitud">
+                                                        <input type="hidden" name="solicitud_id" value="{{ sol.id }}">
+                                                        <select name="vendedor_id" class="form-select form-select-sm" style="width: 180px; height: 28px !important; font-size: 0.72rem;" required>
+                                                            <option value="">-- Seleccionar Vendedor --</option>
+                                                            {% for v in vendedores_activos %}
+                                                            <option value="{{ v.id }}">{{ v.nombre }} ({{ v.codigo }})</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        <button type="submit" class="btn btn-sm text-white" style="background: #2E7D32; border-color: #1B5E20; height: 28px; font-size: 0.72rem; font-weight: 700; white-space: nowrap;">
+                                                            <i class="fas fa-check me-1"></i>Aprobar y Activar
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" class="mb-0" onsubmit="return confirm('¿Descartar la solicitud del celular {{ sol.telefono_display }}?');">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="descartar_solicitud">
+                                                        <input type="hidden" name="solicitud_id" value="{{ sol.id }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-secondary" style="height: 28px; font-size: 0.72rem; padding: 0 8px;" title="Descartar solicitud">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
                         <div class="px-2 py-2" style="background: #FDFCFB; border-bottom: 1px solid #E8DCC8;">
                             <form method="get" class="row g-1 align-items-end mb-2">
                                 <input type="hidden" name="tab" value="telefonos">

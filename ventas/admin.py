@@ -3,6 +3,7 @@ from empresas.models import Sucursal
 from .models import (
     Vendedor, FormaPago, EstacionTrabajo, TerminalPOS, Venta, VentaDetalle, Devolucion, DevolucionDetalle, 
     PrecioClienteArticulo, VentaReferencia, NotaCredito, NotaCreditoDetalle, DispositivoMovil,
+    SolicitudAccesoMovil,
     ensure_terminalpos_table,
 )
 
@@ -300,3 +301,11 @@ class DispositivoMovilAdmin(admin.ModelAdmin):
     def desautorizar_dispositivos(self, request, queryset):
         queryset.update(autorizado=False)
     desautorizar_dispositivos.short_description = "Desautorizar dispositivos seleccionados"
+
+
+@admin.register(SolicitudAccesoMovil)
+class SolicitudAccesoMovilAdmin(admin.ModelAdmin):
+    list_display = ['telefono', 'empresa', 'estado', 'vendedor_asignado', 'intentos', 'fecha_ultimo_intento']
+    list_filter = ['estado', 'empresa']
+    search_fields = ['telefono', 'vendedor_asignado__nombre']
+    ordering = ['-fecha_ultimo_intento']
