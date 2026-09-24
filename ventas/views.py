@@ -14,6 +14,7 @@ from decimal import Decimal
 from datetime import datetime, time, timedelta
 from core.decorators import requiere_empresa, requiere_permiso
 from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
+from facturacion_electronica.ind_traslado import TIPO_DESPACHO_SII_CHOICES
 from .models import (
     Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TerminalPOS, TIPO_DOCUMENTO_CHOICES,
     DispositivoMovil, SolicitudAccesoMovil, ensure_terminalpos_table, ensure_estacion_caja_impresion
