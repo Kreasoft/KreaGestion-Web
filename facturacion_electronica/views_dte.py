@@ -1028,6 +1028,7 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
     class ClienteWrapper:
         def __init__(self, dte):
             self.nombre = dte.razon_social_receptor or "Cliente General"
+            self.razon_social = dte.razon_social_receptor or "Cliente General"
             self.rut = dte.rut_receptor or ""
             self.direccion = dte.direccion_receptor or ""
             self.giro = dte.giro_receptor or ""
@@ -1035,6 +1036,9 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
             self.comuna = dte.comuna_receptor or ""
             self.telefono = ""
             self.email = ""
+
+        def __getattr__(self, name):
+            return ""
     
     # Si no hay venta pero hay orden de despacho, crear un objeto wrapper para compatibilidad
     if not venta and orden_despacho:
@@ -1050,6 +1054,9 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
                 self.cliente = cliente_real if cliente_real else ClienteWrapper(dte)
                 # Vendedor desde orden_pedido si existe
                 self.vendedor = getattr(orden_despacho.orden_pedido, 'vendedor', None) if hasattr(orden_despacho, 'orden_pedido') and orden_despacho.orden_pedido else None
+                # Vehículo y chofer
+                self.vehiculo = getattr(orden_despacho, 'vehiculo', None) or getattr(dte, 'vehiculo', None)
+                self.chofer = getattr(orden_despacho, 'chofer', None) or getattr(dte, 'chofer', None)
                 # Fecha: usar fecha_despacho o fecha_emision del DTE
                 self.fecha = orden_despacho.fecha_despacho if hasattr(orden_despacho, 'fecha_despacho') else dte.fecha_emision
                 # Totales desde DTE
@@ -1059,6 +1066,12 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
                 self.descuento = 0
                 self.neto = dte.monto_neto
                 self.impuesto_especifico = 0
+                # Tipos y estado
+                self.tipo_documento = getattr(dte, 'tipo_dte', 'guia')
+                self.tipo_documento_planeado = getattr(dte, 'tipo_dte', 'guia')
+                self.tipo_despacho = getattr(dte, 'tipo_traslado', None)
+                self.sucursal = getattr(orden_despacho, 'sucursal', None)
+                self.estacion_trabajo = None
                 # Forma de pago: None (no aplica para órdenes de despacho)
                 self.forma_pago = None
                 self.saldo_pendiente = 0
@@ -1071,6 +1084,12 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
                 self.referencias = ReferenciasWrapper()
                 # Observaciones
                 self.observaciones = getattr(orden_despacho, 'observaciones', '')
+
+            def get_tipo_despacho_display(self):
+                return getattr(dte, 'get_tipo_traslado_display', lambda: '')() or 'Operación constituye venta'
+
+            def __getattr__(self, name):
+                return None
         
         venta = VentaWrapper(orden_despacho, dte)
 

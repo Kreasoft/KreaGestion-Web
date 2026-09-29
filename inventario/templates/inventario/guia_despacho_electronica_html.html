@@ -439,13 +439,13 @@
             <tr>
                 <td class="lbl">Patente</td>
                 <td class="val">
-                    {{ dte.patente_transporte|default:dte.vehiculo.patente|default:venta.vehiculo.patente }}
+                    {% firstof dte.patente_transporte dte.vehiculo.patente venta.vehiculo.patente %}
                     {% if dte.patente_carro %} / Carro: {{ dte.patente_carro }}{% endif %}
                 </td>
                 <td class="lbl">Chofer</td>
                 <td class="val">
-                    {{ dte.nombre_chofer|default:dte.chofer.nombre|default:venta.chofer.nombre }}
-                    {% if dte.rut_chofer or dte.chofer.rut or venta.chofer.rut %} ({{ dte.rut_chofer|default:dte.chofer.rut|default:venta.chofer.rut }}){% endif %}
+                    {% firstof dte.nombre_chofer dte.chofer.nombre venta.chofer.nombre %}
+                    {% if dte.rut_chofer or dte.chofer.rut or venta.chofer.rut %} ({% firstof dte.rut_chofer dte.chofer.rut venta.chofer.rut %}){% endif %}
                 </td>
             </tr>
             {% endif %}
@@ -453,7 +453,7 @@
             <tr>
                 <td class="lbl">Traslado</td>
                 <td class="val" colspan="3">
-                    {{ dte.get_tipo_traslado_display|default:venta.get_tipo_despacho_display|default:"Operación constituye venta" }}
+                    {% firstof dte.get_tipo_traslado_display venta.get_tipo_despacho_display "Operación constituye venta" %}
                     {% if dte.tipo_despacho_sii %} - {{ dte.get_tipo_despacho_sii_display }}{% endif %}
                 </td>
             </tr>
