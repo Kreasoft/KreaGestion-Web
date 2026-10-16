@@ -6,7 +6,64 @@
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_head %}
-<style>body { background: #FAFAF8 !important; }</style>
+<style>
+    body { background: #FAFAF8 !important; }
+
+    /* Círculos de estado ampliados y destacados */
+    .estado-circle {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid #FFFFFF;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+        vertical-align: middle;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        cursor: pointer;
+    }
+    .estado-circle:hover {
+        transform: scale(1.35);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+    .estado-circle-pendiente { background-color: #94A3B8; }        /* Gris Slate */
+    .estado-circle-en_preparacion { background-color: #F59E0B; }   /* Ámbar / Naranja */
+    .estado-circle-despachado { background-color: #0284C7; }       /* Azul cielo */
+    .estado-circle-en_transito { background-color: #8B5CF6; }      /* Violeta / Púrpura */
+    .estado-circle-entregado { background-color: #16A34A; }        /* Verde esmeralda */
+    .estado-circle-cancelado { background-color: #DC2626; }        /* Rojo */
+
+    /* Barra de leyenda y ayuda interactiva */
+    .leyenda-estados-bar {
+        background: #FFFFFF;
+        border: 1px solid #E8DCC8;
+        border-radius: 6px;
+        padding: 6px 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+    .leyenda-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        color: #5D4037;
+        font-size: 0.74rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .leyenda-item:hover {
+        background: #F5F1E8;
+        color: #2C3E50;
+    }
+    .leyenda-item.is-active {
+        background: #EDE6D8;
+        font-weight: 700;
+        color: #2C3E50;
+        border: 1px solid #D4C4A8;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -91,6 +148,59 @@
                 </div>
             </form>
 
+            <!-- Barra de Ayuda y Leyenda de Estados -->
+            <div class="leyenda-estados-bar d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-info-circle" style="color: #8B7355; font-size: 0.85rem;"></i>
+                    <span style="font-weight: 700; color: #6F5B44; font-size: 0.75rem;">Guía de Colores de Estado:</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-1">
+                    <a href="?estado=pendiente{% if search %}&search={{ search }}{% endif %}" 
+                       class="leyenda-item {% if estado_filter == 'pendiente' %}is-active{% endif %}"
+                       data-bs-toggle="tooltip" title="Despacho registrado y en espera">
+                        <span class="estado-circle estado-circle-pendiente"></span>
+                        <span>Pendiente</span>
+                    </a>
+                    <a href="?estado=en_preparacion{% if search %}&search={{ search }}{% endif %}" 
+                       class="leyenda-item {% if estado_filter == 'en_preparacion' %}is-active{% endif %}"
+                       data-bs-toggle="tooltip" title="Pedido en preparación o armado en bodega">
+                        <span class="estado-circle estado-circle-en_preparacion"></span>
+                        <span>En preparación</span>
+                    </a>
+                    <a href="?estado=despachado{% if search %}&search={{ search }}{% endif %}" 
+                       class="leyenda-item {% if estado_filter == 'despachado' %}is-active{% endif %}"
+                       data-bs-toggle="tooltip" title="Bultos listos y despachados de bodega">
+                        <span class="estado-circle estado-circle-despachado"></span>
+                        <span>Despachado</span>
+                    </a>
+                    <a href="?estado=en_transito{% if search %}&search={{ search }}{% endif %}" 
+                       class="leyenda-item {% if estado_filter == 'en_transito' %}is-active{% endif %}"
+                       data-bs-toggle="tooltip" title="En camión o en ruta hacia el cliente">
+                        <span class="estado-circle estado-circle-en_transito"></span>
+                        <span>En tránsito</span>
+                    </a>
+                    <a href="?estado=entregado{% if search %}&search={{ search }}{% endif %}" 
+                       class="leyenda-item {% if estado_filter == 'entregado' %}is-active{% endif %}"
+                       data-bs-toggle="tooltip" title="Mercadería entregada al cliente con conformidad">
+                        <span class="estado-circle estado-circle-entregado"></span>
+                        <span>Entregado</span>
+                    </a>
+                    <a href="?estado=cancelado{% if search %}&search={{ search }}{% endif %}" 
+                       class="leyenda-item {% if estado_filter == 'cancelado' %}is-active{% endif %}"
+                       data-bs-toggle="tooltip" title="Despacho anulado o cancelado">
+                        <span class="estado-circle estado-circle-cancelado"></span>
+                        <span>Cancelado</span>
+                    </a>
+                    {% if estado_filter %}
+                    <a href="{% url 'pedidos:orden_despacho_list' %}{% if search %}?search={{ search }}{% endif %}" 
+                       class="btn btn-sm btn-outline-secondary py-0 px-2 ms-2" style="font-size: 0.68rem; height: 22px; line-height: 20px;"
+                       title="Quitar filtro de estado">
+                        <i class="fas fa-times me-1"></i>Ver todos
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="table-responsive" style="background: white; border-radius: 6px;">
                 <table class="table-piedra tabla-nombre-completo mb-0">
                     <thead>
@@ -101,7 +211,7 @@
                             <th>Fecha</th>
                             <th>Chofer / Vehículo</th>
                             <th class="text-center">Items</th>
-                            <th style="width: 48px; text-align: center;">Est.</th>
+                            <th style="width: 60px; text-align: center;" title="Estado de la orden de despacho">Estado</th>
                             <th style="width: 64px; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
@@ -114,17 +224,21 @@
                             <td>{{ orden.fecha_despacho|date:"d-m-Y" }}</td>
                             <td>{% if orden.chofer %}{{ orden.chofer.nombre }}{% elif orden.transportista_externo %}{{ orden.transportista_externo }}{% else %}Sin asignar{% endif %}</td>
                             <td class="text-center">{{ orden.items.count }}</td>
-                            <td class="text-center">
+                            <td class="text-center align-middle">
                                 {% if orden.estado == 'entregado' %}
-                                <span class="estado-dot estado-dot-activo" title="{{ orden.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-entregado" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Entregado"></span>
                                 {% elif orden.estado == 'cancelado' %}
-                                <span class="estado-dot estado-dot-inactivo" title="{{ orden.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-cancelado" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Cancelado"></span>
                                 {% elif orden.estado == 'pendiente' %}
-                                <span class="estado-dot estado-dot-suspendido" title="{{ orden.get_estado_display }}"></span>
-                                {% elif orden.estado == 'en_preparacion' or orden.estado == 'en_transito' %}
-                                <span class="estado-dot estado-dot-proceso" title="{{ orden.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-pendiente" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Pendiente"></span>
+                                {% elif orden.estado == 'en_preparacion' %}
+                                <span class="estado-circle estado-circle-en_preparacion" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: En preparación"></span>
+                                {% elif orden.estado == 'despachado' %}
+                                <span class="estado-circle estado-circle-despachado" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Despachado"></span>
+                                {% elif orden.estado == 'en_transito' %}
+                                <span class="estado-circle estado-circle-en_transito" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: En tránsito"></span>
                                 {% else %}
-                                <span class="estado-dot estado-dot-info" title="{{ orden.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-pendiente" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: {{ orden.get_estado_display }}"></span>
                                 {% endif %}
                             </td>
                             <td class="td-acciones text-center">
@@ -145,4 +259,15 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>
 {% endblock %}

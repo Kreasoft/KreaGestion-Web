@@ -19,6 +19,23 @@
         border-color: #D4C4A8 !important; border-radius: 4px !important;
     }
     .modal-content textarea.form-control { height: 40px !important; min-height: 40px !important; }
+
+    .estado-circle {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 2px solid #FFFFFF;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+        vertical-align: middle;
+        transition: transform 0.15s ease;
+        cursor: pointer;
+    }
+    .estado-circle:hover { transform: scale(1.3); }
+    .estado-circle-completada { background-color: #16A34A; }
+    .estado-circle-en_ruta { background-color: #8B5CF6; }
+    .estado-circle-pendiente { background-color: #94A3B8; }
+    .estado-circle-cancelada { background-color: #DC2626; }
 </style>
 {% endblock %}
 
@@ -67,15 +84,17 @@
                             <td>{{ hoja.ruta.codigo|default:"S/R" }} · {{ hoja.vehiculo.patente|default:"-" }}</td>
                             <td class="td-nombre">{{ hoja.chofer.nombre|default:"-" }}</td>
                             <td class="text-center">{{ hoja.get_total_facturas }}</td>
-                            <td class="text-center">
+                            <td class="text-center align-middle">
                                 {% if hoja.estado == 'completada' %}
-                                <span class="estado-dot estado-dot-activo" title="{{ hoja.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-completada" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Completada"></span>
                                 {% elif hoja.estado == 'en_ruta' %}
-                                <span class="estado-dot estado-dot-proceso" title="{{ hoja.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-en_ruta" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: En ruta"></span>
                                 {% elif hoja.estado == 'pendiente' %}
-                                <span class="estado-dot estado-dot-suspendido" title="{{ hoja.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-pendiente" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Pendiente"></span>
+                                {% elif hoja.estado == 'cancelada' %}
+                                <span class="estado-circle estado-circle-cancelada" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: Cancelada"></span>
                                 {% else %}
-                                <span class="estado-dot estado-dot-info" title="{{ hoja.get_estado_display }}"></span>
+                                <span class="estado-circle estado-circle-pendiente" data-bs-toggle="tooltip" data-bs-placement="top" title="Estado: {{ hoja.get_estado_display }}"></span>
                                 {% endif %}
                             </td>
                             <td class="td-acciones text-center">
@@ -180,6 +199,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (data.success && data.chofer_id) choferSelect.value = data.chofer_id;
                     });
             }
+        });
+    }
+
+    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+            new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
 });
