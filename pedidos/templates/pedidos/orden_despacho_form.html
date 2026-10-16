@@ -395,8 +395,17 @@
                             {{ form.transportista_externo }}
                         </div>
                         <div class="col-md-7">
-                            <span class="label-piedra"><i class="fas fa-map-marked-alt me-1"></i> Punto de Entrega *</span>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="label-piedra"><i class="fas fa-map-marked-alt me-1"></i> Punto de Entrega *</span>
+                                <div id="wrapper_selector_sucursal_despacho" style="display:none;" class="d-flex align-items-center gap-1">
+                                    <span class="badge bg-light text-muted border" style="font-size:0.65rem;">Sucursal / Dir:</span>
+                                    <select id="selector_sucursal_despacho" class="form-select form-select-sm" style="height: 24px; padding: 0 4px; font-size: 0.72rem; width: auto; max-width: 250px;"></select>
+                                </div>
+                            </div>
                             {{ form.direccion_entrega }}
+                            {{ form.comuna_entrega }}
+                            {{ form.ciudad_entrega }}
+                            {{ form.direccion_cliente }}
                         </div>
                     </div>
                 </div>
@@ -600,8 +609,45 @@ $(document).ready(function() {
                             const fpId = data.cliente.forma_pago_id || data.pedido.forma_pago_id;
                             if (fpId) $('#id_forma_pago').val(fpId).trigger('change');
                         }
-                        if (!$.trim($('#id_direccion_entrega').val() || '')) {
-                            $('#id_direccion_entrega').val(data.pedido.direccion_despacho || data.cliente.direccion || '');
+                        if (data.pedido && data.pedido.direccion_despacho) {
+                            $('#id_direccion_entrega').val(data.pedido.direccion_despacho);
+                            $('#id_comuna_entrega').val(data.pedido.comuna_despacho || '');
+                            $('#id_ciudad_entrega').val(data.pedido.ciudad_despacho || '');
+                            $('#id_direccion_cliente').val(data.pedido.direccion_cliente_id || '');
+                        } else if (!$.trim($('#id_direccion_entrega').val() || '')) {
+                            $('#id_direccion_entrega').val(data.cliente.direccion || '');
+                            $('#id_comuna_entrega').val(data.cliente.comuna || '');
+                            $('#id_ciudad_entrega').val(data.cliente.ciudad || '');
+                        }
+
+                        // Selector de sucursales si el cliente tiene más de una
+                        const $wrapperSucursal = $('#wrapper_selector_sucursal_despacho');
+                        const $selSucursal = $('#selector_sucursal_despacho');
+                        if (data.cliente && data.cliente.direcciones && data.cliente.direcciones.length > 1) {
+                            $selSucursal.empty();
+                            let targetDir = (data.pedido && data.pedido.direccion_despacho) ? data.pedido.direccion_despacho.trim().toLowerCase() : '';
+                            let targetId = data.pedido ? data.pedido.direccion_cliente_id : null;
+
+                            data.cliente.direcciones.forEach(function(d) {
+                                const opt = $('<option></option>')
+                                    .val(d.id)
+                                    .text((d.alias ? d.alias + ': ' : '') + d.direccion + (d.comuna ? ' (' + d.comuna + ')' : ''))
+                                    .data('direccion', d.direccion)
+                                    .data('comuna', d.comuna)
+                                    .data('ciudad', d.ciudad);
+
+                                if (targetId && String(d.id) === String(targetId)) {
+                                    opt.prop('selected', true);
+                                } else if (!targetId && targetDir && d.direccion.toLowerCase() === targetDir) {
+                                    opt.prop('selected', true);
+                                } else if (!targetId && !targetDir && d.es_principal) {
+                                    opt.prop('selected', true);
+                                }
+                                $selSucursal.append(opt);
+                            });
+                            $wrapperSucursal.show();
+                        } else {
+                            $wrapperSucursal.hide();
                         }
                     }
 
@@ -715,6 +761,20 @@ $(document).ready(function() {
         console.log("Cargando datos iniciales para pedido ID:", initialPedidoId);
         loadPedidoData(initialPedidoId);
     }
+
+    $(document).on('change', '#selector_sucursal_despacho', function() {
+        const $opt = $(this).find('option:selected');
+        if ($opt.length) {
+            const dir = $opt.data('direccion') || '';
+            const com = $opt.data('comuna') || '';
+            const ciu = $opt.data('ciudad') || '';
+            const val = $opt.val();
+            $('#id_direccion_entrega').val(dir);
+            $('#id_comuna_entrega').val(com);
+            $('#id_ciudad_entrega').val(ciu);
+            $('#id_direccion_cliente').val(val !== 'base' ? val : '');
+        }
+    });
 
     // --- Lógica para tarjetas de selección de documento ---
 

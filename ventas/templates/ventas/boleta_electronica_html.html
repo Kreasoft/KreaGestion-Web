@@ -46,10 +46,12 @@
                 min-height: 1080px;
                 margin: 20px auto 40px auto;
                 background: #ffffff;
-                padding: 32px 36px 40px 36px;
+                padding: 32px 36px 36px 36px;
                 box-sizing: border-box;
                 box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.12);
                 border-radius: 4px;
+                display: flex;
+                flex-direction: column;
             }
         }
 
@@ -63,11 +65,13 @@
             .boleta-container {
                 width: 100% !important;
                 max-width: none !important;
-                min-height: auto !important;
+                min-height: 278mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
 
             .no-print {
@@ -107,12 +111,16 @@
         .company-logo-container {
             text-align: center;
             margin-top: 6px;
+            margin-bottom: 4px;
         }
 
         .company-logo {
-            width: 155px !important;
+            max-width: 240px !important;
+            max-height: 75px !important;
+            width: auto !important;
             height: auto !important;
             display: inline-block;
+            object-fit: contain;
         }
 
         /* RECUADRO ROJO SII (PROPORCIÓN RECTANGULAR ESTÁNDAR) */
@@ -202,23 +210,40 @@
             background-color: #ffffff;
         }
 
+        /* DETALLE */
+        .detalle-container {
+            flex: 1 1 auto;
+            border: 1px solid #cccccc;
+            border-radius: 2px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            box-sizing: border-box;
+            min-height: 200px;
+        }
+
         table.detalle-table {
             width: 100%;
             border: 0;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 0;
         }
 
         table.detalle-table th {
             background-color: #e8e8e8;
-            border-top: 1px solid #cccccc;
+            border-top: none;
             border-bottom: 1px solid #cccccc;
-            border-left: 1px solid #cccccc;
+            border-left: none;
             border-right: 1px solid #cccccc;
             padding: 4px;
             font-size: 7.5pt;
             font-weight: bold;
             text-align: center;
+        }
+
+        table.detalle-table th:last-child {
+            border-right: none;
         }
 
         table.detalle-table tbody td {
@@ -227,6 +252,10 @@
             font-size: 7.5pt;
             line-height: 1.1;
             vertical-align: top;
+        }
+
+        table.detalle-table tbody tr:last-child td {
+            padding-bottom: 3px;
         }
 
         .col-codigo { width: 18%; text-align: left; white-space: nowrap; }
@@ -245,7 +274,9 @@
         table.footer-grid {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 6px;
+            margin-top: auto;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         table.footer-grid > tbody > tr > td {
@@ -320,11 +351,15 @@
                     </div>
                     {% if venta.empresa.logo %}
                     <div class="company-logo-container">
-                        <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo" width="155" style="width: 155px; height: auto;">
+                        <img src="{{ venta.empresa.logo.url }}" alt="{{ venta.empresa.nombre }}" class="company-logo">
                     </div>
                     {% elif dte.empresa.logo %}
                     <div class="company-logo-container">
-                        <img src="{{ dte.empresa.logo.url }}" alt="{{ dte.empresa.nombre }}" class="company-logo" width="155" style="width: 155px; height: auto;">
+                        <img src="{{ dte.empresa.logo.url }}" alt="{{ dte.empresa.nombre }}" class="company-logo">
+                    </div>
+                    {% elif empresa.logo %}
+                    <div class="company-logo-container">
+                        <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" class="company-logo">
                     </div>
                     {% endif %}
                 </td>
@@ -379,46 +414,48 @@
             {% endif %}
         </table>
 
-        <!-- DETALLE (SIN LÍNEAS HORIZONTALES ENTRE FILAS) -->
-        <table class="detalle-table">
-            <thead>
-                <tr>
-                    <th class="col-codigo">Código</th>
-                    <th class="col-detalle">Detalle</th>
-                    <th class="col-cantidad">Cantidad</th>
-                    <th class="col-precio">Precio</th>
-                    <th class="col-descuento">% Desc.</th>
-                    <th class="col-monto">Monto</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for detalle in detalles %}
-                <tr>
-                    <td class="col-codigo">
-                        {% if detalle.articulo %}{{ detalle.articulo.codigo }}{% elif detalle.codigo %}{{ detalle.codigo }}{% else %}-{% endif %}
-                    </td>
-                    <td class="col-detalle">
-                        {% if detalle.articulo %}{{ detalle.articulo.nombre }}{% elif detalle.nombre %}{{ detalle.nombre }}{% else %}Producto{% endif %}
-                        {% if detalle.comentario and detalle.comentario != detalle.articulo.nombre %}
-                        <div style="font-size: 6.5pt; color: #555; margin-top: 1px;">{{ detalle.comentario }}</div>
-                        {% endif %}
-                    </td>
-                    <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
-                    <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
-                    <td class="col-descuento">
-                        {% if detalle.descuento > 0 %}
-                        -${{ detalle.descuento|format_miles }}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td class="col-monto">
-                        {% if detalle.precio_total %}${{ detalle.precio_total|format_miles }}{% else %}${{ detalle.monto_total|format_miles }}{% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- DETALLE (EN RECUADRO ESTÁNDAR) -->
+        <div class="detalle-container">
+            <table class="detalle-table">
+                <thead>
+                    <tr>
+                        <th class="col-codigo">Código</th>
+                        <th class="col-detalle">Detalle</th>
+                        <th class="col-cantidad">Cantidad</th>
+                        <th class="col-precio">Precio</th>
+                        <th class="col-descuento">% Desc.</th>
+                        <th class="col-monto">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in detalles %}
+                    <tr>
+                        <td class="col-codigo">
+                            {% if detalle.articulo %}{{ detalle.articulo.codigo }}{% elif detalle.codigo %}{{ detalle.codigo }}{% else %}-{% endif %}
+                        </td>
+                        <td class="col-detalle">
+                            {% if detalle.articulo %}{{ detalle.articulo.nombre }}{% elif detalle.nombre %}{{ detalle.nombre }}{% else %}Producto{% endif %}
+                            {% if detalle.comentario and detalle.comentario != detalle.articulo.nombre %}
+                            <div style="font-size: 6.5pt; color: #555; margin-top: 1px;">{{ detalle.comentario }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
+                        <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
+                        <td class="col-descuento">
+                            {% if detalle.descuento > 0 %}
+                            -${{ detalle.descuento|format_miles }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="col-monto">
+                            {% if detalle.precio_total %}${{ detalle.precio_total|format_miles }}{% else %}${{ detalle.monto_total|format_miles }}{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         {% include "includes/visor_observacion.html" with observacion=venta.observaciones %}
 

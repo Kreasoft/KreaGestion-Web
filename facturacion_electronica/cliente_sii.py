@@ -30,8 +30,8 @@ def _split_rut(rut):
 
 class ClienteSII:
     """Cliente para interactuar directamente con el SII"""
-    _cached_token = None
-    _token_timestamp = None
+    _cached_tokens = {}  # key: (ambiente, pfx_path) -> (token, timestamp)
+    _cached_boleta_tokens = {}
     _dns_cache = {}
     
     def __init__(self, ambiente='CERTIFICACION', pfx_path=None, pfx_password=None):
@@ -134,20 +134,34 @@ class ClienteSII:
         finally:
             urllib3_connection.create_connection = original_create_connection
 
-    def _request_with_dns_fallback(self, method, url, **kwargs):
-        try:
-            return self.session.request(method, url, **kwargs)
-        except requests.exceptions.RequestException as exc:
-            if not self._es_error_dns(exc):
-                raise
-
-            hostname = urlparse(url).hostname
-            ip = self._resolver_ip_publica(hostname)
-            if not ip:
-                raise
-
-            with self._forzar_resolucion_dns(hostname, ip):
+    def _request_with_dns_fallback(self, method, url, max_retries=3, retry_delay=1.5, **kwargs):
+        last_exc = None
+        for intento in range(max_retries):
+            try:
                 return self.session.request(method, url, **kwargs)
+            except requests.exceptions.RequestException as exc:
+                last_exc = exc
+                if self._es_error_dns(exc):
+                    hostname = urlparse(url).hostname
+                    ip = self._resolver_ip_publica(hostname)
+                    if ip:
+                        try:
+                            with self._forzar_resolucion_dns(hostname, ip):
+                                return self.session.request(method, url, **kwargs)
+                        except requests.exceptions.RequestException as exc_dns:
+                            last_exc = exc_dns
+                
+                # Detectar errores transitorios de conexión (RemoteDisconnected, Timeout, ConnectionReset, etc.)
+                es_transitorio = isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout))
+                if not es_transitorio and hasattr(exc, '__cause__') and exc.__cause__:
+                    es_transitorio = isinstance(exc.__cause__, (ConnectionResetError, ConnectionAbortedError, Exception))
+                
+                if es_transitorio and intento < max_retries - 1:
+                    time.sleep(retry_delay * (intento + 1))
+                    continue
+                raise last_exc
+        if last_exc:
+            raise last_exc
     
     def _soap_call(self, url, body):
         envelope = (
@@ -192,15 +206,19 @@ class ClienteSII:
             raise Exception("No se pudo obtener la semilla del SII")
         return semilla
         
-    def get_token(self, semilla=None):
-        if ClienteSII._cached_token and ClienteSII._token_timestamp:
-            if time.time() - ClienteSII._token_timestamp > 7200:
-                ClienteSII._cached_token = None
-                ClienteSII._token_timestamp = None
+    def _cache_key(self):
+        return (self.ambiente, str(self.pfx_path or ''))
 
-        if ClienteSII._cached_token:
-            self.token = ClienteSII._cached_token
-            return self.token
+    def get_token(self, semilla=None):
+        cache_key = self._cache_key()
+        cached = ClienteSII._cached_tokens.get(cache_key)
+        if cached:
+            cached_token, cached_ts = cached
+            if time.time() - cached_ts < 7200:
+                self.token = cached_token
+                return self.token
+            else:
+                ClienteSII._cached_tokens.pop(cache_key, None)
             
         if not semilla:
             semilla = self.get_seed()
@@ -232,8 +250,7 @@ class ClienteSII:
             raise Exception("No se pudo obtener el token del SII")
             
         self.token = token
-        ClienteSII._cached_token = token
-        ClienteSII._token_timestamp = time.time()
+        ClienteSII._cached_tokens[cache_key] = (token, time.time())
         return token
 
     def get_seed_boleta(self):
@@ -546,8 +563,7 @@ class ClienteSII:
         
         # Si el estado es 5 (No está autenticado / Token inválido o vencido), limpiamos caché y reintentamos.
         if estado == '5':
-            ClienteSII._cached_token = None
-            ClienteSII._token_timestamp = None
+            ClienteSII._cached_tokens.pop(self._cache_key(), None)
             self.token = None
             
             # Obtener un nuevo token e intentar de nuevo

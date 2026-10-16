@@ -1,6 +1,6 @@
 /**
  * Cerrar un visor de documento y volver a quien lo abrió.
- * Nunca cae al POS salvo que el llamador haya sido el POS (return_url / referrer).
+ * El sistema siempre vuelve al origen exacto desde donde fue invocado.
  */
 (function (global) {
     function decodeMaybe(value) {
@@ -26,39 +26,70 @@
         }
     }
 
+    function isAuthUrl(url) {
+        if (!url) return false;
+        return url.indexOf('/accounts/login') >= 0 ||
+               url.indexOf('/accounts/logout') >= 0 ||
+               url.indexOf('/admin/login') >= 0;
+    }
+
     function currentPath() {
         return window.location.pathname + window.location.search + window.location.hash;
     }
 
     function resolveReturnUrl(fallbackUrl) {
+        // 1. Prioridad 1: return_url explícito en la query string de la página actual
         var params = new URLSearchParams(window.location.search);
         var fromQuery = normalizeReturnUrl(params.get('return_url'));
-        if (fromQuery) return fromQuery;
+        if (fromQuery && !isAuthUrl(fromQuery)) return fromQuery;
 
+        // 2. Prioridad 2: Referrer de navegación directa si es del mismo origen y no es login/logout
+        var fromReferrer = normalizeReturnUrl(document.referrer);
+        if (fromReferrer && fromReferrer !== currentPath() && !isAuthUrl(fromReferrer)) {
+            return fromReferrer;
+        }
+
+        // 3. Prioridad 3: Fallback contextual del backend (orden despacho, transferencia, venta, etc.)
+        var fallback = normalizeReturnUrl(fallbackUrl || global.GC_CERRAR_VISOR_FALLBACK);
+        if (fallback && fallback !== '/' && !isAuthUrl(fallback)) {
+            return fallback;
+        }
+
+        // 4. Prioridad 4: Memoria temporal de sesión (y se limpia para no contaminar)
         var stored = normalizeReturnUrl(
             sessionStorage.getItem('gc_visor_return') ||
-            localStorage.getItem('print_referer') ||
             sessionStorage.getItem('print_referer')
         );
-        if (stored) return stored;
+        try {
+            sessionStorage.removeItem('gc_visor_return');
+            sessionStorage.removeItem('print_referer');
+            localStorage.removeItem('print_referer');
+        } catch (e) {}
 
-        var fromReferrer = normalizeReturnUrl(document.referrer);
-        if (fromReferrer && fromReferrer !== currentPath()) return fromReferrer;
+        if (stored && !isAuthUrl(stored)) return stored;
 
-        var fallback = normalizeReturnUrl(fallbackUrl);
         return fallback || '/';
     }
 
     function rememberCaller() {
+        try {
+            localStorage.removeItem('print_referer');
+        } catch (e) {}
+
         var params = new URLSearchParams(window.location.search);
         var fromQuery = normalizeReturnUrl(params.get('return_url'));
-        if (fromQuery) {
+        if (fromQuery && !isAuthUrl(fromQuery)) {
             sessionStorage.setItem('gc_visor_return', fromQuery);
             return;
         }
         var fromReferrer = normalizeReturnUrl(document.referrer);
-        if (fromReferrer && fromReferrer !== currentPath()) {
+        if (fromReferrer && fromReferrer !== currentPath() && !isAuthUrl(fromReferrer)) {
             sessionStorage.setItem('gc_visor_return', fromReferrer);
+            return;
+        }
+        var fallback = normalizeReturnUrl(global.GC_CERRAR_VISOR_FALLBACK);
+        if (fallback && fallback !== '/' && !isAuthUrl(fallback)) {
+            sessionStorage.setItem('gc_visor_return', fallback);
         }
     }
 

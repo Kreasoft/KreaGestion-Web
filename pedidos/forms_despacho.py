@@ -27,7 +27,8 @@ class OrdenDespachoForm(forms.ModelForm):
         fields = [
             'orden_pedido', 'fecha_despacho', 'fecha_entrega_estimada',
             'estado', 'chofer', 'vehiculo', 'transportista_externo',
-            'tipo_documento', 'direccion_entrega', 'observaciones', 'tipo_traslado',
+            'tipo_documento', 'direccion_entrega', 'comuna_entrega', 'ciudad_entrega', 'direccion_cliente',
+            'observaciones', 'tipo_traslado',
             'bodega', 'vendedor', 'forma_pago', 'fecha_vencimiento'
         ]
         widgets = {
@@ -90,6 +91,9 @@ class OrdenDespachoForm(forms.ModelForm):
                 'rows': 2,
                 'placeholder': 'Dirección de entrega'
             }),
+            'comuna_entrega': forms.HiddenInput(),
+            'ciudad_entrega': forms.HiddenInput(),
+            'direccion_cliente': forms.HiddenInput(),
             'observaciones': forms.Textarea(attrs={
                 'class': 'form-control form-control-sm',
                 'rows': 3,

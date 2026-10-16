@@ -31,39 +31,172 @@ from documentos.models import DocumentoCompra
 @login_required
 @requiere_empresa
 def exportar_cuentas_cobrar_excel(request):
-    """Exportar cuentas por cobrar a Excel"""
+    """Exportar cuentas/facturas por cobrar a Excel con filtros de vencimiento"""
+    fecha_desde_str = request.GET.get('fecha_desde')
+    fecha_hasta_str = request.GET.get('fecha_hasta')
+    search = request.GET.get('search', '').strip()
+    estado = request.GET.get('estado', 'todos')
+    sin_filtro_fecha = request.GET.get('sin_filtro_fecha') == '1'
+    hoy = datetime.now().date()
+
+    if not fecha_desde_str or not fecha_hasta_str:
+        fecha_hasta = hoy
+        fecha_desde = hoy - timedelta(days=30)
+    else:
+        try:
+            fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d').date()
+            fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_hasta = hoy
+            fecha_desde = hoy - timedelta(days=30)
+
     documentos = DocumentoCliente.objects.filter(
         empresa=request.empresa,
-        estado_pago__in=['pendiente', 'parcial']
-    ).select_related('cliente').order_by('fecha_vencimiento')
+        saldo_pendiente__gt=0
+    ).select_related('cliente')
+
+    if not sin_filtro_fecha:
+        documentos = documentos.filter(
+            Q(fecha_vencimiento__range=[fecha_desde, fecha_hasta]) |
+            Q(fecha_vencimiento__isnull=True, fecha_emision__range=[fecha_desde, fecha_hasta])
+        )
+
+    if search:
+        documentos = documentos.filter(
+            Q(numero_documento__icontains=search) |
+            Q(cliente__nombre__icontains=search) |
+            Q(cliente__rut__icontains=search)
+        )
+
+    if estado in ('vencido', 'vencidos'):
+        documentos = documentos.filter(fecha_vencimiento__lt=hoy)
+    elif estado in ('por_vencer', 'vigente'):
+        documentos = documentos.filter(Q(fecha_vencimiento__gte=hoy) | Q(fecha_vencimiento__isnull=True))
+
+    documentos = documentos.order_by('fecha_vencimiento', 'fecha_emision')
     
     wb = Workbook()
     ws = wb.active
-    ws.title = "Cuentas por Cobrar"
-    headers = ['N° Documento', 'Cliente', 'Fecha Emisión', 'Fecha Vencimiento', 'Total', 'Pagado', 'Saldo', 'Estado']
-    branding = setup_corporate_sheet(ws, request.empresa, "CUENTAS POR COBRAR", "", len(headers))
+    ws.title = "Facturas por Cobrar"
+    headers = ['N° Documento', 'Tipo', 'Cliente', 'RUT', 'Fecha Emisión', 'Fecha Vencimiento', 'Total ($)', 'Pagado ($)', 'Saldo Pendiente ($)', 'Estado']
+    subtitulo = f"Vencimiento: {format_excel_date(fecha_desde)} al {format_excel_date(fecha_hasta)}" if not sin_filtro_fecha else "Todos los vencimientos"
+    branding = setup_corporate_sheet(ws, request.empresa, "FACTURAS Y CUENTAS POR COBRAR", subtitulo, len(headers))
     styles = branding["styles"]
     write_table_headers(ws, branding["header_row"], headers, styles)
 
     row = branding["data_row"]
     for doc in documentos:
+        tipo_str = doc.get_tipo_documento_display() if hasattr(doc, 'get_tipo_documento_display') else doc.tipo_documento
         ws.cell(row=row, column=1, value=doc.numero_documento)
-        ws.cell(row=row, column=2, value=doc.cliente.nombre if doc.cliente else 'Sin cliente')
-        ws.cell(row=row, column=3, value=format_excel_date(doc.fecha_emision)).alignment = styles["center"]
-        ws.cell(row=row, column=4, value=format_excel_date(doc.fecha_vencimiento)).alignment = styles["center"]
-        ws.cell(row=row, column=5, value=float(doc.total)).alignment = styles["right"]
-        ws.cell(row=row, column=5).number_format = '$#,##0'
-        ws.cell(row=row, column=6, value=float(doc.monto_pagado)).alignment = styles["right"]
-        ws.cell(row=row, column=6).number_format = '$#,##0'
-        ws.cell(row=row, column=7, value=float(doc.saldo_pendiente)).alignment = styles["right"]
+        ws.cell(row=row, column=2, value=tipo_str).alignment = styles["center"]
+        ws.cell(row=row, column=3, value=doc.cliente.nombre if doc.cliente else 'Sin cliente')
+        ws.cell(row=row, column=4, value=doc.cliente.rut if doc.cliente else '-').alignment = styles["center"]
+        ws.cell(row=row, column=5, value=format_excel_date(doc.fecha_emision)).alignment = styles["center"]
+        ws.cell(row=row, column=6, value=format_excel_date(doc.fecha_vencimiento)).alignment = styles["center"]
+        ws.cell(row=row, column=7, value=float(doc.total)).alignment = styles["right"]
         ws.cell(row=row, column=7).number_format = '$#,##0'
-        ws.cell(row=row, column=8, value=doc.get_estado_pago_display()).alignment = styles["center"]
+        ws.cell(row=row, column=8, value=float(doc.monto_pagado)).alignment = styles["right"]
+        ws.cell(row=row, column=8).number_format = '$#,##0'
+        ws.cell(row=row, column=9, value=float(doc.saldo_pendiente)).alignment = styles["right"]
+        ws.cell(row=row, column=9).number_format = '$#,##0'
+        
+        if doc.fecha_vencimiento and doc.fecha_vencimiento < hoy:
+            estado_desc = "Vencido"
+        else:
+            estado_desc = "Por Vencer"
+        ws.cell(row=row, column=10, value=estado_desc).alignment = styles["center"]
         style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
         row += 1
 
-    set_column_widths(ws, [18, 35, 15, 15, 15, 15, 15, 12])
+    set_column_widths(ws, [18, 16, 32, 14, 15, 16, 15, 15, 18, 14])
     finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
-    return build_excel_response(wb, "cuentas_por_cobrar.xlsx")
+    return build_excel_response(wb, "facturas_por_cobrar.xlsx")
+
+
+@login_required
+@requiere_empresa
+def exportar_cuentas_pagar_excel(request):
+    """Exportar facturas/cuentas por pagar a proveedores a Excel"""
+    fecha_desde_str = request.GET.get('fecha_desde')
+    fecha_hasta_str = request.GET.get('fecha_hasta')
+    search = request.GET.get('search', '').strip()
+    estado = request.GET.get('estado', 'todos')
+    sin_filtro_fecha = request.GET.get('sin_filtro_fecha') == '1'
+    hoy = datetime.now().date()
+
+    if not fecha_desde_str or not fecha_hasta_str:
+        fecha_hasta = hoy
+        fecha_desde = hoy - timedelta(days=30)
+    else:
+        try:
+            fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d').date()
+            fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_hasta = hoy
+            fecha_desde = hoy - timedelta(days=30)
+
+    documentos = DocumentoCompra.objects.filter(
+        empresa=request.empresa,
+        estado_documento='activo',
+        saldo_pendiente__gt=0
+    ).select_related('proveedor')
+
+    if not sin_filtro_fecha:
+        documentos = documentos.filter(
+            Q(fecha_vencimiento__range=[fecha_desde, fecha_hasta]) |
+            Q(fecha_vencimiento__isnull=True, fecha_emision__range=[fecha_desde, fecha_hasta])
+        )
+
+    if search:
+        documentos = documentos.filter(
+            Q(numero_documento__icontains=search) |
+            Q(proveedor__nombre__icontains=search) |
+            Q(proveedor__rut__icontains=search)
+        )
+
+    if estado in ('vencida', 'vencidas', 'vencido'):
+        documentos = documentos.filter(fecha_vencimiento__lt=hoy)
+    elif estado in ('por_vencer', 'vigente'):
+        documentos = documentos.filter(Q(fecha_vencimiento__gte=hoy) | Q(fecha_vencimiento__isnull=True))
+
+    documentos = documentos.order_by('fecha_vencimiento', 'fecha_emision')
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Facturas por Pagar"
+    headers = ['N° Documento', 'Tipo', 'Proveedor', 'RUT', 'Fecha Emisión', 'Fecha Vencimiento', 'Total ($)', 'Pagado ($)', 'Saldo Pendiente ($)', 'Estado']
+    subtitulo = f"Vencimiento: {format_excel_date(fecha_desde)} al {format_excel_date(fecha_hasta)}" if not sin_filtro_fecha else "Todos los vencimientos"
+    branding = setup_corporate_sheet(ws, request.empresa, "FACTURAS Y CUENTAS POR PAGAR", subtitulo, len(headers))
+    styles = branding["styles"]
+    write_table_headers(ws, branding["header_row"], headers, styles)
+
+    row = branding["data_row"]
+    for doc in documentos:
+        tipo_str = doc.get_tipo_documento_display() if hasattr(doc, 'get_tipo_documento_display') else doc.tipo_documento
+        ws.cell(row=row, column=1, value=doc.numero_documento)
+        ws.cell(row=row, column=2, value=tipo_str).alignment = styles["center"]
+        ws.cell(row=row, column=3, value=doc.proveedor.nombre if doc.proveedor else 'Sin proveedor')
+        ws.cell(row=row, column=4, value=doc.proveedor.rut if doc.proveedor else '-').alignment = styles["center"]
+        ws.cell(row=row, column=5, value=format_excel_date(doc.fecha_emision)).alignment = styles["center"]
+        ws.cell(row=row, column=6, value=format_excel_date(doc.fecha_vencimiento)).alignment = styles["center"]
+        ws.cell(row=row, column=7, value=float(doc.total_documento)).alignment = styles["right"]
+        ws.cell(row=row, column=7).number_format = '$#,##0'
+        ws.cell(row=row, column=8, value=float(doc.monto_pagado)).alignment = styles["right"]
+        ws.cell(row=row, column=8).number_format = '$#,##0'
+        ws.cell(row=row, column=9, value=float(doc.saldo_pendiente)).alignment = styles["right"]
+        ws.cell(row=row, column=9).number_format = '$#,##0'
+
+        if doc.fecha_vencimiento and doc.fecha_vencimiento < hoy:
+            estado_desc = "Vencida"
+        else:
+            estado_desc = "Por Vencer"
+        ws.cell(row=row, column=10, value=estado_desc).alignment = styles["center"]
+        style_data_row(ws, row, len(headers), styles, zebra=((row - branding["data_row"]) % 2 == 1))
+        row += 1
+
+    set_column_widths(ws, [18, 16, 32, 14, 15, 16, 15, 15, 18, 14])
+    finalize_excel_table(ws, branding["header_row"], branding["data_row"], row - 1, len(headers))
+    return build_excel_response(wb, "facturas_por_pagar.xlsx")
 
 
 @login_required

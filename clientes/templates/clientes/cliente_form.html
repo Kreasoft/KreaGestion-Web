@@ -187,6 +187,11 @@
                                     <i class="fas fa-address-book me-2"></i>Contactos
                                 </button>
                             </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="direcciones-tab" data-bs-toggle="tab" data-bs-target="#direcciones" type="button" role="tab">
+                                    <i class="fas fa-map-marker-alt me-2"></i>Direcciones / Sucursales
+                                </button>
+                            </li>
                         </ul>
 
                         <!-- Contenido de las pestañas -->
@@ -563,6 +568,82 @@
                                         </a>
                                     </div>
                                     {% endif %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Pestaña 4: Direcciones / Sucursales -->
+                            <div class="tab-pane fade" id="direcciones" role="tabpanel">
+                                {% if cliente.id %}
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="mb-0" style="color: #2c3e50; font-weight: 600; font-family: 'Poppins', sans-serif;">
+                                        <i class="fas fa-map-marker-alt me-2" style="color: #8B7355;"></i>Direcciones y Sucursales de Entrega
+                                    </h5>
+                                    <a href="{% url 'clientes:direccion_create' cliente.id %}" class="btn" style="background: linear-gradient(135deg, #6B8E23 0%, #8FBC8F 100%); color: white; border: none; font-family: 'Poppins', sans-serif; font-size: 0.8rem; padding: 4px 12px;">
+                                        <i class="fas fa-plus me-1"></i>Agregar Dirección / Sucursal
+                                    </a>
+                                </div>
+                                {% else %}
+                                <div class="alert alert-info py-2" style="font-size: 0.8rem;">
+                                    <i class="fas fa-info-circle me-1"></i> Para agregar direcciones adicionales, primero guarde los datos básicos del cliente.
+                                </div>
+                                {% endif %}
+
+                                {% if todas_direcciones %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead style="background: #f8f9fa;">
+                                            <tr>
+                                                <th style="font-size: 0.75rem; text-transform: uppercase;">Alias / Sucursal</th>
+                                                <th style="font-size: 0.75rem; text-transform: uppercase;">Dirección</th>
+                                                <th style="font-size: 0.75rem; text-transform: uppercase;">Comuna / Ciudad</th>
+                                                <th style="font-size: 0.75rem; text-transform: uppercase; text-align: center;">Tipo</th>
+                                                <th style="font-size: 0.75rem; text-transform: uppercase; text-align: center;">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for d in todas_direcciones %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ d.alias }}</strong>
+                                                    {% if d.es_principal %}
+                                                    <span class="badge bg-success ms-1" style="font-size: 0.65rem;">Principal</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ d.direccion }}</td>
+                                                <td>{{ d.comuna }}{% if d.ciudad %}, {{ d.ciudad }}{% endif %}</td>
+                                                <td class="text-center">
+                                                    {% if d.id == 'base' %}
+                                                    <span class="badge bg-secondary" style="font-size: 0.68rem;">Casa Matriz (Fiscal)</span>
+                                                    {% else %}
+                                                    <span class="badge bg-info text-dark" style="font-size: 0.68rem;">Sucursal / Despacho</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if d.id != 'base' %}
+                                                    <a href="{% url 'clientes:direccion_update' cliente.id d.id %}" class="btn btn-sm text-warning p-1" title="Editar">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'clientes:direccion_delete' cliente.id d.id %}" class="btn btn-sm text-danger p-1" title="Eliminar">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                    {% else %}
+                                                    <span class="text-muted small">Fija en Datos Básicos</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% elif cliente.id %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-map-marked-alt fa-2x text-muted mb-2"></i>
+                                    <h6 class="text-muted">No hay direcciones adicionales</h6>
+                                    <p class="text-muted small">Este cliente solo tiene su dirección fiscal principal.</p>
+                                    <a href="{% url 'clientes:direccion_create' cliente.id %}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-plus me-1"></i>Agregar Sucursal / Dirección
+                                    </a>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>

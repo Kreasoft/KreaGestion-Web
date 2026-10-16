@@ -5,6 +5,7 @@ from empresas.models import Sucursal
 from .models import (
     Vendedor, FormaPago, EstacionTrabajo, PrecioClienteArticulo, 
     NotaCredito, NotaCreditoDetalle, NotaDebito, NotaDebitoDetalle,
+    Venta, VentaDetalle,
     ensure_estacion_caja_impresion,
 )
 
@@ -210,7 +211,7 @@ class PrecioClienteArticuloForm(forms.ModelForm):
         labels = {
             'cliente': 'Cliente',
             'articulo': 'Artículo',
-            'precio_especial': 'Precio Especial',
+            'precio_especial': 'Precio Especial (Neto)',
             'descuento_porcentaje': '% Descuento Adicional',
             'fecha_inicio': 'Fecha Inicio',
             'fecha_fin': 'Fecha Fin',
@@ -473,4 +474,110 @@ NotaDebitoDetalleFormSet = inlineformset_factory(
     can_delete=True,
     min_num=1,
     validate_min=True,
+)
+
+
+from clientes.models import Cliente
+from bodegas.models import Bodega
+from articulos.models import Articulo
+from decimal import Decimal
+
+
+class CotizacionForm(forms.ModelForm):
+    """Formulario para crear y editar cotizaciones con la misma estructura y datos generales que pedidos"""
+
+    bodega = forms.ModelChoiceField(
+        queryset=Bodega.objects.none(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm bodega-select'})
+    )
+    condiciones_pago = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 30 días'})
+    )
+    numero_oc_cliente = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'N° OC del cliente'})
+    )
+    fecha_oc_cliente = forms.DateField(
+        required=False,
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'})
+    )
+
+    def __init__(self, *args, **kwargs):
+        empresa = kwargs.pop('empresa', None)
+        super().__init__(*args, **kwargs)
+        if 'fecha' in self.fields:
+            self.fields['fecha'].input_formats = ['%Y-%m-%d']
+            self.fields['fecha'].widget = forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'})
+        if 'fecha_oc_cliente' in self.fields:
+            self.fields['fecha_oc_cliente'].input_formats = ['%Y-%m-%d']
+
+        if empresa:
+            self.fields['cliente'].queryset = Cliente.objects.filter(empresa=empresa, estado='activo').order_by('nombre')
+            self.fields['bodega'].queryset = Bodega.objects.filter(empresa=empresa, activa=True).order_by('nombre')
+            self.fields['vendedor'].queryset = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+            self.fields['vendedor'].required = False
+            self.fields['vendedor'].empty_label = "Seleccionar Vendedor (Opcional)"
+            self.fields['bodega'].empty_label = "Seleccionar Bodega (Opcional)"
+
+    class Meta:
+        model = Venta
+        fields = [
+            'cliente', 'vendedor', 'fecha', 'observaciones',
+            'direccion_despacho', 'comuna_despacho', 'ciudad_despacho', 'direccion_cliente'
+        ]
+        widgets = {
+            'cliente': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'vendedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'fecha': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
+            'direccion_despacho': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Dirección de entrega'}),
+            'comuna_despacho': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Comuna'}),
+            'ciudad_despacho': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ciudad'}),
+            'direccion_cliente': forms.HiddenInput(),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 3, 'placeholder': 'Observaciones de la cotización'}),
+        }
+
+
+class CotizacionItemForm(forms.Form):
+    """Formulario para cada ítem de la cotización"""
+    id = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    DELETE = forms.BooleanField(required=False, widget=forms.HiddenInput())
+    articulo = forms.ModelChoiceField(
+        queryset=Articulo.objects.all(),
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select articulo-select form-control-sm'})
+    )
+    cantidad = forms.DecimalField(
+        initial=Decimal('1'),
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'step': 'any', 'min': '0.001'})
+    )
+    precio_unitario = forms.DecimalField(
+        initial=Decimal('0'),
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm text-end', 'step': '1', 'min': '0'})
+    )
+    descuento_porcentaje = forms.DecimalField(
+        initial=Decimal('0'),
+        required=False,
+        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm text-center', 'step': '0.01', 'min': '0', 'max': '100'})
+    )
+    impuesto_porcentaje = forms.IntegerField(
+        initial=19,
+        required=False,
+        widget=forms.HiddenInput()
+    )
+
+    def clean_impuesto_porcentaje(self):
+        impuesto = self.cleaned_data.get('impuesto_porcentaje')
+        return impuesto if impuesto is not None else 19
+
+
+from django.forms import formset_factory
+
+CotizacionItemFormSet = formset_factory(
+    CotizacionItemForm,
+    extra=1,
+    can_delete=True
 )

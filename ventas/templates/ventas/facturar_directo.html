@@ -726,6 +726,14 @@
                                     {% endfor %}
                                 </select>
                             </div>
+                            <div class="field" id="contenedor_direccion_cliente" style="display: none;">
+                                <label style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span><i class="fas fa-map-marker-alt text-primary me-1"></i>Dirección / Sucursal</span>
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.65rem; font-weight: normal;">Múltiples direcciones</span>
+                                </label>
+                                <select id="direccion_cliente_select" class="form-select form-select-sm" data-no-select2="1">
+                                </select>
+                            </div>
                             <div class="field-fechas">
                                 <div class="field">
                                     <label>Fecha</label>
@@ -1124,12 +1132,58 @@ function initProductSelect(select) {
     });
 }
 
+let preciosEspecialesCliente = {};
+
+function obtenerPrecioArticuloCliente(art) {
+    if (!art) return 0;
+    const artId = parseInt(art.id, 10);
+    const esp = preciosEspecialesCliente[artId] || preciosEspecialesCliente[String(art.id)];
+    if (esp && esp.precio_neto !== undefined && esp.precio_neto !== null) {
+        return Math.round(esp.precio_neto);
+    }
+    return art.precio || 0;
+}
+
+function actualizarPreciosFilasSegunCliente() {
+    document.querySelectorAll('#items-body tr').forEach(row => {
+        const artSelect = row.querySelector('.item-articulo');
+        if (!artSelect || !artSelect.value) return;
+        const art = articulos.find(a => String(a.id) === String(artSelect.value));
+        if (art) {
+            const precioCalculado = obtenerPrecioArticuloCliente(art);
+            setMoney(row.querySelector('.item-precio'), precioCalculado);
+            recalcRow(row);
+        }
+    });
+}
+
+function cargarPreciosEspecialesCliente(clienteId, callback) {
+    preciosEspecialesCliente = {};
+    if (!clienteId) {
+        if (callback) callback();
+        return;
+    }
+    fetch(`/ventas/api/precios-cliente/${clienteId}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.precios) {
+                preciosEspecialesCliente = data.precios;
+            }
+            if (callback) callback();
+        })
+        .catch(err => {
+            console.error('Error al cargar precios especiales:', err);
+            if (callback) callback();
+        });
+}
+
 function bindRow(row) {
     jQuery(row.querySelector('.item-articulo')).on('change', () => {
         const art = articulos.find(a => String(a.id) === row.querySelector('.item-articulo').value);
         if (art) {
             row.querySelector('.item-desc').value = art.descripcion || art.nombre;
-            setMoney(row.querySelector('.item-precio'), art.precio || 0);
+            const precioCalculado = obtenerPrecioArticuloCliente(art);
+            setMoney(row.querySelector('.item-precio'), precioCalculado);
             row.dataset.exentoArticulo = art.exento ? '1' : '0';
         }
         recalcRow(row);
@@ -1313,6 +1367,36 @@ function onClientChange() {
         }
     }
     recalcVencimiento(true);
+
+    // Actualizar selector de direcciones si el cliente tiene más de una
+    const dirContainer = document.getElementById('contenedor_direccion_cliente');
+    const dirSelect = document.getElementById('direccion_cliente_select');
+    if (dirContainer && dirSelect) {
+        dirSelect.innerHTML = '';
+        if (client && client.direcciones && client.direcciones.length > 1) {
+            client.direcciones.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.id;
+                const comunaPart = d.comuna ? ` (${d.comuna})` : '';
+                opt.textContent = `${d.alias ? d.alias + ': ' : ''}${d.direccion}${comunaPart}`;
+                opt.dataset.direccion = d.direccion || '';
+                opt.dataset.comuna = d.comuna || '';
+                opt.dataset.ciudad = d.ciudad || '';
+                if (d.es_principal) {
+                    opt.selected = true;
+                }
+                dirSelect.appendChild(opt);
+            });
+            dirContainer.style.display = 'block';
+        } else {
+            dirContainer.style.display = 'none';
+        }
+    }
+
+    const clienteId = client ? client.id : document.getElementById('cliente_id').value;
+    cargarPreciosEspecialesCliente(clienteId, () => {
+        actualizarPreciosFilasSegunCliente();
+    });
 }
 
 document.getElementById('cliente_id').addEventListener('change', onClientChange);
@@ -1567,9 +1651,27 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
 
     status.className = 'status-box';
     status.textContent = 'Emitiendo...';
+
+    let dirClienteId = '';
+    let dirReceptor = '';
+    let comReceptor = '';
+    let ciuReceptor = '';
+    const dirSelect = document.getElementById('direccion_cliente_select');
+    if (dirSelect && dirSelect.value && dirSelect.selectedOptions && dirSelect.selectedOptions[0]) {
+        const selOpt = dirSelect.selectedOptions[0];
+        dirClienteId = selOpt.value;
+        dirReceptor = selOpt.dataset.direccion || '';
+        comReceptor = selOpt.dataset.comuna || '';
+        ciuReceptor = selOpt.dataset.ciudad || '';
+    }
+
     await postFacturador({
         tipo_dte: tipoDte,
         cliente_id: document.getElementById('cliente_id').value,
+        direccion_cliente_id: dirClienteId,
+        direccion_receptor: dirReceptor,
+        comuna_receptor: comReceptor,
+        ciudad_receptor: ciuReceptor,
         fecha: document.getElementById('fecha').value,
         fecha_vencimiento: document.getElementById('fecha_vencimiento').value,
         forma_pago_id: document.getElementById('forma_pago_id').value,

@@ -101,9 +101,27 @@ class OrdenDespacho(models.Model):
     )
     
     # Información adicional
+    direccion_cliente = models.ForeignKey(
+        'clientes.DireccionCliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_despacho',
+        verbose_name="Dirección / Sucursal Seleccionada"
+    )
     direccion_entrega = models.TextField(
         blank=True,
         verbose_name="Dirección de Entrega"
+    )
+    comuna_entrega = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Comuna de Entrega"
+    )
+    ciudad_entrega = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Ciudad de Entrega"
     )
     
     observaciones = models.TextField(

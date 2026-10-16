@@ -36,6 +36,7 @@ from io import BytesIO
 # Importar funciones de exportación adicionales
 from .exportaciones import (
     exportar_cuentas_cobrar_excel,
+    exportar_cuentas_pagar_excel,
     exportar_pagos_recibidos_excel,
     exportar_stock_bajo_excel,
     exportar_cierres_caja_excel,
@@ -464,31 +465,184 @@ def informe_stock_bajo(request):
 
 @login_required
 @requiere_empresa
+@login_required
+@requiere_empresa
 def informe_cuentas_por_cobrar(request):
-    """Informe de cuentas por cobrar (clientes)"""
+    """Informe de cuentas y facturas por cobrar (clientes) con filtro de vencimiento / emisión"""
+    fecha_desde_str = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta_str = request.GET.get('fecha_hasta', '').strip()
+    tipo_fecha = request.GET.get('tipo_fecha', 'vencimiento')
+    search = request.GET.get('search', '').strip()
+    estado = request.GET.get('estado', 'todos')
+    sin_filtro_fecha = request.GET.get('sin_filtro_fecha') == '1'
+    hoy = datetime.now().date()
+
+    if not fecha_desde_str or not fecha_hasta_str:
+        if tipo_fecha == 'emision':
+            fecha_hasta = hoy
+            fecha_desde = hoy - timedelta(days=30)
+        else:
+            # Para vencimiento: ventana que incluye los últimos 30 días y los próximos 30 días
+            fecha_desde = hoy - timedelta(days=30)
+            fecha_hasta = hoy + timedelta(days=30)
+    else:
+        try:
+            fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d').date()
+            fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_desde = hoy - timedelta(days=30)
+            fecha_hasta = hoy + timedelta(days=30)
+
     documentos = DocumentoCliente.objects.filter(
         empresa=request.empresa,
         saldo_pendiente__gt=0
-    ).select_related('cliente').order_by('fecha_vencimiento')
-    
-    # Clasificar por vencimiento
-    hoy = datetime.now().date()
-    vencidos = documentos.filter(fecha_vencimiento__lt=hoy)
-    por_vencer = documentos.filter(fecha_vencimiento__gte=hoy)
-    
+    ).select_related('cliente')
+
+    if not sin_filtro_fecha:
+        if tipo_fecha == 'emision':
+            documentos = documentos.filter(fecha_emision__range=[fecha_desde, fecha_hasta])
+        else:
+            documentos = documentos.filter(
+                Q(fecha_vencimiento__range=[fecha_desde, fecha_hasta]) |
+                Q(fecha_vencimiento__isnull=True, fecha_emision__range=[fecha_desde, fecha_hasta])
+            )
+
+    if search:
+        documentos = documentos.filter(
+            Q(numero_documento__icontains=search) |
+            Q(cliente__nombre__icontains=search) |
+            Q(cliente__rut__icontains=search)
+        )
+
+    if estado in ('vencido', 'vencidos'):
+        documentos = documentos.filter(fecha_vencimiento__lt=hoy)
+    elif estado in ('por_vencer', 'vigente'):
+        documentos = documentos.filter(Q(fecha_vencimiento__gte=hoy) | Q(fecha_vencimiento__isnull=True))
+
+    documentos = documentos.order_by('fecha_vencimiento', 'fecha_emision')
+
+    # Estadísticas sobre los documentos filtrados
+    vencidos = [d for d in documentos if d.fecha_vencimiento and d.fecha_vencimiento < hoy]
+    por_vencer = [d for d in documentos if not d.fecha_vencimiento or d.fecha_vencimiento >= hoy]
+
     total_por_cobrar = sum(float(d.saldo_pendiente) for d in documentos)
     total_vencido = sum(float(d.saldo_pendiente) for d in vencidos)
-    
+    total_por_vencer = sum(float(d.saldo_pendiente) for d in por_vencer)
+    total_monto_documentos = sum(float(d.total) for d in documentos)
+    total_pagado = sum(float(d.monto_pagado) for d in documentos)
+
     context = {
         'documentos': documentos,
         'vencidos': vencidos,
         'por_vencer': por_vencer,
         'total_por_cobrar': total_por_cobrar,
         'total_vencido': total_vencido,
-        'today': datetime.now().date()
+        'total_por_vencer': total_por_vencer,
+        'total_monto_documentos': total_monto_documentos,
+        'total_pagado': total_pagado,
+        'cantidad_documentos': len(documentos),
+        'cantidad_vencidos': len(vencidos),
+        'cantidad_por_vencer': len(por_vencer),
+        'fecha_desde': fecha_desde.strftime('%Y-%m-%d'),
+        'fecha_hasta': fecha_hasta.strftime('%Y-%m-%d'),
+        'tipo_fecha': tipo_fecha,
+        'search': search,
+        'estado': estado,
+        'sin_filtro_fecha': sin_filtro_fecha,
+        'today': hoy
     }
     
     return render(request, 'informes/cuentas_por_cobrar.html', context)
+
+
+@login_required
+@requiere_empresa
+def informe_cuentas_por_pagar(request):
+    """Informe de cuentas y facturas por pagar (proveedores) con filtro de vencimiento / emisión"""
+    fecha_desde_str = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta_str = request.GET.get('fecha_hasta', '').strip()
+    tipo_fecha = request.GET.get('tipo_fecha', 'vencimiento')
+    search = request.GET.get('search', '').strip()
+    estado = request.GET.get('estado', 'todos')
+    sin_filtro_fecha = request.GET.get('sin_filtro_fecha') == '1'
+    hoy = datetime.now().date()
+
+    if not fecha_desde_str or not fecha_hasta_str:
+        if tipo_fecha == 'emision':
+            fecha_hasta = hoy
+            fecha_desde = hoy - timedelta(days=180)
+        else:
+            fecha_desde = hoy - timedelta(days=180)
+            fecha_hasta = hoy + timedelta(days=30)
+    else:
+        try:
+            fecha_desde = datetime.strptime(fecha_desde_str, '%Y-%m-%d').date()
+            fecha_hasta = datetime.strptime(fecha_hasta_str, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_desde = hoy - timedelta(days=180)
+            fecha_hasta = hoy + timedelta(days=30)
+
+    documentos = DocumentoCompra.objects.filter(
+        empresa=request.empresa,
+        estado_documento='activo',
+        saldo_pendiente__gt=0
+    ).select_related('proveedor')
+
+    if not sin_filtro_fecha:
+        if tipo_fecha == 'emision':
+            documentos = documentos.filter(fecha_emision__range=[fecha_desde, fecha_hasta])
+        else:
+            documentos = documentos.filter(
+                Q(fecha_vencimiento__range=[fecha_desde, fecha_hasta]) |
+                Q(fecha_vencimiento__isnull=True, fecha_emision__range=[fecha_desde, fecha_hasta])
+            )
+
+    if search:
+        documentos = documentos.filter(
+            Q(numero_documento__icontains=search) |
+            Q(proveedor__nombre__icontains=search) |
+            Q(proveedor__rut__icontains=search)
+        )
+
+    if estado in ('vencida', 'vencidas', 'vencido'):
+        documentos = documentos.filter(fecha_vencimiento__lt=hoy)
+    elif estado in ('por_vencer', 'vigente'):
+        documentos = documentos.filter(Q(fecha_vencimiento__gte=hoy) | Q(fecha_vencimiento__isnull=True))
+
+    documentos = documentos.order_by('fecha_vencimiento', 'fecha_emision')
+
+    # Estadísticas sobre los documentos filtrados
+    vencidos = [d for d in documentos if d.fecha_vencimiento and d.fecha_vencimiento < hoy]
+    por_vencer = [d for d in documentos if not d.fecha_vencimiento or d.fecha_vencimiento >= hoy]
+
+    total_por_pagar = sum(float(d.saldo_pendiente) for d in documentos)
+    total_vencido = sum(float(d.saldo_pendiente) for d in vencidos)
+    total_por_vencer = sum(float(d.saldo_pendiente) for d in por_vencer)
+    total_monto_documentos = sum(float(d.total_documento) for d in documentos)
+    total_pagado = sum(float(d.monto_pagado) for d in documentos)
+
+    context = {
+        'documentos': documentos,
+        'vencidos': vencidos,
+        'por_vencer': por_vencer,
+        'total_por_pagar': total_por_pagar,
+        'total_vencido': total_vencido,
+        'total_por_vencer': total_por_vencer,
+        'total_monto_documentos': total_monto_documentos,
+        'total_pagado': total_pagado,
+        'cantidad_documentos': len(documentos),
+        'cantidad_vencidos': len(vencidos),
+        'cantidad_por_vencer': len(por_vencer),
+        'fecha_desde': fecha_desde.strftime('%Y-%m-%d'),
+        'fecha_hasta': fecha_hasta.strftime('%Y-%m-%d'),
+        'tipo_fecha': tipo_fecha,
+        'search': search,
+        'estado': estado,
+        'sin_filtro_fecha': sin_filtro_fecha,
+        'today': hoy
+    }
+    
+    return render(request, 'informes/cuentas_por_pagar.html', context)
 
 
 @login_required

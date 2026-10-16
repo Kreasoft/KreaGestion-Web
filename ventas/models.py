@@ -242,6 +242,19 @@ class Venta(models.Model):
     estado_cotizacion = models.CharField(max_length=20, choices=ESTADO_COTIZACION_CHOICES, default='pendiente', verbose_name="Estado Cotización", blank=True, null=True)
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     
+    # Dirección de Despacho / Entrega seleccionada
+    direccion_cliente = models.ForeignKey(
+        'clientes.DireccionCliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ventas',
+        verbose_name="Dirección / Sucursal Seleccionada"
+    )
+    direccion_despacho = models.CharField(max_length=255, blank=True, verbose_name="Dirección de Despacho / Entrega")
+    comuna_despacho = models.CharField(max_length=100, blank=True, verbose_name="Comuna de Despacho")
+    ciudad_despacho = models.CharField(max_length=100, blank=True, verbose_name="Ciudad de Despacho")
+    
     # Control de facturación para vales facturables
     facturado = models.BooleanField(default=False, verbose_name="Facturado", help_text="Indica si el vale facturable ya fue procesado en caja")
     
@@ -946,8 +959,8 @@ class PrecioClienteArticulo(models.Model):
         max_digits=12,
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.01'))],
-        verbose_name="Precio Especial",
-        help_text="Precio personalizado para este cliente. Si no existe, se usa el precio general del artículo."
+        verbose_name="Precio Especial (Neto)",
+        help_text="Precio personalizado neto para este cliente (sin IVA). Si no existe, se usa el precio general del artículo."
     )
     
     # Descuento adicional (opcional)
@@ -986,32 +999,31 @@ class PrecioClienteArticulo(models.Model):
         return f"{self.cliente.nombre} - {self.articulo.nombre}: ${self.precio_especial}"
     
     def get_precio_final(self):
-        """Calcula el precio final aplicando descuento si existe"""
+        """Calcula el precio especial neto aplicando descuento si existe"""
         if self.descuento_porcentaje and self.descuento_porcentaje > 0:
             descuento = self.precio_especial * (self.descuento_porcentaje / Decimal('100'))
             return self.precio_especial - descuento
         return self.precio_especial
     
-    def get_precio_con_iva(self):
+    def get_precio_neto(self):
         """
-        Retorna el precio especial (que ya incluye IVA e impuestos).
-        El precio_especial se guarda CON todos los impuestos incluidos.
+        Retorna el precio especial NETO (sin IVA ni impuestos adicionales).
+        El precio_especial se ingresa en NETO en el sistema.
         """
         return self.get_precio_final()
     
-    def get_precio_neto(self):
+    def get_precio_con_iva(self):
         """
-        Calcula el precio NETO (sin IVA ni impuestos) desde el precio especial.
-        El precio_especial incluye todos los impuestos, aquí los descontamos.
+        Calcula el precio con IVA e impuestos específicos a partir del precio neto especial.
         """
-        precio_con_impuestos = self.get_precio_final()
+        precio_neto = self.get_precio_final()
         
         # Obtener la categoría del artículo
         categoria = getattr(self.articulo, 'categoria', None)
         
         if not categoria:
-            # Si no tiene categoría, descontar IVA estándar (19%)
-            return precio_con_impuestos / Decimal('1.19')
+            # Si no tiene categoría, aplicar IVA estándar (19%)
+            return precio_neto * Decimal('1.19')
         
         # Obtener porcentajes de impuestos
         iva_porcentaje = Decimal('0.00') if categoria.exenta_iva else Decimal('0.19')
@@ -1020,13 +1032,8 @@ class PrecioClienteArticulo(models.Model):
         if categoria.impuesto_especifico:
             impuesto_especifico_porcentaje = categoria.impuesto_especifico.get_porcentaje_decimal()
         
-        # Calcular precio neto
-        # Precio con impuestos = Precio Neto × (1 + IVA + Imp.Esp)
-        # Precio Neto = Precio con impuestos / (1 + IVA + Imp.Esp)
         factor_total = Decimal('1.00') + iva_porcentaje + impuesto_especifico_porcentaje
-        precio_neto = precio_con_impuestos / factor_total
-        
-        return precio_neto
+        return precio_neto * factor_total
     
     def esta_vigente(self):
         """Verifica si el precio especial está vigente según las fechas"""

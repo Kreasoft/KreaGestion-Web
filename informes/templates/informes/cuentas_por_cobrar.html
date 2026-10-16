@@ -3,13 +3,12 @@
 {% load humanize %}
 {% load format_filters %}
 
-{% block title %}Informe de Cuentas por Cobrar - GestionCloud{% endblock %}
+{% block title %}Facturas y Cuentas por Cobrar - GestionCloud{% endblock %}
 
 {% block body_class %}hide-top-bar{% endblock %}
 
 {% block extra_css %}
 <style>
-    /* VARIABLES ESTILO PIEDRA PREMIUM */
     :root {
         --stone-primary: #8B7355;
         --stone-secondary: #6F5B44;
@@ -18,10 +17,6 @@
         --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
         --stone-text: #5D4037;
         --stone-card-bg: #FFFFFF;
-        --stone-success: #43A047;
-        --stone-danger: #e53935;
-        --stone-warning: #FB8C00;
-        --stone-info: #039BE5;
     }
 
     body {
@@ -32,198 +27,360 @@
     
     @media print { .no-print { display: none !important; } }
 
-    /* CARD PRINCIPAL */
     .single-card-container {
         background: var(--stone-card-bg);
         border: 1px solid var(--stone-light);
         border-radius: 10px;
-        box-shadow: 0 10px 40px rgba(139, 115, 85, 0.1);
+        box-shadow: 0 4px 20px rgba(139, 115, 85, 0.08);
         overflow: hidden;
-        margin-top: 0;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
     }
 
-    /* HEADER PREMIUM */
     .stone-header-premium {
         background: var(--stone-gradient);
         padding: 8px 16px;
-        border-bottom: 1px solid var(--stone-light);
+        border-bottom: 2px solid var(--stone-light);
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 1rem;
+        gap: 0.75rem;
     }
     
     .header-icon-box {
         width: 36px; height: 36px; 
-        background: rgba(255, 255, 255, 0.8); 
+        background: rgba(255, 255, 255, 0.85); 
         backdrop-filter: blur(4px);
-        border-radius: 14px; 
+        border-radius: 10px; 
         display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 15px rgba(139, 115, 85, 0.15);
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.15);
         color: var(--stone-secondary);
         font-size: 1.1rem;
     }
 
-    .header-text h1 { color: var(--stone-text); font-size: 1.45rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 300; }
+    .header-text h1 { color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 400; }
     .header-text h1 span { font-weight: 700; }
-    .header-text p { color: #795548; font-size: 0.75rem; margin: 0; font-weight: 500; opacity: 0.9; }
+    .header-text p { color: #795548; font-size: 0.72rem; margin: 0; font-weight: 500; opacity: 0.9; }
 
-    /* ESTADISTICAS */
-    .stone-stats-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 8px;
-        margin-bottom: 8px;
-    }
-    .stone-stat-card {
-        background: #FFFFFF;
-        border: 1px solid var(--stone-light);
-        border-radius: 8px;
-        padding: 8px 10px;
-        padding-right: 40px;
-        display: flex;
-        align-items: center;
-        position: relative;
-        overflow: hidden;
-        transition: transform 0.2s, box-shadow 0.2s;
-        min-height: 44px;
-    }
-    .stone-stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(139, 115, 85, 0.1); }
-    
-    .stat-content { display: flex; flex-direction: column; position: relative; z-index: 1; }
-    .stat-label { font-size: 0.75rem; color: #8D6E63; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
-    .stat-value { font-size: 1.25rem; font-weight: 700; color: var(--stone-text); margin-top: 0; }
-    
-    .stat-icon { 
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 1.15rem;
-        opacity: 0.15;
-    }
-
-    /* TARJETAS COLOREADAS */
-    .card-primary { background: linear-gradient(135deg, #fdfbf7 0%, #ffffff 100%); }
-    .card-success { background: linear-gradient(135deg, #f1f8e9 0%, #ffffff 100%); }
-    .card-info { background: linear-gradient(135deg, #e1f5fe 0%, #ffffff 100%); }
-    .card-danger { background: linear-gradient(135deg, #ffebee 0%, #ffffff 100%); }
-    .card-warning { background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%); }
-    
-    .card-primary .stat-icon { color: var(--stone-primary); }
-    .card-success .stat-icon { color: var(--stone-success); }
-    .card-info .stat-icon { color: var(--stone-info); }
-    .card-danger .stat-icon { color: var(--stone-danger); }
-    .card-warning .stat-icon { color: var(--stone-warning); }
-
-    /* ACTION BUTTONS */
-    .btn-action-secondary {
-        background: white; border: 1px solid var(--stone-light); color: var(--stone-text);
-        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
-        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
-        transition: all 0.2s;
-    }
-    .btn-action-secondary:hover { background: var(--stone-bg); transform: translateY(-1px); }
-
-    .btn-action-primary {
-        background: var(--stone-primary); border: none; color: white;
-        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
-        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
-        box-shadow: 0 4px 12px rgba(139, 115, 85, 0.2);
-        transition: all 0.2s;
-    }
-    .btn-action-primary:hover { background: var(--stone-secondary); transform: translateY(-1px); color: white; }
-    
-    .btn-action-success {
-        background: var(--stone-success); border: none; color: white;
-        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 500; font-size: 0.9rem;
-        display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
-        box-shadow: 0 4px 12px rgba(67, 160, 71, 0.2);
-        transition: all 0.2s;
-    }
-    .btn-action-success:hover { background: #388E3C; transform: translateY(-1px); color: white; }
-
-    /* TABLA */
-    .table-container {
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid var(--stone-light);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-    }
-    
-    .vencido { color: #dc3545; font-weight: 600; }
-    .por-vencer { color: #ffc107; font-weight: 600; }
-
-    /* COMPACTO OFICIAL */
-    .form-control, .form-select, .form-control-sm, .form-select-sm,
-    .form-control-stone, .form-select-stone {
+    /* CONTROLES COMPACTOS */
+    .form-control, .form-select, .form-control-sm, .form-select-sm {
         height: 28px !important; min-height: 28px !important;
         padding: 2px 8px !important; font-size: 0.75rem !important;
-        border-color: #D4C4A8 !important; border-radius: 4px !important;
-        accent-color: #6F5B44 !important;
+        border-color: #D4C4A8 !important; border-radius: 6px !important;
     }
-    .form-control:focus, .form-select:focus, .form-control-stone:focus, .form-select-stone:focus {
+    .form-control:focus, .form-select:focus {
         border-color: #6F5B44 !important;
         box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
         outline: none !important;
     }
-    textarea.form-control, textarea.form-control-stone { height: auto !important; min-height: 52px !important; }
-    .modal-header, .modal-header-stone { padding: 8px 16px !important; }
-    .modal-body { padding: 8px 12px !important; }
-    .modal-footer { padding: 6px 12px !important; }
-    .btn-action-primary, .btn-save {
+
+    .btn-action-primary {
         background: #8B8B3A !important; border: 1px solid #6F6F2E !important; color: #fff !important;
-        padding: 4px 10px !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 0.75rem !important;
-        box-shadow: none !important;
+        padding: 4px 12px !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 0.75rem !important;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
     }
-    .btn-action-primary:hover, .btn-save:hover { background: #6F6F2E !important; color: #fff !important; }
-    .btn-action-secondary, .btn-back {
+    .btn-action-primary:hover { background: #6F6F2E !important; color: #fff !important; }
+
+    .btn-action-secondary {
         background: #fff !important; border: 1px solid #D4C4A8 !important; color: #5D4037 !important;
-        padding: 4px 10px !important; border-radius: 6px !important; font-weight: 600 !important; font-size: 0.75rem !important;
+        padding: 4px 12px !important; border-radius: 6px !important; font-weight: 600 !important; font-size: 0.75rem !important;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
     }
-    .btn-action-success, .btn-excel, .btn-filter-apply {
-        background: #8B8B3A !important; border: 1px solid #6F6F2E !important; color: #fff !important;
-        padding: 4px 10px !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 0.75rem !important;
-        box-shadow: none !important;
+    .btn-action-secondary:hover { background: #F5F1E8 !important; color: #5D4037 !important; }
+
+    .btn-action-success {
+        background: #43A047 !important; border: 1px solid #2E7D32 !important; color: #fff !important;
+        padding: 4px 12px !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 0.75rem !important;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
     }
-    .btn-action-success:hover, .btn-excel:hover, .btn-filter-apply:hover { background: #6F6F2E !important; color: #fff !important; }
-    .stone-header-premium { padding: 8px 16px !important; border-bottom: 2px solid #D4C4A8 !important; }
-    .header-icon-box { width: 34px !important; height: 34px !important; font-size: 0.95rem !important; border-radius: 8px !important; }
-    .header-text h1, .header-text h5 { font-size: 1.45rem !important; }
-    .header-text p, .header-text small { font-size: 0.75rem !important; }
-    .stone-stat-card, .stat-card, .bi-kpi-card { padding: 6px 8px !important; min-height: 44px !important; }
-    .stat-value, .kpi-value { font-size: 1.05rem !important; line-height: 1.1 !important; margin-top: 0 !important; }
-    .stat-label, .kpi-title { font-size: 0.65rem !important; margin-bottom: 0 !important; }
-    .stat-icon { font-size: 1.15rem !important; }
-    .stone-filter-box { padding: 6px 8px !important; margin-bottom: 6px !important; }
-    .stone-info-card { padding: 6px 8px !important; margin-bottom: 6px !important; }
-    .stone-stats-container { gap: 6px !important; margin-bottom: 6px !important; }
-    .table-piedra tbody tr, .tabla-informe tbody tr { height: 32px !important; }
-    .table-piedra tbody td, .tabla-informe tbody td { height: 32px !important; padding: 0 8px !important; font-size: 0.75rem !important; line-height: 18px !important; }
-    .table-piedra thead th, .tabla-informe thead th { padding: 0 8px !important; height: 32px !important; font-size: 0.65rem !important; }
-    .single-card-container { margin-bottom: 8px !important; border-radius: 10px !important; }
-    .badge-stone, .badge-critico, .badge-bajo { padding: 1px 6px !important; font-size: 0.62rem !important; }
+    .btn-action-success:hover { background: #2E7D32 !important; color: #fff !important; }
+
+    /* TABLA ESTILO PIEDRA ULTRA COMPACTA (1 FILA POR FACTURA) */
+    table.table-piedra {
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+    }
+    .table-piedra thead th {
+        padding: 2px 6px !important;
+        font-size: 0.65rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+        background: #FDFCFB !important;
+        border-bottom: 2px solid #E8DCC8 !important;
+        color: #8B7355 !important;
+        height: 26px !important;
+        line-height: 26px !important;
+        white-space: nowrap !important;
+    }
+    .table-piedra tbody tr {
+        height: 24px !important;
+        transition: background 0.15s ease;
+    }
+    .table-piedra tbody tr:nth-of-type(odd) { background-color: rgba(245, 241, 232, 0.35); }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8 !important; }
+    .table-piedra tbody td {
+        height: 24px !important;
+        padding: 0 6px !important;
+        font-size: 0.68rem !important;
+        line-height: 24px !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        border-bottom: 1px solid #F0E6D8;
+    }
+
+    .badge-vencido {
+        background: #FFEBEE;
+        color: #C62828;
+        border: 1px solid #EF9A9A;
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .badge-vigente {
+        background: #E8F5E9;
+        color: #2E7D32;
+        border: 1px solid #A5D6A7;
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    /* ==========================================================================
+       ESTILOS DE IMPRESIÓN PROFESIONAL Y EJECUTIVO
+       ========================================================================== */
+    @media print {
+        @page {
+            size: letter landscape;
+            margin: 8mm 8mm 10mm 8mm;
+        }
+
+        html, body, .main-content, .card-body, .single-card-container, 
+        .table-container, table, tbody, thead, tfoot, tr, td, th {
+            background-image: none !important;
+            background-color: #FFFFFF !important;
+            color: #1A202C !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+
+        body {
+            font-size: 7pt !important;
+            line-height: 1.15 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .no-print, form, .btn, .card-header, .stone-header-premium, .gc-folio-alertas, .gc-folio-alerta {
+            display: none !important;
+        }
+
+        .single-card-container {
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        /* HEADER EJECUTIVO DE IMPRESIÓN */
+        .print-header-executive {
+            display: block !important;
+            border-bottom: 2px solid #5D4037 !important;
+            padding-bottom: 5px !important;
+            margin-bottom: 6px !important;
+        }
+
+        /* RESUMEN KPIS EN 1 SOLA LÍNEA HORIZONTAL */
+        .kpis-summary-grid {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 6px !important;
+            margin-bottom: 6px !important;
+            width: 100% !important;
+        }
+        .kpis-summary-grid > div {
+            flex: 1 1 25% !important;
+            max-width: 25% !important;
+            width: 25% !important;
+            padding: 0 !important;
+        }
+        .kpis-summary-grid .card {
+            background: #FAFAF8 !important;
+            border: 1px solid #D4C4A8 !important;
+            box-shadow: none !important;
+            border-radius: 4px !important;
+            min-height: auto !important;
+            padding: 4px 6px !important;
+        }
+        .kpis-summary-grid .stat-icon-bg {
+            display: none !important;
+        }
+        .kpis-summary-grid .stat-label {
+            font-size: 6.5pt !important;
+            color: #5D4037 !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.3px !important;
+            margin-bottom: 1px !important;
+        }
+        .kpis-summary-grid .stat-value {
+            font-size: 10.5pt !important;
+            font-weight: 700 !important;
+            color: #1A202C !important;
+            line-height: 1.1 !important;
+        }
+        .kpis-summary-grid .badge {
+            font-size: 6pt !important;
+            border: 1px solid #CBD5E0 !important;
+            background: #FFF !important;
+            color: #2D3748 !important;
+            padding: 1px 4px !important;
+            border-radius: 3px !important;
+        }
+
+        /* TABLA DE DETALLE ULTRA COMPACTA (1 LÍNEA ESTRICTA POR FACTURA) */
+        .table-container {
+            border: 1px solid #D4C4A8 !important;
+            overflow: visible !important;
+            border-radius: 0 !important;
+        }
+        table.table-piedra {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            font-size: 6.5pt !important;
+        }
+        table.table-piedra thead th {
+            background: #F5F1E8 !important;
+            color: #5D4037 !important;
+            font-size: 6.5pt !important;
+            font-weight: 700 !important;
+            padding: 2px 4px !important;
+            border-bottom: 1.5px solid #5D4037 !important;
+            border-top: 1px solid #D4C4A8 !important;
+            border-left: 1px solid #EAE2D5 !important;
+            border-right: 1px solid #EAE2D5 !important;
+            height: 18px !important;
+            line-height: 18px !important;
+            text-transform: uppercase !important;
+            white-space: nowrap !important;
+        }
+        table.table-piedra tbody tr {
+            height: 18px !important;
+            page-break-inside: avoid !important;
+        }
+        table.table-piedra tbody tr:nth-of-type(odd) {
+            background-color: #FAFAF8 !important;
+        }
+        table.table-piedra tbody td {
+            padding: 0 4px !important;
+            font-size: 6.5pt !important;
+            line-height: 18px !important;
+            height: 18px !important;
+            border: 1px solid #EAE2D5 !important;
+            color: #2D3748 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            vertical-align: middle !important;
+        }
+        table.table-piedra tfoot {
+            background: #F5F1E8 !important;
+            border-top: 2px solid #5D4037 !important;
+            border-bottom: 2px solid #5D4037 !important;
+            font-weight: 700 !important;
+        }
+        table.table-piedra tfoot td {
+            padding: 2px 4px !important;
+            font-size: 7pt !important;
+            color: #1A202C !important;
+            border: 1px solid #D4C4A8 !important;
+            white-space: nowrap !important;
+        }
+
+        .badge-vencido {
+            background: #FFF0F0 !important;
+            color: #B71C1C !important;
+            border: 1px solid #E57373 !important;
+            font-size: 5.5pt !important;
+            padding: 0 2px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+        .badge-vigente {
+            background: #F0FFF4 !important;
+            color: #1B5E20 !important;
+            border: 1px solid #81C784 !important;
+            font-size: 5.5pt !important;
+            padding: 0 2px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+
+        .print-footer-report {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #D4C4A8;
+            margin-top: 6px;
+            padding-top: 3px;
+            font-size: 6.5pt;
+            color: #718096;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid" style="padding: 8px 12px;">
+    
+    <!-- ENCABEZADO EJECUTIVO EXCLUSIVO PARA IMPRESIÓN -->
+    <div class="print-header-executive d-none">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                {% if request.empresa.logo %}
+                    <img src="{{ request.empresa.logo.url }}" alt="Logo {{ request.empresa.nombre }}" style="max-height: 48px; max-width: 140px; object-fit: contain;">
+                {% endif %}
+                <div>
+                    <h2 class="mb-0 fw-bold" style="color: #2D3748; font-size: 13pt; letter-spacing: -0.3px;">
+                        {{ request.empresa.nombre|default:"GESTIONCLOUD ERP"|upper }}
+                    </h2>
+                    <div style="font-size: 7.5pt; color: #4A5568;">
+                        RUT: <strong>{{ request.empresa.rut|default:"-" }}</strong> &bull; INFORME FINANCIERO OFICIAL DE CARTERA
+                    </div>
+                </div>
+            </div>
+            <div class="text-end">
+                <h3 class="mb-0 fw-bold text-uppercase" style="color: #5D4037; font-size: 11pt;">
+                    Facturas por Cobrar
+                </h3>
+                <div style="font-size: 7pt; color: #718096;">
+                    Fecha Emisión: <strong>{% now "d/m/Y H:i" %}</strong> | Vcto: {{ fecha_desde|default:"Inicio" }} al {{ fecha_hasta|default:"Fin" }}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="single-card-container">
-        <!-- Header Premium -->
-        <div class="stone-header-premium">
+        <!-- Header Premium Pantalla -->
+        <div class="stone-header-premium no-print">
             <div class="d-flex align-items-center gap-2">
                 <div class="header-icon-box">
-                    {% if request.empresa.logo %}
-                        <img src="{{ request.empresa.logo.url }}" alt="Logo" style="max-width: 80%; max-height: 80%; object-fit: contain;">
-                    {% else %}
-                        <i class="fas fa-file-invoice-dollar"></i>
-                    {% endif %}
+                    <i class="fas fa-hand-holding-usd"></i>
                 </div>
                 <div class="header-text">
-                    <h1>Cuentas por <span>Cobrar</span></h1>
-                    <p>Documentos pendientes de pago</p>
+                    <h1>Facturas por <span>Cobrar</span></h1>
+                    <p>Cuentas corrientes de clientes con saldo pendiente de cobro</p>
                 </div>
             </div>
             <div class="d-flex gap-2 no-print">
@@ -233,77 +390,227 @@
                 <button onclick="window.print()" class="btn-action-secondary">
                     <i class="fas fa-print"></i> Imprimir
                 </button>
-                <a href="{% url 'informes:exportar_cuentas_cobrar_excel' %}" class="btn-action-success">
-                    <i class="fas fa-file-excel"></i> Exportar
+                <a href="{% url 'informes:exportar_cuentas_cobrar_excel' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&search={{ search }}&estado={{ estado }}{% if sin_filtro_fecha %}&sin_filtro_fecha=1{% endif %}" class="btn-action-success">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
                 </a>
             </div>
         </div>
 
-        <div class="card-body" style="padding: 8px 10px; background: #FAFAF8;">
+        <div class="card-body" style="padding: 10px; background: #FAFAF8;">
             
-            <!-- Estadísticas -->
-            <div class="stone-stats-container mb-1">
-                <div class="stone-stat-card card-warning">
-                    <div class="stat-content">
-                        <span class="stat-label">Total por Cobrar</span>
-                        <span class="stat-value text-dark">${{ total_por_cobrar|format_miles }}</span>
+            <!-- TARJETAS DE ESTADÍSTICAS (Pastel Warm Autumn en pantalla / Strip compacto en impresión) -->
+            <div class="row g-2 mb-2 kpis-summary-grid">
+                <!-- Total por Cobrar (Terracota) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-terracota stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-hand-holding-usd"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #795548; letter-spacing: 0.5px;">Total por Cobrar</div>
+                                <div class="stat-value" style="font-size: 1.15rem; font-weight: 700; color: #3E2723;">${{ total_por_cobrar|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-white bg-opacity-75 text-dark" style="font-size: 0.65rem; border-radius: 12px; font-weight: 600;">{{ cantidad_documentos }} docs</span>
+                        </div>
                     </div>
-                    <i class="fas fa-hand-holding-usd stat-icon"></i>
                 </div>
-                <div class="stone-stat-card card-danger">
-                    <div class="stat-content">
-                        <span class="stat-label">Total Vencido</span>
-                        <span class="stat-value text-danger">${{ total_vencido|format_miles }}</span>
+
+                <!-- Total Vencido (Rosa Coral) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-rosa stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-exclamation-circle"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #8D4B41; letter-spacing: 0.5px;">Vencidas</div>
+                                <div class="stat-value text-danger" style="font-size: 1.15rem; font-weight: 700;">${{ total_vencido|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.65rem; border-radius: 12px; font-weight: 700;">{{ cantidad_vencidos }} vencidos</span>
+                        </div>
                     </div>
-                    <i class="fas fa-exclamation-circle stat-icon"></i>
+                </div>
+
+                <!-- Por Vencer (Verde Salvia) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-verde stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-calendar-check"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #335936; letter-spacing: 0.5px;">Por Vencer (Vigentes)</div>
+                                <div class="stat-value text-success" style="font-size: 1.15rem; font-weight: 700;">${{ total_por_vencer|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 0.65rem; border-radius: 12px; font-weight: 700;">{{ cantidad_por_vencer }} al día</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monto Total Emitido (Azul Cielo Empolvado) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-azul stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-file-invoice-dollar"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #435469; letter-spacing: 0.5px;">Monto Total Facturado</div>
+                                <div class="stat-value" style="font-size: 1.15rem; font-weight: 700; color: #2D3748;">${{ total_monto_documentos|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-white bg-opacity-75 text-dark" style="font-size: 0.65rem; border-radius: 12px; font-weight: 600;">Total base</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Tabla de Resultados -->
-            <div class="table-container">
+            <!-- BARRA DE FILTROS (Rango de fecha vencimiento por defecto últimos 30 días) -->
+            <div class="card mb-2 shadow-sm" style="border: 1px solid #E8DCC8; border-radius: 8px; background: white;">
+                <div class="card-body p-2">
+                    <form method="get" class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                <i class="fas fa-calendar-alt text-secondary"></i> Vencimiento Desde:
+                            </label>
+                            <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                <i class="fas fa-calendar-alt text-secondary"></i> Vencimiento Hasta:
+                            </label>
+                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                <i class="fas fa-search text-secondary"></i> Buscar Cliente / Folio / RUT:
+                            </label>
+                            <input type="text" name="search" class="form-control form-control-sm" placeholder="Nombre cliente, RUT, N° doc..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                Estado:
+                            </label>
+                            <select name="estado" class="form-select form-select-sm">
+                                <option value="todos" {% if estado == 'todos' %}selected{% endif %}>Todos</option>
+                                <option value="vencidos" {% if estado == 'vencidos' %}selected{% endif %}>Vencidos</option>
+                                <option value="por_vencer" {% if estado == 'por_vencer' %}selected{% endif %}>Por Vencer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex gap-1 align-items-end" style="padding-top: 14px;">
+                            <button type="submit" class="btn btn-action-primary flex-fill justify-content-center">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            {% if sin_filtro_fecha %}
+                            <a href="{% url 'informes:cuentas_por_cobrar' %}" class="btn btn-action-secondary" title="Restaurar filtro de 30 días">
+                                <i class="fas fa-undo"></i>
+                            </a>
+                            {% else %}
+                            <a href="{% url 'informes:cuentas_por_cobrar' %}?sin_filtro_fecha=1" class="btn btn-action-secondary" title="Ver todos sin límite de fecha">
+                                <i class="fas fa-globe"></i> Todos
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TABLA DE DOCUMENTOS POR COBRAR -->
+            <div class="table-container bg-white rounded-3 shadow-sm border" style="border-color: #E8DCC8 !important; overflow: hidden;">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0 tabla-informe table-piedra" style="width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif;">
+                    <table class="table table-hover mb-0 tabla-informe table-piedra" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                         <thead>
                             <tr>
-                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 0 8px;">Cliente</th>
-                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 0 8px;">Documento</th>
-                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 0 8px;">Emisión</th>
-                                <th style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 0 8px;">Vencimiento</th>
-                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 0 8px;">Total</th>
-                                <th class="text-end" style="background: #FDFCFB; border-bottom: 2px solid #E8DCC8; color: #8B7355; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; padding: 0 8px;">Saldo</th>
+                                <th style="width: 30%;">Cliente</th>
+                                <th style="width: 11%;">RUT</th>
+                                <th class="text-center" style="width: 3.5%;">Doc</th>
+                                <th style="width: 8%;">N° Doc</th>
+                                <th style="width: 7.5%;">Emisión</th>
+                                <th style="width: 7.5%;">Vcto.</th>
+                                <th class="text-end" style="width: 11%;">Total Fact.</th>
+                                <th class="text-end" style="width: 10%;">Pagado</th>
+                                <th class="text-end" style="width: 10%;">Saldo</th>
+                                <th class="text-center" style="width: 1.5%;">Est.</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for doc in documentos %}
-                            <tr style="border-bottom: 1px solid #F5F1E8; height: 32px;">
-                                <td style="padding: 0 8px; color: #5D4037; vertical-align: middle;">{{ doc.cliente.nombre }}</td>
-                                <td style="padding: 0 8px; vertical-align: middle;"><small class="text-muted">{{ doc.tipo_documento|upper }} {{ doc.numero_documento }}</small></td>
-                                <td style="padding: 0 8px; color: #5D4037; vertical-align: middle;">{{ doc.fecha_emision|date:"d-m-Y" }}</td>
-                                <td style="padding: 0 8px; vertical-align: middle;" class="{% if doc.fecha_vencimiento < today %}vencido{% else %}por-vencer{% endif %}">
-                                    {{ doc.fecha_vencimiento|date:"d-m-Y" }}
+                            <tr>
+                                <td style="color: #5D4037; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ doc.cliente.nombre }}">
+                                    {{ doc.cliente.nombre|default:"Sin cliente" }}
                                 </td>
-                                <td class="text-end" style="padding: 0 8px; color: #5D4037; vertical-align: middle;">${{ doc.total|format_miles }}</td>
-                                <td class="text-end fw-bold" style="padding: 0 8px; color: #5D4037; vertical-align: middle;">${{ doc.saldo_pendiente|format_miles }}</td>
+                                <td style="color: #795548; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {{ doc.cliente.rut|default:"-" }}
+                                </td>
+                                <td class="text-center">
+                                    {% if 'credito' in doc.tipo_documento|lower or doc.tipo_documento == '61' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Nota de Crédito">NC</span>
+                                    {% elif 'debito' in doc.tipo_documento|lower or doc.tipo_documento == '56' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Nota de Débito">ND</span>
+                                    {% elif 'guia' in doc.tipo_documento|lower or doc.tipo_documento == '52' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Guía de Despacho">GD</span>
+                                    {% elif 'boleta' in doc.tipo_documento|lower or doc.tipo_documento in '39 41' %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Boleta">BL</span>
+                                    {% else %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Factura">FA</span>
+                                    {% endif %}
+                                </td>
+                                <td style="font-weight: 600; font-size: 0.68rem; color: #3E2723;">
+                                    {{ doc.numero_documento|limpiar_folio }}
+                                </td>
+                                <td style="color: #5D4037;">
+                                    {{ doc.fecha_emision|date:"d-m-Y" }}
+                                </td>
+                                <td>
+                                    {% if doc.fecha_vencimiento %}
+                                        <span style="font-weight: 600; color: {% if doc.fecha_vencimiento < today %}#C62828{% else %}#2E7D32{% endif %};">
+                                            {{ doc.fecha_vencimiento|date:"d-m-Y" }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end" style="color: #5D4037;">
+                                    ${{ doc.total|format_miles }}
+                                </td>
+                                <td class="text-end" style="color: #689F38;">
+                                    ${{ doc.monto_pagado|format_miles }}
+                                </td>
+                                <td class="text-end fw-bold" style="color: #C62828; font-size: 0.85rem;">
+                                    ${{ doc.saldo_pendiente|format_miles }}
+                                </td>
+                                <td class="text-center">
+                                    {% if doc.fecha_vencimiento and doc.fecha_vencimiento < today %}
+                                        <span class="badge-vencido"><i class="fas fa-exclamation-triangle me-1"></i>Venc.</span>
+                                    {% else %}
+                                        <span class="badge-vigente"><i class="fas fa-check-circle me-1"></i>Al Día</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center" style="height: 40px; font-size: 0.75rem; color: #2E7D32;">
-                                    No hay cuentas por cobrar
+                                <td colspan="10" class="text-center py-4 text-muted" style="height: 60px;">
+                                    <div class="d-flex flex-column align-items-center justify-content-center gap-1">
+                                        <i class="fas fa-check-circle text-success" style="font-size: 1.5rem;"></i>
+                                        <span>No se encontraron facturas por cobrar en el rango de vencimiento seleccionado.</span>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
+                        {% if documentos %}
+                        <tfoot style="background: #FAF8F5; border-top: 2px solid #E8DCC8; font-weight: 700;">
+                            <tr>
+                                <td colspan="6" class="text-end text-uppercase" style="font-size: 0.75rem; color: #5D4037;">
+                                    Totales del Período:
+                                </td>
+                                <td class="text-end" style="color: #5D4037;">${{ total_monto_documentos|format_miles }}</td>
+                                <td class="text-end" style="color: #689F38;">${{ total_pagado|format_miles }}</td>
+                                <td class="text-end" style="color: #C62828; font-size: 0.9rem;">${{ total_por_cobrar|format_miles }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
                     </table>
                 </div>
             </div>
 
-            <!-- Información de impresión -->
-            <div class="row mt-4 d-none d-print-block">
-                <div class="col-12 text-center">
-                    <p class="text-muted small mb-0">
-                        Generado el {{ now|date:"d-m-Y H:i" }} - {{ request.empresa.nombre }}
-                    </p>
-                </div>
+            <!-- Pie de reporte impreso -->
+            <div class="print-footer-report d-none">
+                <div>GestionCloud ERP &bull; Informe Financiero de Cuentas por Cobrar &bull; {{ request.empresa.nombre }}</div>
+                <div>Impreso el {% now "d/m/Y H:i" %}</div>
             </div>
 
         </div>

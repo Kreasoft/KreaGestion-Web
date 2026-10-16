@@ -202,9 +202,71 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    {% if cotizacion.estado_cotizacion == 'convertida' and venta_convertida %}
+                    <!-- Tarjeta de Documento Electrónico Generado -->
+                    <div class="mt-3 px-1">
+                        <div class="card border-0" style="background: linear-gradient(135deg, #F9F7F4 0%, #F4EFEB 100%); border: 1px solid #E8DCC8 !important; border-radius: 8px; box-shadow: 0 2px 8px rgba(139,115,85,0.08);">
+                            <div class="card-body p-3">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(199,111,67,0.12); display: flex; align-items: center; justify-content: center; color: #C76F43;">
+                                            <i class="fas {% if venta_convertida.tipo_documento == 'guia' %}fa-truck{% elif venta_convertida.tipo_documento == 'factura' %}fa-file-invoice{% else %}fa-receipt{% endif %}" style="font-size: 1.1rem;"></i>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 0.68rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">
+                                                Documento Oficial Generado
+                                            </div>
+                                            <div style="font-size: 0.95rem; font-weight: 700; color: #5D4037;">
+                                                {{ venta_convertida.get_tipo_documento_display }} #{{ venta_convertida.numero_venta }}
+                                                {% if dte_convertido %}
+                                                    <span class="badge ms-1" style="font-size: 0.68rem; font-weight: 600; vertical-align: middle; {{ dte_convertido.get_estado_sii_display_style }}">
+                                                        SII: {{ dte_convertido.get_estado_sii_display|upper }}
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Acciones del DTE / Venta -->
+                                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                                        {% if dte_convertido %}
+                                            <a href="{% url 'facturacion_electronica:ver_factura_electronica' dte_convertido.pk %}" target="_blank" class="btn btn-sm btn-piedra-lg px-2 py-1" style="font-size: 0.72rem;">
+                                                <i class="fas fa-file-pdf me-1"></i> Ver / Imprimir DTE
+                                            </a>
+                                            {% if dte_convertido.puede_enviarse_al_sii or dte_convertido.permite_reenvio_xml_corregido %}
+                                            <a href="{% url 'facturacion_electronica:enviar_dte' dte_convertido.pk %}?next={% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-sm px-2 py-1" style="background: #5F8D62; color: white; font-weight: 600; font-size: 0.72rem; border-radius: 6px;">
+                                                <i class="fas fa-paper-plane me-1"></i> Reenviar DTE al SII
+                                            </a>
+                                            {% endif %}
+                                            {% if dte_convertido.tiene_track_sii %}
+                                            <a href="{% url 'facturacion_electronica:consultar_estado_dte' dte_convertido.pk %}?next={% url 'ventas:cotizacion_detail' cotizacion.pk %}" class="btn btn-sm btn-outline-piedra-lg px-2 py-1" style="font-size: 0.72rem;">
+                                                <i class="fas fa-sync-alt me-1"></i> Consultar SII
+                                            </a>
+                                            {% endif %}
+                                        {% endif %}
+                                        <a href="{% url 'ventas:venta_detail' venta_convertida.pk %}" class="btn btn-sm btn-outline-piedra-lg px-2 py-1" style="font-size: 0.72rem;">
+                                            <i class="fas fa-external-link-alt me-1"></i> Ver Venta
+                                        </a>
+                                    </div>
+                                </div>
+
+                                {% if dte_convertido and dte_convertido.error_envio %}
+                                <div class="mt-2 p-2" style="background: rgba(229, 62, 62, 0.08); border-left: 3px solid #E53E3E; border-radius: 4px; font-size: 0.72rem; color: #C53030;">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> <strong>Aviso de Envío SII:</strong> {{ dte_convertido.error_envio }}
+                                </div>
+                                {% elif dte_convertido and dte_convertido.glosa_sii %}
+                                <div class="mt-2 p-2" style="background: rgba(196, 154, 82, 0.1); border-left: 3px solid #C49A52; border-radius: 4px; font-size: 0.72rem; color: #6F5B44;">
+                                    <i class="fas fa-info-circle me-1"></i> <strong>Respuesta SII:</strong> {{ dte_convertido.glosa_sii }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     
                     <!-- Acciones Finales -->
-                    <div class="d-flex gap-2 justify-content-center mt-2 flex-wrap">
+                    <div class="d-flex gap-2 justify-content-center mt-3 flex-wrap">
                         <a href="{% url 'ventas:cotizacion_html' cotizacion.pk %}?{{ return_url_q }}" class="btn btn-sm btn-piedra-lg px-3" target="_blank" rel="opener">
                             <i class="fas fa-print me-1"></i> Imprimir
                         </a>
@@ -330,7 +392,7 @@
 
 {% if cotizacion.estado_cotizacion == 'aceptada' %}
 <div class="modal fade" id="modalConvertirVenta" tabindex="-1" aria-labelledby="modalConvertirVentaLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 620px;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 860px;">
         <div class="modal-content cotiz-modal-content">
             <div class="modal-header cotiz-modal-header">
                 <div class="d-flex align-items-center">
@@ -345,31 +407,31 @@
             <form method="post" action="{% url 'ventas:cotizacion_convertir_venta' cotizacion.pk %}">
                 {% csrf_token %}
                 <div class="modal-body cotiz-modal-body">
-                    <div class="row g-2 mb-2">
+                    <div class="row g-3 mb-3">
                         <div class="col-md-5">
-                            <div class="cotiz-modal-meta mb-0">
+                            <div class="cotiz-modal-meta mb-0 h-100">
                                 <div class="cotiz-modal-meta-title">Documento de origen</div>
                                 <div class="row-line"><span class="text-muted">Número</span><strong>#{{ cotizacion.numero_venta }}</strong></div>
-                                <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:32 }}</strong></div>
+                                <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end" title="{{ cotizacion.cliente.nombre }}">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:45 }}</strong></div>
                                 <div class="row-line"><span class="text-muted">Vendedor</span><strong class="text-end">{{ cotizacion.vendedor.nombre|default:"Sin vendedor" }}</strong></div>
-                                <div class="row-line total"><span class="text-muted">Total</span><strong style="color:#C76F43;">${{ cotizacion.total|format_miles }}</strong></div>
+                                <div class="row-line total"><span class="text-muted">Total</span><strong style="color:#C76F43; font-size: 0.95rem;">${{ cotizacion.total|format_miles }}</strong></div>
                             </div>
                         </div>
                         <div class="col-md-7">
                             <div class="cotiz-modal-meta-title">Ítems ({{ detalles.count }})</div>
-                            <div class="cvt-items">
+                            <div class="cvt-items" style="max-height: 140px;">
                                 <table class="w-100">
                                     <thead>
                                         <tr>
                                             <th>Producto</th>
-                                            <th class="text-center">Cant.</th>
-                                            <th class="text-end">Total</th>
+                                            <th class="text-center" style="width: 70px;">Cant.</th>
+                                            <th class="text-end" style="width: 90px;">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for detalle in detalles %}
                                         <tr>
-                                            <td title="{{ detalle.articulo.nombre }}">{{ detalle.articulo.nombre|truncatechars:28 }}</td>
+                                            <td title="{{ detalle.articulo.nombre }}">{{ detalle.articulo.nombre|truncatechars:45 }}</td>
                                             <td class="text-center">{{ detalle.cantidad }}</td>
                                             <td class="text-end">${{ detalle.precio_total|format_miles }}</td>
                                         </tr>
@@ -399,6 +461,75 @@
                             {% endfor %}
                         </div>
                     </div>
+
+                    <!-- Datos de Guía de Despacho (Solo visible al elegir Guía) -->
+                    <div id="seccion-datos-guia" class="mb-2" style="display: none;">
+                        <div class="card p-2 border-0" style="background: #FDFCFB; border: 1px solid #E8DCC8 !important; border-radius: 8px;">
+                            <div class="d-flex align-items-center mb-2" style="border-bottom: 1px solid #E8DCC8; padding-bottom: 4px;">
+                                <i class="fas fa-truck me-2" style="color: #C76F43; font-size: 0.85rem;"></i>
+                                <span style="font-size: 0.72rem; font-weight: 700; color: #5D4037; text-transform: uppercase;">
+                                    Datos de despacho y transporte (Guía de Despacho)
+                                </span>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Tipo de traslado</label>
+                                    <select name="tipo_despacho" id="tipo_despacho" class="form-select form-select-sm cotiz-modal-select">
+                                        {% for value, label in tipo_despacho_choices %}
+                                        <option value="{{ value }}" {% if value == '1' or value == 1 %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Tipo de despacho SII</label>
+                                    <select name="tipo_despacho_sii" id="tipo_despacho_sii" class="form-select form-select-sm cotiz-modal-select">
+                                        {% for value, label in tipo_despacho_sii_choices %}
+                                        <option value="{{ value }}" {% if value == '2' %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Vehículo</label>
+                                    <select name="vehiculo_id" id="vehiculo_id" class="form-select form-select-sm cotiz-modal-select">
+                                        <option value="">-- Seleccionar vehículo --</option>
+                                        {% for vehiculo in vehiculos %}
+                                        <option value="{{ vehiculo.id }}" data-patente="{{ vehiculo.patente }}" data-chofer="{{ vehiculo.chofer_id|default:'' }}">{{ vehiculo.patente }}{% if vehiculo.descripcion %} - {{ vehiculo.descripcion }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Chofer</label>
+                                    <select name="chofer_id" id="chofer_id" class="form-select form-select-sm cotiz-modal-select">
+                                        <option value="">-- Seleccionar chofer --</option>
+                                        {% for chofer in choferes %}
+                                        <option value="{{ chofer.id }}" data-rut="{{ chofer.rut }}">{{ chofer.nombre }} ({{ chofer.rut }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">RUT Transportista</label>
+                                    <input type="text" name="rut_transportista" id="rut_transportista" class="form-control form-control-sm cotiz-modal-select" value="{{ rut_empresa }}" placeholder="RUT empresa o transportista">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Patente Carro (Opcional)</label>
+                                    <input type="text" name="patente_carro" id="patente_carro" class="form-control form-control-sm cotiz-modal-select" placeholder="Ej: AB1234" maxlength="8">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Fecha salida</label>
+                                    <input type="date" name="fecha_salida" id="fecha_salida" class="form-control form-control-sm cotiz-modal-select" value="{{ today|date:'Y-m-d' }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Hora salida</label>
+                                    <input type="time" name="hora_salida" id="hora_salida" class="form-control form-control-sm cotiz-modal-select" value="{{ hora_actual }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="cotiz-modal-label mb-1" style="font-size: 0.65rem;">Fecha estimada llegada</label>
+                                    <input type="date" name="fecha_llegada" id="fecha_llegada" class="form-control form-control-sm cotiz-modal-select" value="{{ today|date:'Y-m-d' }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="cvt-info">
                         <i class="fas fa-info-circle me-1" style="color:#8B7355;"></i>
                         Al confirmar se genera el documento con los mismos artículos y valores. La cotización pasa a estado <strong>Convertida</strong>.
@@ -552,6 +683,41 @@ button.dropdown-item {
         var el = id ? document.getElementById(id) : null;
         if (el && typeof bootstrap !== 'undefined') {
             bootstrap.Modal.getOrCreateInstance(el).show();
+        }
+
+        // Mostrar / Ocultar campos de Guía de Despacho
+        var modalConvertir = document.getElementById('modalConvertirVenta');
+        if (modalConvertir) {
+            var radios = modalConvertir.querySelectorAll('input[name="tipo_venta"]');
+            var guiaSec = document.getElementById('seccion-datos-guia');
+            var vehiculoSel = document.getElementById('vehiculo_id');
+            var choferSel = document.getElementById('chofer_id');
+
+            function actualizarVisibilidadGuia() {
+                var seleccion = modalConvertir.querySelector('input[name="tipo_venta"]:checked');
+                if (seleccion && seleccion.value === 'guia') {
+                    if (guiaSec) guiaSec.style.display = 'block';
+                } else {
+                    if (guiaSec) guiaSec.style.display = 'none';
+                }
+            }
+
+            radios.forEach(function(r) {
+                r.addEventListener('change', actualizarVisibilidadGuia);
+            });
+
+            // Auto-seleccionar chofer asignado al elegir vehículo
+            if (vehiculoSel && choferSel) {
+                vehiculoSel.addEventListener('change', function() {
+                    var opt = this.options[this.selectedIndex];
+                    var chId = opt ? opt.getAttribute('data-chofer') : '';
+                    if (chId) {
+                        choferSel.value = chId;
+                    }
+                });
+            }
+
+            actualizarVisibilidadGuia();
         }
     });
 </script>

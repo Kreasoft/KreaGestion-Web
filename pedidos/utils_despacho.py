@@ -159,8 +159,8 @@ def generar_guia_desde_orden_despacho(orden_despacho, usuario):
             razon_social_receptor=cliente.nombre,
             giro_receptor=getattr(cliente, 'giro', ''),
             direccion_receptor=(orden_despacho.direccion_entrega or cliente.direccion or '')[:200],
-            comuna_receptor=cliente.comuna if isinstance(cliente.comuna, str) else '',
-            ciudad_receptor=getattr(cliente, 'ciudad', '') or '',
+            comuna_receptor=(orden_despacho.comuna_entrega or (cliente.comuna if isinstance(cliente.comuna, str) else '') or '')[:100],
+            ciudad_receptor=(orden_despacho.ciudad_entrega or getattr(cliente, 'ciudad', '') or '')[:100],
             # Datos del emisor (se llenan desde la empresa)
             rut_emisor=orden_despacho.empresa.rut,
             razon_social_emisor=orden_despacho.empresa.razon_social,

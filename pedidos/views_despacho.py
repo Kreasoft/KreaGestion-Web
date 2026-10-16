@@ -272,6 +272,8 @@ def orden_despacho_detail(request, pk):
     plazo_cliente = getattr(orden.orden_pedido.cliente, 'plazo_pago', 0) or 0
     fecha_vencimiento_sugerida = orden.fecha_vencimiento or calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
 
+    return_url = request.GET.get('return_url') or request.META.get('HTTP_REFERER') or ''
+
     context = {
         'orden': orden,
         'documentos': documentos,
@@ -281,6 +283,7 @@ def orden_despacho_detail(request, pk):
         'vendedores': vendedores,
         'formas_pago': formas_pago,
         'fecha_vencimiento_sugerida': fecha_vencimiento_sugerida,
+        'return_url': return_url,
     }
     
     return render(request, 'pedidos/orden_despacho_detail.html', context)
@@ -464,6 +467,7 @@ def ajax_items_pedido(request):
             'plazo_pago': int(getattr(cliente, 'plazo_pago', 0) or 0),
             'forma_pago_id': getattr(cliente.forma_pago_defecto, 'id', None),
             'vendedor_id': getattr(cliente.vendedor, 'id', None),
+            'direcciones': cliente.get_direcciones_list(),
         }
         
         # Si comuna es un objeto con región, obtenerla
@@ -477,6 +481,9 @@ def ajax_items_pedido(request):
             'vendedor_id': getattr(pedido, 'vendedor_id', None),
             'forma_pago_id': getattr(pedido, 'forma_pago_id', None),
             'direccion_despacho': getattr(pedido, 'direccion_despacho', '') or '',
+            'comuna_despacho': getattr(pedido, 'comuna_despacho', '') or '',
+            'ciudad_despacho': getattr(pedido, 'ciudad_despacho', '') or '',
+            'direccion_cliente_id': getattr(pedido, 'direccion_cliente_id', None),
         }
 
         return JsonResponse({'success': True, 'items': items_data, 'cliente': cliente_data, 'pedido': pedido_data})
@@ -508,8 +515,10 @@ def generar_guia_despacho(request, pk):
             messages.success(request, f'Guía de Despacho Electrónica {dte.folio} generada exitosamente.')
             orden.estado = 'despachado'
             orden.save()
-            # Redirigir a la vista del DTE generado
-            return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
+            # Redirigir a la vista del DTE generado preservando retorno a la orden de despacho
+            from urllib.parse import quote
+            ret_url = quote(reverse('pedidos:orden_despacho_detail', args=[orden.pk]))
+            return redirect(f"{reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.pk})}?return_url={ret_url}")
         except Exception as e:
             messages.error(request, f'Error al generar Guía de Despacho: {str(e)}')
             
@@ -560,7 +569,9 @@ def generar_factura_despacho(request, pk):
             messages.success(request, f'Factura Electrónica {dte.folio} generada exitosamente.')
             orden.estado = 'despachado'
             orden.save(update_fields=['estado'])
-            return redirect('facturacion_electronica:ver_factura_electronica', dte_id=dte.pk)
+            from urllib.parse import quote
+            ret_url = quote(reverse('pedidos:orden_despacho_detail', args=[orden.pk]))
+            return redirect(f"{reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.pk})}?return_url={ret_url}")
         except Exception as e:
             messages.error(request, f'Error al generar Factura: {str(e)}')
             

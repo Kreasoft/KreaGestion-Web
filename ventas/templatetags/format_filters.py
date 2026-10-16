@@ -77,9 +77,25 @@ def glosa_visible(value):
     return texto
 
 
-
-
-
-
-
-
+@register.filter(name='limpiar_folio')
+def limpiar_folio(value):
+    """
+    Limpia el número de documento:
+    - Quita palabras de tipo (ej: 'FACTURA 33-143' -> '143')
+    - Quita prefijos de tipo (ej: '33-143' -> '143', 'FA-143' -> '143')
+    - Quita ceros a la izquierda (ej: '000153' -> '153', '33-000150' -> '150')
+    """
+    if not value:
+        return ''
+    import re
+    texto = str(value).strip()
+    # Si viene con guion, tomar la última parte
+    if '-' in texto:
+        partes = texto.split('-')
+        texto = partes[-1].strip()
+    # Extraer los dígitos finales o el número
+    match = re.search(r'\d+', texto)
+    if match:
+        texto = match.group(0)
+    texto_sin_ceros = texto.lstrip('0')
+    return texto_sin_ceros if texto_sin_ceros else ('0' if texto == '0' else texto)

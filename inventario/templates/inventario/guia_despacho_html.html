@@ -496,7 +496,7 @@
     <script>
         function safeCloseWindow() {
             cerrarVisor({
-                fallbackUrl: "{% if transferencia %}{% url 'inventario:transferencia_detail' transferencia.pk %}{% elif guia.tipo_dte == '52' %}{% url 'ventas:libro_guias' %}{% else %}{% url 'facturacion_electronica:dte_list' %}{% endif %}"
+                fallbackUrl: "{% firstof return_url back_url fallback_url %}{% if not return_url and not back_url and not fallback_url %}{% if orden_despacho %}{% url 'pedidos:orden_despacho_detail' orden_despacho.pk %}{% elif transferencia %}{% url 'inventario:transferencia_detail' transferencia.pk %}{% elif guia.tipo_dte == '52' %}{% url 'ventas:libro_guias' %}{% else %}{% url 'facturacion_electronica:dte_list' %}{% endif %}{% endif %}"
             });
         }
 

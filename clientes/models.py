@@ -201,6 +201,43 @@ class Cliente(models.Model):
         }
         return colores.get(self.estado, 'secondary')
 
+    def get_direcciones_list(self):
+        """
+        Retorna la lista completa de direcciones utilizables para despacho/facturación.
+        Incluye la dirección fiscal base del cliente más cualquier DireccionCliente activa.
+        """
+        direcciones = []
+        base_dir = (self.direccion or '').strip()
+        
+        extra_dirs = [d for d in self.direcciones.all() if d.activa]
+        tiene_principal_extra = any(d.es_principal for d in extra_dirs)
+        
+        if base_dir:
+            direcciones.append({
+                'id': 'base',
+                'alias': 'Casa Matriz (Fiscal)',
+                'direccion': base_dir,
+                'comuna': self.comuna or '',
+                'ciudad': self.ciudad or '',
+                'region': self.region or '',
+                'es_principal': not tiene_principal_extra,
+            })
+            
+        for d in extra_dirs:
+            if base_dir and d.direccion.strip().lower() == base_dir.lower() and (d.comuna or '').strip().lower() == (self.comuna or '').strip().lower() and not d.alias:
+                continue
+            direcciones.append({
+                'id': d.id,
+                'alias': d.alias or d.direccion,
+                'direccion': d.direccion,
+                'comuna': d.comuna or '',
+                'ciudad': d.ciudad or '',
+                'region': d.region or '',
+                'es_principal': d.es_principal,
+            })
+            
+        return direcciones
+
 
 class ContactoCliente(models.Model):
     """Modelo para contactos adicionales del cliente"""
@@ -248,6 +285,46 @@ class ContactoCliente(models.Model):
                 cliente=self.cliente, 
                 es_contacto_principal=True
             ).exclude(pk=self.pk).update(es_contacto_principal=False)
+        super().save(*args, **kwargs)
+
+
+class DireccionCliente(models.Model):
+    """Modelo para gestionar múltiples direcciones o sucursales de entrega de un cliente"""
+    cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, related_name='direcciones', verbose_name="Cliente")
+    alias = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Alias / Nombre Sucursal",
+        help_text="Ej: Casa Matriz, Planta Maipú, Sucursal Quilicura, Bodega Central"
+    )
+    direccion = models.CharField(max_length=255, verbose_name="Dirección")
+    comuna = models.CharField(max_length=100, blank=True, verbose_name="Comuna")
+    ciudad = models.CharField(max_length=100, blank=True, verbose_name="Ciudad")
+    region = models.CharField(max_length=100, blank=True, verbose_name="Región")
+    es_principal = models.BooleanField(default=False, verbose_name="¿Es Dirección Principal / Despacho por Defecto?")
+    activa = models.BooleanField(default=True, verbose_name="Activa")
+    observaciones = models.CharField(max_length=255, blank=True, verbose_name="Observaciones")
+
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Dirección de Cliente"
+        verbose_name_plural = "Direcciones de Clientes"
+        ordering = ['-es_principal', 'alias', 'direccion']
+
+    def __str__(self):
+        alias_str = f"[{self.alias}] " if self.alias else ""
+        comuna_str = f", {self.comuna}" if self.comuna else ""
+        return f"{alias_str}{self.direccion}{comuna_str}"
+
+    def save(self, *args, **kwargs):
+        if self.es_principal:
+            DireccionCliente.objects.filter(
+                cliente=self.cliente,
+                es_principal=True
+            ).exclude(pk=self.pk).update(es_principal=False)
         super().save(*args, **kwargs)
 
 

@@ -18,7 +18,7 @@
         justify-content: center;
         padding: 16px;
     }
-    .cvt-dialog { width: 100%; max-width: 620px; }
+    .cvt-dialog { width: 100%; max-width: 860px; }
     .cvt-dialog-card {
         background: #fff;
         border: none;
@@ -152,7 +152,7 @@
                             <div class="cvt-meta">
                                 <div class="mb-1" style="font-size: 0.62rem; font-weight: 700; color:#8B7355; text-transform: uppercase;">Documento de origen</div>
                                 <div class="row-line"><span class="text-muted">Número</span><strong>#{{ cotizacion.numero_venta }}</strong></div>
-                                <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:32 }}</strong></div>
+                                <div class="row-line"><span class="text-muted">Cliente</span><strong class="text-end">{{ cotizacion.cliente.nombre|default:"Sin cliente"|truncatechars:45 }}</strong></div>
                                 <div class="row-line"><span class="text-muted">Vendedor</span><strong class="text-end">{{ cotizacion.vendedor.nombre|default:"Sin vendedor" }}</strong></div>
                                 <div class="row-line"><span class="text-muted">Total</span><strong style="color:#C76F43;">${{ cotizacion.total|format_miles }}</strong></div>
                             </div>
@@ -173,7 +173,7 @@
                                     <tbody>
                                         {% for detalle in cotizacion.ventadetalle_set.all %}
                                         <tr>
-                                            <td title="{{ detalle.articulo.nombre }}">{{ detalle.articulo.nombre|truncatechars:28 }}</td>
+                                            <td title="{{ detalle.articulo.nombre }}">{{ detalle.articulo.nombre|truncatechars:45 }}</td>
                                             <td class="text-center">{{ detalle.cantidad }}</td>
                                             <td class="text-end">${{ detalle.precio_total|format_miles }}</td>
                                         </tr>
@@ -211,6 +211,74 @@
                         </div>
                     </div>
 
+                    <!-- Datos de Guía de Despacho (Solo visible al elegir Guía) -->
+                    <div id="seccion-datos-guia" class="mb-2" style="display: none;">
+                        <div class="card p-2 border-0" style="background: #FDFCFB; border: 1px solid #E8DCC8 !important; border-radius: 8px;">
+                            <div class="d-flex align-items-center mb-2" style="border-bottom: 1px solid #E8DCC8; padding-bottom: 4px;">
+                                <i class="fas fa-truck me-2" style="color: #C76F43; font-size: 0.85rem;"></i>
+                                <span style="font-size: 0.72rem; font-weight: 700; color: #5D4037; text-transform: uppercase;">
+                                    Datos de despacho y transporte (Guía de Despacho)
+                                </span>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Tipo de traslado</label>
+                                    <select name="tipo_despacho" id="tipo_despacho" class="form-select form-select-sm" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                        {% for value, label in tipo_despacho_choices %}
+                                        <option value="{{ value }}" {% if value == '1' or value == 1 %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Tipo de despacho SII</label>
+                                    <select name="tipo_despacho_sii" id="tipo_despacho_sii" class="form-select form-select-sm" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                        {% for value, label in tipo_despacho_sii_choices %}
+                                        <option value="{{ value }}" {% if value == '2' %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Vehículo</label>
+                                    <select name="vehiculo_id" id="vehiculo_id" class="form-select form-select-sm" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                        <option value="">-- Seleccionar vehículo --</option>
+                                        {% for vehiculo in vehiculos %}
+                                        <option value="{{ vehiculo.id }}" data-patente="{{ vehiculo.patente }}" data-chofer="{{ vehiculo.chofer_id|default:'' }}">{{ vehiculo.patente }}{% if vehiculo.descripcion %} - {{ vehiculo.descripcion }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Chofer</label>
+                                    <select name="chofer_id" id="chofer_id" class="form-select form-select-sm" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                        <option value="">-- Seleccionar chofer --</option>
+                                        {% for chofer in choferes %}
+                                        <option value="{{ chofer.id }}" data-rut="{{ chofer.rut }}">{{ chofer.nombre }} ({{ chofer.rut }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">RUT Transportista</label>
+                                    <input type="text" name="rut_transportista" id="rut_transportista" class="form-control form-control-sm" value="{{ rut_empresa }}" placeholder="RUT empresa o transportista" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Patente Carro (Opcional)</label>
+                                    <input type="text" name="patente_carro" id="patente_carro" class="form-control form-control-sm" placeholder="Ej: AB1234" maxlength="8" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Fecha salida</label>
+                                    <input type="date" name="fecha_salida" id="fecha_salida" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Hora salida</label>
+                                    <input type="time" name="hora_salida" id="hora_salida" class="form-control form-control-sm" value="{{ hora_actual }}" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="mb-1" style="font-size: 0.65rem; font-weight: 700; color: #8B7355; text-transform: uppercase;">Fecha estimada llegada</label>
+                                    <input type="date" name="fecha_llegada" id="fecha_llegada" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}" style="font-size: 0.75rem; border: 1px solid #D4C4A8; height: 28px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="cvt-info">
                         <i class="fas fa-info-circle me-1" style="color:#8B7355;"></i>
                         Al confirmar se genera el documento con los mismos artículos y valores. La cotización pasa a estado <strong>Convertida</strong>.
@@ -228,4 +296,38 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var radios = document.querySelectorAll('input[name="tipo_venta"]');
+    var guiaSec = document.getElementById('seccion-datos-guia');
+    var vehiculoSel = document.getElementById('vehiculo_id');
+    var choferSel = document.getElementById('chofer_id');
+
+    function actualizarVisibilidadGuia() {
+        var seleccion = document.querySelector('input[name="tipo_venta"]:checked');
+        if (seleccion && seleccion.value === 'guia') {
+            if (guiaSec) guiaSec.style.display = 'block';
+        } else {
+            if (guiaSec) guiaSec.style.display = 'none';
+        }
+    }
+
+    radios.forEach(function(r) {
+        r.addEventListener('change', actualizarVisibilidadGuia);
+    });
+
+    if (vehiculoSel && choferSel) {
+        vehiculoSel.addEventListener('change', function() {
+            var opt = this.options[this.selectedIndex];
+            var chId = opt ? opt.getAttribute('data-chofer') : '';
+            if (chId) {
+                choferSel.value = chId;
+            }
+        });
+    }
+
+    actualizarVisibilidadGuia();
+});
+</script>
 {% endblock %}

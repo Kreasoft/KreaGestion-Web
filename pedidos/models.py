@@ -24,15 +24,25 @@ class OrdenPedido(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE, verbose_name="Cliente", related_name="ordenes_pedido")
     bodega = models.ForeignKey(Bodega, on_delete=models.CASCADE, verbose_name="Bodega")
     
-    # Vinculación con Cotización (OPCIONAL) - Por implementar
-    # cotizacion = models.ForeignKey(
-    #     'ventas.Cotizacion',
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     related_name='ordenes_pedido_generadas',
-    #     verbose_name="Cotización Asociada"
-    # )
+    # Vendedor
+    vendedor = models.ForeignKey(
+        'ventas.Vendedor',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_pedido',
+        verbose_name="Vendedor"
+    )
+    
+    # Vinculación con Cotización
+    cotizacion = models.ForeignKey(
+        'ventas.Venta',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_pedido_generadas',
+        verbose_name="Cotización Asociada"
+    )
     
     # Información del pedido
     numero_pedido = models.CharField(max_length=20, verbose_name="Número de Pedido")
@@ -55,6 +65,19 @@ class OrdenPedido(models.Model):
     # Información adicional
     observaciones = models.TextField(blank=True, verbose_name="Observaciones")
     condiciones_pago = models.CharField(max_length=100, blank=True, verbose_name="Condiciones de Pago")
+    
+    # Dirección de Despacho seleccionada
+    direccion_cliente = models.ForeignKey(
+        'clientes.DireccionCliente',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_pedido',
+        verbose_name="Dirección / Sucursal Seleccionada"
+    )
+    direccion_despacho = models.CharField(max_length=255, blank=True, verbose_name="Dirección de Despacho")
+    comuna_despacho = models.CharField(max_length=100, blank=True, verbose_name="Comuna de Despacho")
+    ciudad_despacho = models.CharField(max_length=100, blank=True, verbose_name="Ciudad de Despacho")
     
     # Auditoría
     creado_por = models.ForeignKey(User, on_delete=models.CASCADE, related_name='pedidos_creados', verbose_name="Creado por")
@@ -87,21 +110,32 @@ class OrdenPedido(models.Model):
         self.save()
     
     def generar_numero_pedido(self):
-        """Genera el correlativo independiente de la empresa activa."""
-        ultimo_pedido = OrdenPedido.objects.filter(
-            empresa=self.empresa
-        ).order_by('-numero_pedido').first()
+        """Genera el correlativo independiente y garantizado único de la empresa activa."""
+        import re
+        pedidos_empresa = OrdenPedido.objects.filter(empresa=self.empresa).values_list('numero_pedido', flat=True)
         
-        if ultimo_pedido and ultimo_pedido.numero_pedido:
-            try:
-                ultimo_numero = int(ultimo_pedido.numero_pedido.split('-')[-1])
-                nuevo_numero = ultimo_numero + 1
-            except (ValueError, IndexError):
-                nuevo_numero = 1
-        else:
-            nuevo_numero = 1
+        max_num = 0
+        for num_str in pedidos_empresa:
+            if not num_str:
+                continue
+            match = re.search(r'(\d+)$', str(num_str))
+            if match:
+                try:
+                    val = int(match.group(1))
+                    if val < 100000000:
+                        if val > max_num:
+                            max_num = val
+                except ValueError:
+                    pass
         
-        self.numero_pedido = f"PED-{nuevo_numero:06d}"
+        nuevo_numero = max_num + 1
+        candidato = f"PED-{nuevo_numero:06d}"
+        
+        while OrdenPedido.objects.filter(empresa=self.empresa, numero_pedido=candidato).exists():
+            nuevo_numero += 1
+            candidato = f"PED-{nuevo_numero:06d}"
+            
+        self.numero_pedido = candidato
         return self.numero_pedido
 
     @classmethod

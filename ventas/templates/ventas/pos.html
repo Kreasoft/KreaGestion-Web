@@ -2504,7 +2504,10 @@
                     const data = await response.json();
                     if (data.success && data.precio_especial) {
                         console.log(`✓ Precio especial encontrado: $${data.precio_especial} (Lista: $${precioLista})`);
-                        return parseFloat(data.precio_especial);
+                        return {
+                            precio_especial: parseFloat(data.precio_con_iva || data.precio_especial),
+                            precio_neto: parseFloat(data.precio_neto || data.precio_especial)
+                        };
                     } else {
                         console.log(`✗ Sin precio especial, usando precio de lista: $${precioLista}`);
                     }
@@ -2516,6 +2519,38 @@
             return parseFloat(precioLista);
         }
 
+        // Actualizar precios de los items existentes en el carrito si el cliente tiene precios especiales
+        async function actualizarPreciosCarritoPorCliente(clienteId) {
+            if (!clienteId || !window.cart || window.cart.length === 0) return;
+            const clienteIdLimpio = String(clienteId).trim().replace(/\s+/g, '');
+            try {
+                const res = await fetch(`/ventas/api/precios-cliente/${clienteIdLimpio}/`);
+                const data = await res.json();
+                if (data.success && data.precios) {
+                    let modificado = false;
+                    for (const item of window.cart) {
+                        const artId = parseInt(item.articuloId, 10);
+                        if (data.precios[artId]) {
+                            const esp = data.precios[artId];
+                            const nuevoPrecioFinal = parseFloat(esp.precio_con_iva);
+                            const nuevoPrecioNeto = parseFloat(esp.precio_neto);
+                            item.precio = nuevoPrecioFinal;
+                            item.precio_neto = nuevoPrecioNeto;
+                            item.iva = nuevoPrecioFinal - nuevoPrecioNeto;
+                            item.total = parseFloat(item.cantidad) * nuevoPrecioFinal;
+                            modificado = true;
+                        }
+                    }
+                    if (modificado) {
+                        if (typeof updateCartDisplay === 'function') updateCartDisplay();
+                        if (typeof updateTotals === 'function') updateTotals();
+                    }
+                }
+            } catch (e) {
+                console.error('Error al actualizar precios del carrito según cliente:', e);
+            }
+        }
+
         // Agregar al carrito - DEBE ESTAR EN SCOPE GLOBAL
         async function addToCart(articuloId, nombre, precio, stock, categoriaExentaIva = false, impuestoEspecifico = 0, precioNeto = null, fromKit = false) {
             console.log('*** FUNCIÓN addToCart LLAMADA ***', { articuloId: articuloId, nombre: nombre, precio: precio, stock: stock, categoriaExentaIva: categoriaExentaIva, impuestoEspecifico: impuestoEspecifico, precioNeto: precioNeto, fromKit: fromKit });
@@ -2524,10 +2559,21 @@
             const articuloIdStr = String(articuloId);
 
             // Obtener precio correcto (especial o lista)
+            let precioNetoEspecial = null;
             try {
-                precio = await obtenerPrecioArticulo(articuloIdStr, precio);
+                const resPrecio = await obtenerPrecioArticulo(articuloIdStr, precio);
+                if (typeof resPrecio === 'object' && resPrecio !== null) {
+                    precio = resPrecio.precio_especial;
+                    precioNetoEspecial = resPrecio.precio_neto;
+                } else {
+                    precio = resPrecio;
+                }
             } catch (e) {
                 console.error("Error al obtener precio, usando precio base:", e);
+            }
+
+            if (precioNetoEspecial !== null) {
+                precioNeto = precioNetoEspecial;
             }
 
             const existingItem = cart.find(item => String(item.articuloId) === articuloIdStr);
@@ -4545,6 +4591,10 @@
                 if (info) info.style.display = 'block';
                 if (nombreEl) nombreEl.textContent = nombre;
                 if (dirEl) dirEl.textContent = direccion || 'Sin dirección';
+
+                if (typeof actualizarPreciosCarritoPorCliente === 'function') {
+                    actualizarPreciosCarritoPorCliente(id);
+                }
             };
 
             // Función para seleccionar cliente en modal principal
@@ -4599,6 +4649,10 @@
                                 </button>
                             </div>
                         `;
+                    }
+
+                    if (typeof actualizarPreciosCarritoPorCliente === 'function') {
+                        actualizarPreciosCarritoPorCliente(id);
                     }
 
                     console.log('Selección exitosa:', window.clienteSeleccionado);
@@ -7010,6 +7064,10 @@
                             </button>
                         </div>
                     `;
+                }
+
+                if (typeof actualizarPreciosCarritoPorCliente === 'function') {
+                    actualizarPreciosCarritoPorCliente(clienteId);
                 }
 
                 try {

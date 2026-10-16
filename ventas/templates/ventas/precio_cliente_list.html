@@ -277,18 +277,19 @@
                         <table class="table table-piedra-compact tabla-nombre-completo mb-0">
                             <thead>
                                 <tr>
-                                    <th width="35%">Artículos</th>
-                                    <th width="20%" class="text-end">Precio Especial</th>
-                                    <th width="15%" class="text-center">Vigencia</th>
-                                    <th width="15%" class="text-center">Estado</th>
-                                    <th width="15%" class="text-center">Acciones</th>
+                                    <th width="32%">Artículos</th>
+                                    <th width="14%" class="text-end">Precio Neto</th>
+                                    <th width="14%" class="text-end">Precio c/IVA</th>
+                                    <th width="14%" class="text-center">Vigencia</th>
+                                    <th width="13%" class="text-center">Estado</th>
+                                    <th width="13%" class="text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% regroup precios by cliente as precios_por_cliente %}
                                 {% for grupo in precios_por_cliente %}
                                 <tr class="cliente-grupo-row">
-                                    <td colspan="5" style="height: 30px !important; padding: 0 10px !important;">
+                                    <td colspan="6" style="height: 30px !important; padding: 0 10px !important;">
                                         <i class="fas fa-user-tag me-2 opacity-75"></i>{{ grupo.grouper.nombre }}
                                         <span class="badge bg-white text-muted border ms-2">{{ grupo.list|length }} artículo{{ grupo.list|length|pluralize }}</span>
                                     </td>
@@ -299,9 +300,11 @@
                                         <span class="articulo-codigo">{{ precio.articulo.codigo }}</span>
                                         <span class="nombre-articulo-cliente" title="{{ precio.articulo.nombre }}">{{ precio.articulo.nombre }}</span>
                                     </td>
-                                    <td class="text-end">
-                                        <span class="fw-bold" style="color: #2e7d32;">${{ precio.get_precio_con_iva|floatformat:0|format_miles }}</span>
-                                        <span class="extra-small text-muted ms-1">(Neto ${{ precio.precio_especial|floatformat:0|format_miles }})</span>
+                                    <td class="text-end text-nowrap">
+                                        <span class="fw-bold" style="color: #2e7d32;">${{ precio.precio_especial|floatformat:0|format_miles }}</span>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <span class="fw-bold" style="color: #5D4037;">${{ precio.get_precio_con_iva|floatformat:0|format_miles }}</span>
                                     </td>
                                     <td class="text-center">
                                         {% if precio.esta_vigente %}<span class="badge-piedra badge-piedra-success">Vigente</span>{% else %}<span class="badge-piedra badge-piedra-danger">No Vigente</span>{% endif %}
@@ -319,7 +322,7 @@
                                 {% endfor %}
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-3">
+                                    <td colspan="6" class="text-center py-3">
                                         <i class="fas fa-user-slash fa-2x opacity-25 mb-3"></i>
                                         <h5 class="fw-bold text-muted">No se encontraron precios especiales</h5>
                                         <p class="text-muted small">Ajuste los filtros o cree un registro nuevo.</p>
@@ -397,28 +400,43 @@ const styleSheet = document.createElement("style");
 styleSheet.innerText = styles;
 document.head.appendChild(styleSheet);
 
+let modalModoEdicion = false;
+
 // Abrir modal para crear
 document.getElementById('modalCrearPrecio').addEventListener('show.bs.modal', function(e) {
-    if (!e.relatedTarget || !e.relatedTarget.classList.contains('btn-editar-precio')) {
-        document.getElementById('textoTitulo').textContent = 'Nuevo Precio Especial';
-        cargarFormulario('{% url "ventas:precio_cliente_create" %}');
+    if (modalModoEdicion) {
+        return;
+    }
+    document.getElementById('textoTitulo').textContent = 'Nuevo Precio Especial';
+    cargarFormulario('{% url "ventas:precio_cliente_create" %}');
+});
+
+document.getElementById('modalCrearPrecio').addEventListener('hidden.bs.modal', function() {
+    modalModoEdicion = false;
+    document.getElementById('contenidoFormulario').innerHTML = '';
+});
+
+// Editar precio (delegación de eventos)
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-editar-precio');
+    if (btn) {
+        e.preventDefault();
+        const id = btn.dataset.id;
+        modalModoEdicion = true;
+        document.getElementById('textoTitulo').textContent = 'Editar Precio Especial';
+        cargarFormulario(`/ventas/precios-clientes/${id}/editar/`);
+        const modalEl = document.getElementById('modalCrearPrecio');
+        const modalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modalInstance.show();
     }
 });
 
-// Editar precio
-document.querySelectorAll('.btn-editar-precio').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const id = this.dataset.id;
-        document.getElementById('textoTitulo').textContent = 'Editar Precio Especial';
-        cargarFormulario(`/ventas/precios-clientes/${id}/editar/`);
-        new bootstrap.Modal(document.getElementById('modalCrearPrecio')).show();
-    });
-});
-
-// Eliminar precio
-document.querySelectorAll('.btn-eliminar-precio').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const id = this.dataset.id;
+// Eliminar precio (delegación de eventos)
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-eliminar-precio');
+    if (btn) {
+        e.preventDefault();
+        const id = btn.dataset.id;
         Swal.fire({
             title: '¿Eliminar precio especial?',
             text: 'Esta acción no se puede deshacer',
@@ -449,12 +467,15 @@ document.querySelectorAll('.btn-eliminar-precio').forEach(btn => {
                             location.reload();
                         });
                     } else {
-                        Swal.fire('Error', data.error, 'error');
+                        Swal.fire('Error', data.error || 'No se pudo eliminar', 'error');
                     }
+                })
+                .catch(err => {
+                    Swal.fire('Error', 'Error de conexión al eliminar', 'error');
                 });
             }
         });
-    });
+    }
 });
 
 // Cargar formulario
@@ -471,6 +492,9 @@ function cargarFormulario(url) {
                     inicializarPreciosArticulos();
                 }
             }, 100);
+        })
+        .catch(err => {
+            document.getElementById('contenidoFormulario').innerHTML = '<div class="alert alert-danger m-3">Error al cargar el formulario. Intente nuevamente.</div>';
         });
 }
 
@@ -479,18 +503,24 @@ function inicializarPreciosArticulos() {
     const dataElement = document.getElementById('articulos-precios-data');
     if (!dataElement) return;
     
-    const articulosPrecios = JSON.parse(dataElement.textContent);
+    let articulosPrecios = {};
+    try {
+        articulosPrecios = JSON.parse(dataElement.textContent);
+    } catch(e) {}
+
     const articuloSelect = document.querySelector('select[name="articulo"]');
     
     if (articuloSelect) {
         const mostrarPrecio = function() {
             const articuloId = articuloSelect.value;
-            if (articuloId && articulosPrecios[articuloId]) {
+            if (articuloId && articulosPrecios[articuloId] !== undefined) {
                 const precio = articulosPrecios[articuloId];
                 const precioFormateado = '$' + new Intl.NumberFormat('es-CL').format(precio);
-                document.getElementById('precioListaValor').textContent = precioFormateado;
+                const el = document.getElementById('precioListaValor');
+                if (el) el.textContent = precioFormateado;
             } else {
-                document.getElementById('precioListaValor').textContent = 'Seleccione un artículo';
+                const el = document.getElementById('precioListaValor');
+                if (el) el.textContent = 'Seleccione un artículo';
             }
         };
         articuloSelect.addEventListener('change', mostrarPrecio);
@@ -502,6 +532,11 @@ function inicializarPreciosArticulos() {
 document.getElementById('btnGuardar').addEventListener('click', function() {
     const form = document.querySelector('#contenidoFormulario form');
     if (form) {
+        const btn = document.getElementById('btnGuardar');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
         const formData = new FormData(form);
         const url = form.action || window.location.href;
         
@@ -525,8 +560,27 @@ document.getElementById('btnGuardar').addEventListener('click', function() {
                     location.reload();
                 });
             } else {
-                Swal.fire('Error', 'Revise los campos requeridos', 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                let msg = 'Revise los campos requeridos';
+                if (data.errors) {
+                    const errorList = [];
+                    for (const [campo, errs] of Object.entries(data.errors)) {
+                        errorList.push((campo === '__all__' ? '' : campo + ': ') + (Array.isArray(errs) ? errs.join(', ') : errs));
+                    }
+                    if (errorList.length) msg = errorList.join('<br>');
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error al guardar',
+                    html: msg
+                });
             }
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+            Swal.fire('Error', 'Error de red o del servidor', 'error');
         });
     }
 });

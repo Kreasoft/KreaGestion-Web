@@ -37,7 +37,12 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
     """
     from django.urls import reverse
     
-    url = request.POST.get('return_url') or request.GET.get('return_url')
+    url = (
+        request.POST.get('return_url')
+        or request.GET.get('return_url')
+        or request.POST.get('next')
+        or request.GET.get('next')
+    )
     
     if not url:
         # Intentar obtener del referer si no hay return_url
@@ -66,6 +71,8 @@ def redirect_to_dte_list(request, anchor=None, dte=None):
         params = request.GET.copy()
         if 'return_url' in params:
             del params['return_url']
+        if 'next' in params:
+            del params['next']
         query_string = params.urlencode()
         if query_string:
             if '?' in url:
@@ -254,30 +261,56 @@ def resolver_referencias_documento(venta=None, dte=None):
 @requiere_empresa
 def generar_dte_venta(request, venta_id):
     """
-    Genera un DTE a partir de una venta
+    Genera un DTE oficial con CAF y timbre a partir de una venta/guía interna
     """
+    from pedidos.models_transporte import Vehiculo, Chofer
+    from facturacion_electronica.dte_service import DTEService, normalizar_error_envio_sii
+    
     venta = get_object_or_404(Venta, pk=venta_id, empresa=request.empresa)
     
     # Verificar que la venta no tenga ya un DTE
-    if hasattr(venta, 'dte'):
-        messages.warning(request, 'Esta venta ya tiene un DTE generado.')
-        return redirect('ventas:detalle_venta', pk=venta_id)
+    if hasattr(venta, 'dte') and venta.dte:
+        messages.warning(request, f'Esta venta ya tiene un DTE generado: Folio {venta.dte.folio}.')
+        return redirect_to_dte_list(request, anchor=f'row-{venta.dte.id}', dte=venta.dte)
     
     # Verificar que la empresa tenga FE activada
     if not request.empresa.facturacion_electronica:
         messages.error(request, 'La facturación electrónica no está activada para esta empresa.')
-        return redirect('ventas:detalle_venta', pk=venta_id)
+        return redirect('ventas:venta_detail', pk=venta_id)
     
+    return_url = request.POST.get('return_url') or request.GET.get('return_url') or request.META.get('HTTP_REFERER') or ''
+
+    # Determinar tipo DTE por defecto según tipo de documento de la venta
+    default_tipo = '39'
+    if venta.tipo_documento == 'guia':
+        default_tipo = '52'
+    elif venta.tipo_documento == 'factura':
+        default_tipo = '33'
+
     if request.method == 'POST':
-        tipo_dte = request.POST.get('tipo_dte', '39')  # Por defecto Boleta
+        tipo_dte = request.POST.get('tipo_dte', default_tipo)
         
         # Capturar datos de transporte para Guías de Despacho
         transport_data = {}
         if tipo_dte == '52':
+            vehiculo_id = request.POST.get('vehiculo_id')
+            chofer_id = request.POST.get('chofer_id')
+            vehiculo = Vehiculo.objects.filter(pk=vehiculo_id, empresa=request.empresa, activo=True).first() if vehiculo_id else venta.vehiculo
+            chofer = Chofer.objects.filter(pk=chofer_id, empresa=request.empresa, activo=True).first() if chofer_id else venta.chofer
+            
+            patente_transporte = (request.POST.get('patente_transporte') or (vehiculo.patente if vehiculo else '')).strip()
+            rut_transportista = (request.POST.get('rut_transportista') or (chofer.rut if chofer else '') or request.empresa.rut or '').strip()
+            nombre_chofer = (request.POST.get('nombre_chofer') or (chofer.nombre if chofer else '')).strip()
+            
             transport_data = {
-                'patente_transporte': request.POST.get('patente_transporte'),
-                'rut_transportista': request.POST.get('rut_transportista'),
-                'nombre_chofer': request.POST.get('nombre_chofer'),
+                'patente_transporte': patente_transporte,
+                'rut_transportista': rut_transportista,
+                'nombre_chofer': nombre_chofer,
+                'tipo_despacho_sii': request.POST.get('tipo_despacho_sii', '2'),
+                'patente_carro': (request.POST.get('patente_carro') or '').strip().upper()[:8],
+                'fecha_salida': request.POST.get('fecha_salida'),
+                'hora_salida': (request.POST.get('hora_salida') or '').strip(),
+                'fecha_llegada': request.POST.get('fecha_llegada'),
             }
         
         try:
@@ -287,16 +320,39 @@ def generar_dte_venta(request, venta_id):
             # Generar el DTE
             dte = dte_service.generar_dte_desde_venta(venta, tipo_dte, **transport_data)
             
-            messages.success(
-                request,
-                f'DTE generado exitosamente: {dte.get_tipo_dte_display()} N° {dte.folio}'
-            )
-            
-            # Preguntar si desea enviar al SII
-            if request.POST.get('enviar_sii') == 'true':
-                return redirect('facturacion_electronica:enviar_dte', dte_id=dte.id)
+            # Actualizar folio en numero_venta si no colisiona
+            numero_final = f"{dte.folio:06d}"
+            if not Venta.objects.filter(empresa=request.empresa, tipo_documento=venta.tipo_documento, numero_venta=numero_final).exclude(pk=venta.pk).exists():
+                venta.numero_venta = numero_final
+                venta.save(update_fields=['numero_venta'])
+
+            # Intentar envío inmediato al SII si se solicitó o por defecto
+            enviar_sii = request.POST.get('enviar_sii', 'true') == 'true'
+            if enviar_sii:
+                try:
+                    envio = dte_service.enviar_dte_al_sii(dte)
+                    if envio.get('success'):
+                        messages.success(
+                            request,
+                            f'✅ {dte.get_tipo_dte_display()} N° {dte.folio} emitida y enviada al SII exitosamente.'
+                        )
+                    else:
+                        messages.warning(
+                            request,
+                            f'⚠️ {dte.get_tipo_dte_display()} N° {dte.folio} emitida con timbre electrónico. Aviso SII: {envio.get("message") or "Pendiente de envío"}'
+                        )
+                except Exception as exc_envio:
+                    messages.warning(
+                        request,
+                        f'⚠️ {dte.get_tipo_dte_display()} N° {dte.folio} emitida con timbre electrónico. Podrá reenviarla al SII cuando esté disponible ({exc_envio}).'
+                    )
             else:
-                return redirect('facturacion_electronica:dte_detail', pk=dte.id)
+                messages.success(
+                    request,
+                    f'DTE generado exitosamente: {dte.get_tipo_dte_display()} N° {dte.folio}'
+                )
+
+            return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
             
         except ValueError as e:
             messages.error(request, f'Error al generar DTE: {str(e)}')
@@ -305,13 +361,24 @@ def generar_dte_venta(request, venta_id):
             import traceback
             traceback.print_exc()
     
+    vehiculos = Vehiculo.objects.filter(empresa=request.empresa, activo=True).order_by('patente')
+    choferes = Chofer.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
     # Mostrar formulario para seleccionar tipo de DTE
     context = {
         'venta': venta,
+        'detalles': venta.ventadetalle_set.select_related('articulo').all(),
+        'default_tipo': default_tipo,
+        'vehiculos': vehiculos,
+        'choferes': choferes,
+        'rut_empresa': request.empresa.rut or '',
+        'today': timezone.localdate(),
+        'hora_actual': timezone.localtime().strftime('%H:%M'),
+        'return_url': return_url,
         'tipos_dte': [
+            ('52', 'Guía de Despacho Electrónica'),
             ('33', 'Factura Electrónica'),
             ('39', 'Boleta Electrónica'),
-            ('52', 'Guía de Despacho Electrónica'),
         ]
     }
     
@@ -438,14 +505,104 @@ def consultar_estado_dte(request, dte_id):
     return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
-def _safe_internal_url(url, fallback):
-    """Acepta solo rutas internas relativas para volver al listado."""
+def _safe_internal_url(url, fallback, request=None):
+    """Acepta solo rutas internas relativas o del mismo dominio para volver al origen."""
     if not url:
         return fallback
     raw = str(url).strip()
     if raw.startswith('/') and not raw.startswith('//'):
         return raw
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(raw)
+        if parsed.path and parsed.path.startswith('/'):
+            if request and parsed.netloc:
+                host = request.get_host()
+                if parsed.netloc.split(':')[0] == host.split(':')[0]:
+                    path = parsed.path
+                    if parsed.query:
+                        path += '?' + parsed.query
+                    if parsed.fragment:
+                        path += '#' + parsed.fragment
+                    return path
+            elif not parsed.netloc:
+                return parsed.path
+    except Exception:
+        pass
     return fallback
+
+
+def _resolver_fallback_retorno_dte(dte, request=None):
+    """
+    Determina de manera inteligente y contextual a dónde debe volver el usuario
+    al salir del visor o detalle de un DTE cuando no se especifica return_url.
+    Prioriza el origen real (Orden de Despacho, Transferencia, Venta, etc.).
+    """
+    if not dte:
+        return reverse('facturacion_electronica:dte_list')
+
+    # 1. Intentar HTTP_REFERER seguro de la misma app que no sea el mismo DTE
+    if request:
+        referer = request.META.get('HTTP_REFERER')
+        safe_ref = _safe_internal_url(referer, '', request=request)
+        if safe_ref:
+            ref_path = safe_ref.split('?')[0].split('#')[0]
+            curr_path = request.path.split('?')[0].split('#')[0]
+            if ref_path != curr_path and not curr_path.endswith(ref_path):
+                return safe_ref
+
+    # 2. Origen contextual por documento vinculado:
+    # A. Orden de Despacho (detalles de despacho)
+    try:
+        orden = None
+        for rel in ('detalles_despacho_guia', 'detalles_despacho_factura'):
+            det = getattr(dte, rel, None)
+            if det and det.exists():
+                first_item = det.select_related('orden_despacho').first()
+                if first_item and first_item.orden_despacho:
+                    orden = first_item.orden_despacho
+                    break
+        if not orden:
+            from pedidos.models_despacho import DetalleOrdenDespacho
+            item_desp = DetalleOrdenDespacho.objects.filter(
+                Q(guia_despacho=dte) | Q(factura=dte)
+            ).select_related('orden_despacho').first()
+            if item_desp and item_desp.orden_despacho:
+                orden = item_desp.orden_despacho
+        if orden:
+            return reverse('pedidos:orden_despacho_detail', args=[orden.pk])
+    except Exception:
+        pass
+
+    # B. Transferencia de Inventario
+    try:
+        if hasattr(dte, 'transferencias') and dte.transferencias.exists():
+            transf = dte.transferencias.first()
+            if transf:
+                return reverse('inventario:transferencia_detail', args=[transf.pk])
+    except Exception:
+        pass
+
+    # C. Venta directa
+    try:
+        if getattr(dte, 'venta_id', None):
+            return reverse('ventas:venta_detail', args=[dte.venta_id])
+    except Exception:
+        pass
+
+    # D. Notas de Crédito / Débito
+    try:
+        if dte.tipo_dte == '61' and hasattr(dte, 'notas_credito') and dte.notas_credito.exists():
+            return reverse('ventas:notacredito_list')
+        if dte.tipo_dte == '56' and hasattr(dte, 'notas_debito') and dte.notas_debito.exists():
+            return reverse('ventas:notadebito_list')
+    except Exception:
+        pass
+
+    # E. Fallback genérico por tipo DTE
+    if str(getattr(dte, 'tipo_dte', '')) == '52':
+        return reverse('ventas:libro_guias') + f'#row-dte-{dte.id}'
+    return reverse('facturacion_electronica:dte_list') + f'#row-dte-{dte.id}'
 
 
 def _email_receptor_dte(dte):
@@ -721,9 +878,8 @@ def dte_detail(request, pk):
         logger.exception('corregir_falso_rechazo_espera DTE %s', dte.pk)
 
     try:
-        fallback = reverse('ventas:libro_guias') if dte.tipo_dte == '52' else reverse('facturacion_electronica:dte_list')
-        fallback += f'#row-dte-{dte.id}'
-        back_url = _safe_internal_url(request.GET.get('return_url'), fallback)
+        fallback = _resolver_fallback_retorno_dte(dte, request=request)
+        back_url = _safe_internal_url(request.GET.get('return_url'), fallback, request=request)
 
         try:
             estado_real = dte.get_estado_sii_real()
@@ -736,6 +892,8 @@ def dte_detail(request, pk):
             action_return = reverse('facturacion_electronica:dte_detail', args=[dte.pk])
             if request.GET.get('return_url'):
                 action_return += '?' + urlencode({'return_url': request.GET.get('return_url')})
+            elif back_url:
+                action_return += '?' + urlencode({'return_url': back_url})
 
         try:
             url_copia = url_copia_impresa(dte)
@@ -762,13 +920,14 @@ def dte_detail(request, pk):
         context = {
             'dte': dte,
             'back_url': back_url,
+            'return_url': back_url,
             'url_copia': url_copia,
             'estado_real': estado_real,
             'mostrar_motivo': estado_real in ('rechazado', 'aceptado_reparos') or bool((dte.glosa_sii or '').strip()),
             'tiene_xml': tiene_xml,
             'email_receptor': email_receptor,
             'detail_return_q': urlencode({'return_url': action_return}),
-            'return_url_q': urlencode({'return_url': action_return}),
+            'return_url_q': urlencode({'return_url': back_url}),
             'dte_modal_preload': True,
             'lineas_dte': lineas,
         }
@@ -1024,6 +1183,30 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
         messages.error(request, 'Este DTE no tiene un documento de origen asociado (Venta, Orden de Despacho o Transferencia).')
         return redirect('facturacion_electronica:dte_detail', pk=dte_id)
 
+    class SafeDummy:
+        """Objeto comodín para templates de Django que soporta encadenamiento seguro sin fallar."""
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+        def __getattr__(self, name):
+            return SafeDummy()
+
+        def __getitem__(self, name):
+            return SafeDummy()
+
+        def __bool__(self):
+            return False
+
+        def __str__(self):
+            return ""
+
+        def __repr__(self):
+            return ""
+
+        def __eq__(self, other):
+            return not other
+
     # Crear wrapper de cliente desde DTE si no hay cliente o el cliente no tiene datos
     class ClienteWrapper:
         def __init__(self, dte):
@@ -1038,7 +1221,13 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
             self.email = ""
 
         def __getattr__(self, name):
-            return ""
+            return SafeDummy()
+
+        def __getitem__(self, name):
+            return getattr(self, name, SafeDummy())
+
+        def __str__(self):
+            return self.nombre
     
     # Si no hay venta pero hay orden de despacho, crear un objeto wrapper para compatibilidad
     if not venta and orden_despacho:
@@ -1054,9 +1243,11 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
                 self.cliente = cliente_real if cliente_real else ClienteWrapper(dte)
                 # Vendedor desde orden_pedido si existe
                 self.vendedor = getattr(orden_despacho.orden_pedido, 'vendedor', None) if hasattr(orden_despacho, 'orden_pedido') and orden_despacho.orden_pedido else None
-                # Vehículo y chofer
-                self.vehiculo = getattr(orden_despacho, 'vehiculo', None) or getattr(dte, 'vehiculo', None)
-                self.chofer = getattr(orden_despacho, 'chofer', None) or getattr(dte, 'chofer', None)
+                # Vehículo y chofer (SafeDummy evita VariableDoesNotExist si no están definidos)
+                real_vehiculo = getattr(orden_despacho, 'vehiculo', None) or getattr(dte, 'vehiculo', None)
+                self.vehiculo = real_vehiculo if real_vehiculo else SafeDummy(patente="", marca="", modelo="")
+                real_chofer = getattr(orden_despacho, 'chofer', None) or getattr(dte, 'chofer', None)
+                self.chofer = real_chofer if real_chofer else SafeDummy(nombre="", rut="", telefono="")
                 # Fecha: usar fecha_despacho o fecha_emision del DTE
                 self.fecha = orden_despacho.fecha_despacho if hasattr(orden_despacho, 'fecha_despacho') else dte.fecha_emision
                 # Totales desde DTE
@@ -1089,7 +1280,10 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
                 return getattr(dte, 'get_tipo_traslado_display', lambda: '')() or 'Operación constituye venta'
 
             def __getattr__(self, name):
-                return None
+                return SafeDummy()
+
+            def __getitem__(self, name):
+                return getattr(self, name, SafeDummy())
         
         venta = VentaWrapper(orden_despacho, dte)
 
@@ -1256,6 +1450,9 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
     receptor_display = _build_receptor_display(dte, fallback_cliente=cliente_display)
     bodega_display = resolver_bodega_documento(venta=venta, dte=dte)
 
+    fallback_retorno = _resolver_fallback_retorno_dte(dte, request=request)
+    back_url = _safe_internal_url(request.GET.get('return_url'), fallback_retorno, request=request)
+
     context = {
         'dte': dte,
         'venta': venta,
@@ -1271,6 +1468,9 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
         'condicion_pago_display': condicion_pago_display,
         'n_copias': n_copias,
         'copias_range': range(n_copias),
+        'back_url': back_url,
+        'return_url': back_url,
+        'fallback_url': back_url,
     }
     
     return render(request, template, context)
@@ -1320,6 +1520,8 @@ def ver_notacredito_electronica(request, notacredito_id):
         n_copias = 1
 
     receptor_display = _build_receptor_display(dte, fallback_cliente=getattr(nota, 'cliente', None))
+    fallback_retorno = _resolver_fallback_retorno_dte(dte, request=request)
+    back_url = _safe_internal_url(request.GET.get('return_url'), fallback_retorno, request=request)
 
     context = {
         'nota': nota,
@@ -1329,6 +1531,9 @@ def ver_notacredito_electronica(request, notacredito_id):
         'empresa': empresa,
         'n_copias': n_copias,
         'copias_range': range(n_copias),
+        'back_url': back_url,
+        'return_url': back_url,
+        'fallback_url': back_url,
     }
     
     return render(request, template, context)
@@ -1366,6 +1571,8 @@ def ver_notadebito_electronica(request, notadebito_id):
     if request.GET.get('pdf') == '1':
         n_copias = 1
     receptor_display = _build_receptor_display(dte, fallback_cliente=getattr(nota, 'cliente', None))
+    fallback_retorno = _resolver_fallback_retorno_dte(dte, request=request)
+    back_url = _safe_internal_url(request.GET.get('return_url'), fallback_retorno, request=request)
 
     context = {
         'nota': nota,
@@ -1374,6 +1581,9 @@ def ver_notadebito_electronica(request, notadebito_id):
         'detalles': detalles,
         'empresa': empresa,
         'copias_range': range(n_copias),
+        'back_url': back_url,
+        'return_url': back_url,
+        'fallback_url': back_url,
     }
     
     return render(request, template, context)

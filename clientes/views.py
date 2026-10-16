@@ -5,8 +5,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum
 from django.forms import inlineformset_factory
-from .models import Cliente, ContactoCliente
-from .forms import ClienteForm, ContactoClienteForm, ContactoClienteInlineFormSet
+from .models import Cliente, ContactoCliente, DireccionCliente
+from .forms import ClienteForm, ContactoClienteForm, ContactoClienteInlineFormSet, DireccionClienteForm
 from empresas.models import Empresa
 from core.decorators import requiere_empresa
 from ventas.models import Vendedor
@@ -156,6 +156,7 @@ def cliente_detail(request, pk):
     
     # Obtener contactos
     contactos = cliente.contactos.all().order_by('-es_contacto_principal', 'tipo_contacto', 'nombre')
+    direcciones = cliente.direcciones.all().order_by('-es_principal', 'alias', 'direccion')
     
     # Obtener movimientos de cuenta corriente (ÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂºltimos 10)
     movimientos = cliente.movimientos_cuenta.all()[:10]
@@ -163,6 +164,8 @@ def cliente_detail(request, pk):
     context = {
         'cliente': cliente,
         'contactos': contactos,
+        'direcciones': direcciones,
+        'todas_direcciones': cliente.get_direcciones_list(),
         'movimientos': movimientos,
     }
     
@@ -267,13 +270,16 @@ def cliente_update(request, pk):
         form = ClienteForm(instance=cliente, empresa=empresa)
         formset = ContactoFormSet(instance=cliente)
     
-    # Obtener contactos para mostrar en la lista
+    # Obtener contactos y direcciones para mostrar en la lista
     contactos = cliente.contactos.all().order_by('-es_contacto_principal', 'tipo_contacto', 'nombre')
+    direcciones = cliente.direcciones.all().order_by('-es_principal', 'alias', 'direccion')
     
     context = {
         'form': form,
         'formset': formset,
         'contactos': contactos,
+        'direcciones': direcciones,
+        'todas_direcciones': cliente.get_direcciones_list(),
         'cliente': cliente,
         'title': 'Editar Cliente',
         'submit_text': 'Actualizar Cliente',
@@ -406,6 +412,78 @@ def contacto_delete(request, cliente_id, contacto_id):
     
     return render(request, 'clientes/contacto_confirm_delete.html', context)
 
+
+@login_required
+@permission_required('clientes.add_direccioncliente', raise_exception=True)
+def direccion_create(request, cliente_id):
+    """Crear dirección en modal o vista"""
+    empresa, error = obtener_empresa_usuario(request)
+    cliente = get_object_or_404(Cliente, id=cliente_id, empresa=empresa)
+    
+    if request.method == 'POST':
+        form = DireccionClienteForm(request.POST)
+        if form.is_valid():
+            direccion_obj = form.save(commit=False)
+            direccion_obj.cliente = cliente
+            direccion_obj.save()
+            messages.success(request, 'Dirección agregada exitosamente.')
+            return redirect('clientes:cliente_detail', pk=cliente.id)
+    else:
+        form = DireccionClienteForm()
+    
+    context = {
+        'form': form,
+        'cliente': cliente,
+    }
+    return render(request, 'clientes/direccion_form_modal.html', context)
+
+
+@login_required
+@permission_required('clientes.change_direccioncliente', raise_exception=True)
+def direccion_update(request, cliente_id, direccion_id):
+    """Editar dirección en modal o vista"""
+    empresa, error = obtener_empresa_usuario(request)
+    cliente = get_object_or_404(Cliente, id=cliente_id, empresa=empresa)
+    direccion_obj = get_object_or_404(DireccionCliente, id=direccion_id, cliente=cliente)
+    
+    if request.method == 'POST':
+        form = DireccionClienteForm(request.POST, instance=direccion_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Dirección actualizada exitosamente.')
+            return redirect('clientes:cliente_detail', pk=cliente.id)
+    else:
+        form = DireccionClienteForm(instance=direccion_obj)
+    
+    context = {
+        'form': form,
+        'cliente': cliente,
+        'direccion': direccion_obj,
+    }
+    return render(request, 'clientes/direccion_form_modal.html', context)
+
+
+@login_required
+@permission_required('clientes.delete_direccioncliente', raise_exception=True)
+def direccion_delete(request, cliente_id, direccion_id):
+    """Eliminar dirección"""
+    empresa, error = obtener_empresa_usuario(request)
+    cliente = get_object_or_404(Cliente, id=cliente_id, empresa=empresa)
+    direccion_obj = get_object_or_404(DireccionCliente, id=direccion_id, cliente=cliente)
+    
+    if request.method == 'POST':
+        alias_str = direccion_obj.alias or direccion_obj.direccion
+        direccion_obj.delete()
+        messages.success(request, f'Dirección "{alias_str}" eliminada exitosamente.')
+        return redirect('clientes:cliente_detail', pk=cliente.id)
+    
+    context = {
+        'cliente': cliente,
+        'direccion': direccion_obj,
+    }
+    return render(request, 'clientes/direccion_confirm_delete.html', context)
+
+
 @login_required
 def ajax_vendedores(request):
     """Obtener lista de vendedores para los modales"""
@@ -512,6 +590,89 @@ def ajax_contacto_delete(request, pk, contacto_id):
     nombre = contacto.nombre
     contacto.delete()
     return JsonResponse({'success': True, 'message': f'Contacto "{nombre}" eliminado.'})
+
+
+def _serialize_direccion(d):
+    return {
+        'id': d.id,
+        'alias': d.alias or '',
+        'direccion': d.direccion,
+        'comuna': d.comuna or '',
+        'ciudad': d.ciudad or '',
+        'region': d.region or '',
+        'es_principal': d.es_principal,
+        'activa': d.activa,
+        'observaciones': d.observaciones or '',
+    }
+
+
+@login_required
+def ajax_cliente_direcciones(request, pk):
+    """Obtener lista de todas las direcciones del cliente (base + adicionales)"""
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    direcciones = cliente.get_direcciones_list()
+    return JsonResponse({
+        'success': True,
+        'direcciones': direcciones,
+        'tiene_multiples': len(direcciones) > 1,
+    })
+
+
+@login_required
+def ajax_direccion_save(request, pk, direccion_id=None):
+    """Crear o editar una dirección vía AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    
+    if direccion_id:
+        direccion_obj = get_object_or_404(DireccionCliente, id=direccion_id, cliente=cliente)
+        form = DireccionClienteForm(request.POST, instance=direccion_obj)
+    else:
+        form = DireccionClienteForm(request.POST)
+        form.instance.cliente = cliente
+        
+    if form.is_valid():
+        direccion_obj = form.save(commit=False)
+        direccion_obj.cliente = cliente
+        direccion_obj.save()
+        return JsonResponse({
+            'success': True,
+            'message': 'Dirección actualizada.' if direccion_id else 'Dirección agregada.',
+            'direccion': _serialize_direccion(direccion_obj),
+            'direcciones': cliente.get_direcciones_list(),
+        })
+    errores = []
+    for field, field_errors in form.errors.items():
+        label = form.fields[field].label if field in form.fields else field
+        errores.append(f"{label}: {', '.join(field_errors)}")
+    return JsonResponse({'success': False, 'message': '\n'.join(errores) or 'Revise los datos de la dirección.'}, status=400)
+
+
+@login_required
+def ajax_direccion_delete(request, pk, direccion_id):
+    """Eliminar una dirección vía AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Método no permitido'}, status=405)
+    empresa, error = obtener_empresa_usuario(request)
+    if error:
+        return JsonResponse({'success': False, 'message': error}, status=400)
+    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    direccion_obj = get_object_or_404(DireccionCliente, id=direccion_id, cliente=cliente)
+    direccion_str = str(direccion_obj)
+    direccion_obj.delete()
+    return JsonResponse({
+        'success': True,
+        'message': f'Dirección "{direccion_str}" eliminada.',
+        'direcciones': cliente.get_direcciones_list(),
+    })
+
 
 @login_required
 def ajax_cliente_create(request):

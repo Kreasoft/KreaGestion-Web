@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}
+    {% if direccion %}
+        Editar Dirección / Sucursal
+    {% else %}
+        Agregar Dirección / Sucursal
+    {% endif %}
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-control, .form-select, input[type="text"], input[type="email"], input[type="number"], input[type="password"], input[type="tel"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+        height: 26px !important; min-height: 26px !important; padding: 2px 8px !important;
+        font-size: 0.72rem !important; border-color: #D4C4A8 !important;
+    }
+    textarea, textarea.form-control { height: auto !important; min-height: 52px !important; }
+    .form-control:focus, .form-select:focus, input:focus, select:focus, textarea:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; outline: none;
+    }
+    .form-label { font-size: 0.72rem; color: #5D4037; font-weight: 600; margin-bottom: 2px; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 8px 12px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px;">
+                <div class="card-header" style="background: var(--gradient-piedra, linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%)); border-bottom: 3px solid #D4C4A8; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0" style="color: #2c3e50; font-weight: 600; font-size: 1.25rem; font-family: 'Poppins', sans-serif;">
+                                {% if direccion %}
+                                    <i class="fas fa-edit me-2" style="color: #8B7355;"></i>Editar Dirección / Sucursal
+                                {% else %}
+                                    <i class="fas fa-map-marker-alt me-2" style="color: #8B7355;"></i>Agregar Dirección / Sucursal
+                                {% endif %}
+                            </h4>
+                            <small style="color: #5a6c7d; font-size: 0.75rem; font-family: 'Poppins', sans-serif;">
+                                {% if direccion %}
+                                    Modificar punto de entrega o sucursal
+                                {% else %}
+                                    Nueva dirección de despacho para {{ cliente.nombre }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 12px 16px;">
+                    <form method="post" id="direccionForm">
+                        {% csrf_token %}
+                        
+                        <div class="row g-2">
+                            <div class="col-md-12">
+                                <div class="mb-2">
+                                    <label for="{{ form.alias.id_for_label }}" class="form-label">
+                                        Alias / Nombre de Sucursal
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-tag"></i></span>
+                                        {{ form.alias }}
+                                    </div>
+                                    <small class="text-muted" style="font-size: 0.68rem;">Ej: Casa Matriz, Planta Maipú, Sucursal Antofagasta, Bodega 2</small>
+                                    {% if form.alias.errors %}
+                                        <div class="text-danger small">{{ form.alias.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <div class="mb-2">
+                                    <label for="{{ form.direccion.id_for_label }}" class="form-label">
+                                        Dirección (Calle y Número) *
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-road"></i></span>
+                                        {{ form.direccion }}
+                                    </div>
+                                    {% if form.direccion.errors %}
+                                        <div class="text-danger small">{{ form.direccion.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-2">
+                                    <label for="{{ form.comuna.id_for_label }}" class="form-label">
+                                        Comuna *
+                                    </label>
+                                    {{ form.comuna }}
+                                    {% if form.comuna.errors %}
+                                        <div class="text-danger small">{{ form.comuna.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-2">
+                                    <label for="{{ form.ciudad.id_for_label }}" class="form-label">
+                                        Ciudad
+                                    </label>
+                                    {{ form.ciudad }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="mb-2">
+                                    <label for="{{ form.region.id_for_label }}" class="form-label">
+                                        Región
+                                    </label>
+                                    {{ form.region }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-12">
+                                <div class="mb-2">
+                                    <label for="{{ form.observaciones.id_for_label }}" class="form-label">
+                                        Observaciones de entrega / Horarios
+                                    </label>
+                                    {{ form.observaciones }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check mt-1">
+                                    {{ form.es_principal }}
+                                    <label class="form-check-label" for="{{ form.es_principal.id_for_label }}" style="font-size: 0.75rem;">
+                                        ¿Es Dirección de Despacho Principal?
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-check mt-1">
+                                    {{ form.activa }}
+                                    <label class="form-check-label" for="{{ form.activa.id_for_label }}" style="font-size: 0.75rem;">
+                                        Activa (disponible para despachos)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2 mt-3 pt-2" style="border-top: 1px solid #E8DCC8;">
+                            <a href="{% url 'clientes:cliente_detail' cliente.id %}" class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem;">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-sm btn-success" style="font-size: 0.75rem;">
+                                <i class="fas fa-save me-1"></i> Guardar Dirección
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6,30 +6,47 @@ from clientes.models import Cliente
 from bodegas.models import Bodega
 
 
+from ventas.models import Vendedor
+
+
 class OrdenPedidoForm(forms.ModelForm):
     """Formulario para crear/editar órdenes de pedido"""
     
     def __init__(self, *args, **kwargs):
+        empresa = kwargs.pop('empresa', None)
         super().__init__(*args, **kwargs)
         for f in ['fecha_pedido', 'fecha_entrega_estimada', 'fecha_oc_cliente']:
             if f in self.fields:
                 self.fields[f].input_formats = ['%Y-%m-%d']
+        
+        if empresa:
+            self.fields['cliente'].queryset = Cliente.objects.filter(empresa=empresa, estado='activo').order_by('nombre')
+            self.fields['bodega'].queryset = Bodega.objects.filter(empresa=empresa, activa=True).order_by('nombre')
+            self.fields['vendedor'].queryset = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+            self.fields['vendedor'].required = False
+            self.fields['vendedor'].empty_label = "Seleccionar Vendedor (Opcional)"
 
     class Meta:
         model = OrdenPedido
         fields = [
-            'cliente', 'bodega', 'fecha_pedido', 'fecha_entrega_estimada',
+            'cliente', 'vendedor', 'bodega', 'fecha_pedido', 'fecha_entrega_estimada',
             'numero_oc_cliente', 'fecha_oc_cliente', 'condiciones_pago',
+            'direccion_despacho', 'comuna_despacho', 'ciudad_despacho', 'direccion_cliente',
             'observaciones'
         ]
         widgets = {
             'cliente': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'vendedor': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'bodega': forms.Select(attrs={'class': 'form-select form-select-sm bodega-select'}),
             'fecha_pedido': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'fecha_entrega_estimada': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'numero_oc_cliente': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'N° OC del cliente'}),
             'fecha_oc_cliente': forms.DateInput(format='%Y-%m-%d', attrs={'class': 'form-control form-control-sm', 'type': 'date'}),
             'condiciones_pago': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ej: 30 días'}),
+            'direccion_despacho': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Dirección de entrega'}),
+            'comuna_despacho': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Comuna'}),
+            'ciudad_despacho': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Ciudad'}),
+            'direccion_cliente': forms.HiddenInput(),
             'observaciones': forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 3, 'placeholder': 'Observaciones adicionales'}),
         }
 
@@ -54,7 +71,14 @@ class ItemOrdenPedidoForm(forms.ModelForm):
             self.fields['impuesto_porcentaje'].initial = 19
 
         from articulos.models import Articulo
-        self.fields['articulo'].queryset = Articulo.objects.all()
+        if empresa:
+            self.fields['articulo'].queryset = Articulo.objects.filter(empresa=empresa).order_by('nombre')
+        else:
+            self.fields['articulo'].queryset = Articulo.objects.all().order_by('nombre')
+        
+        self.fields['cantidad'].initial = 1
+        self.fields['precio_unitario'].initial = 0
+        self.fields['descuento_porcentaje'].initial = 0
     
     def clean_impuesto_porcentaje(self):
         """Asegurar que el impuesto nunca sea nulo para evitar errores de BD"""

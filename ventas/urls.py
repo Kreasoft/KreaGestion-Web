@@ -87,7 +87,11 @@ urlpatterns = [
     
     # Cotizaciones
     path('cotizaciones/', views.cotizacion_list, name='cotizacion_list'),
+    path('cotizaciones/crear/', views.cotizacion_create, name='cotizacion_create'),
     path('cotizaciones/<int:pk>/', views.cotizacion_detail, name='cotizacion_detail'),
+    path('cotizaciones/<int:pk>/editar/', views.cotizacion_edit, name='cotizacion_edit'),
+    path('cotizaciones/<int:pk>/eliminar/', views.cotizacion_delete, name='cotizacion_delete'),
+    path('cotizaciones/<int:pk>/convertir/', views.cotizacion_convertir_venta, name='cotizacion_convertir_venta'),
     path('cotizaciones/<int:pk>/pdf/', views.cotizacion_pdf, name='cotizacion_pdf'),
     path('cotizaciones/<int:pk>/html/', views.cotizacion_html, name='cotizacion_html'),
     path('cotizaciones/<int:pk>/debug/', views.cotizacion_html_debug, name='cotizacion_html_debug'),
@@ -110,9 +114,9 @@ urlpatterns = [
     path('precios-clientes/<int:pk>/editar/', views.precio_cliente_edit, name='precio_cliente_edit'),
     path('precios-clientes/<int:pk>/eliminar/', views.precio_cliente_delete, name='precio_cliente_delete'),
     
-    # API Artículos
     path('articulos/api/articulo/<int:pk>/precio/', views.articulo_precio_api, name='articulo_precio_api'),
     path('api/precio-cliente/<int:cliente_id>/<int:articulo_id>/', views.precio_cliente_articulo_api, name='precio_cliente_articulo_api'),
+    path('api/precios-cliente/<int:cliente_id>/', views.precios_cliente_todos_api, name='precios_cliente_todos_api'),
     
     # API Vendedores
     path('api/vendedores/', api_views.api_vendedores, name='api_vendedores'),

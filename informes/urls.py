@@ -16,8 +16,11 @@ urlpatterns = [
     path('inventario/stock/', views.informe_stock_actual, name='stock_actual'),
     path('inventario/stock-bajo/', views.informe_stock_bajo, name='stock_bajo'),
     
-    # Informes de Tesorería
+    # Informes de Tesorería / Cuentas
     path('tesoreria/cuentas-por-cobrar/', views.informe_cuentas_por_cobrar, name='cuentas_por_cobrar'),
+    path('ventas/facturas-por-cobrar/', views.informe_cuentas_por_cobrar, name='facturas_por_cobrar'),
+    path('tesoreria/cuentas-por-pagar/', views.informe_cuentas_por_pagar, name='cuentas_por_pagar'),
+    path('compras/facturas-por-pagar/', views.informe_cuentas_por_pagar, name='facturas_por_pagar'),
     path('tesoreria/pagos-recibidos/', views.informe_pagos_recibidos, name='pagos_recibidos'),
     
     # Informes de Caja
@@ -39,6 +42,7 @@ urlpatterns = [
     path('exportar/articulos/excel/', views.exportar_articulos_excel, name='exportar_articulos_excel'),
     path('exportar/ventas-vendedor/excel/', views.exportar_ventas_vendedor_excel, name='exportar_ventas_vendedor_excel'),
     path('exportar/cuentas-cobrar/excel/', views.exportar_cuentas_cobrar_excel, name='exportar_cuentas_cobrar_excel'),
+    path('exportar/cuentas-pagar/excel/', views.exportar_cuentas_pagar_excel, name='exportar_cuentas_pagar_excel'),
     path('exportar/pagos-recibidos/excel/', views.exportar_pagos_recibidos_excel, name='exportar_pagos_recibidos_excel'),
     path('exportar/stock-bajo/excel/', views.exportar_stock_bajo_excel, name='exportar_stock_bajo_excel'),
     path('exportar/cierres-caja/excel/', views.exportar_cierres_caja_excel, name='exportar_cierres_caja_excel'),

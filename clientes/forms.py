@@ -1,7 +1,7 @@
 from django import forms
 from django.db import models
 from django.core.exceptions import ValidationError
-from .models import Cliente, ContactoCliente
+from .models import Cliente, ContactoCliente, DireccionCliente
 from empresas.models import Empresa
 
 
@@ -264,3 +264,28 @@ class ContactoClienteInlineFormSet(forms.BaseInlineFormSet):
         
         if contactos_principales == 0 and len([f for f in self.forms if f.cleaned_data and not f.cleaned_data.get('DELETE', False)]) > 0:
             raise ValidationError('Debe seleccionar al menos un contacto como principal.')
+
+
+class DireccionClienteForm(forms.ModelForm):
+    """Formulario para direcciones y sucursales de entrega de clientes"""
+
+    class Meta:
+        model = DireccionCliente
+        fields = ['alias', 'direccion', 'comuna', 'ciudad', 'region', 'es_principal', 'activa', 'observaciones']
+        widgets = {
+            'alias': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Planta Maipú, Sucursal Centro, Bodega 2'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Calle, número, oficina/depto'}),
+            'comuna': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Comuna'}),
+            'ciudad': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ciudad'}),
+            'region': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Región'}),
+            'es_principal': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'observaciones': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Horarios de recepción, contacto en sitio, etc.'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['direccion'].required = True
+        self.fields['comuna'].required = True
+        self.fields['ciudad'].required = False
+        self.fields['region'].required = False

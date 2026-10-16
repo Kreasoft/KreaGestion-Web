@@ -1,0 +1,619 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+{% load format_filters %}
+
+{% block title %}Facturas y Cuentas por Pagar - GestionCloud{% endblock %}
+
+{% block body_class %}hide-top-bar{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --stone-primary: #8B7355;
+        --stone-secondary: #6F5B44;
+        --stone-light: #E8DCC8;
+        --stone-bg: #FAFAF8;
+        --stone-gradient: linear-gradient(135deg, #efebe9 0%, #d7ccc8 100%);
+        --stone-text: #5D4037;
+        --stone-card-bg: #FFFFFF;
+    }
+
+    body {
+        background-color: var(--stone-bg) !important;
+        color: var(--stone-text);
+        font-family: 'Poppins', sans-serif;
+    }
+    
+    @media print { .no-print { display: none !important; } }
+
+    .single-card-container {
+        background: var(--stone-card-bg);
+        border: 1px solid var(--stone-light);
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(139, 115, 85, 0.08);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+
+    .stone-header-premium {
+        background: var(--stone-gradient);
+        padding: 8px 16px;
+        border-bottom: 2px solid var(--stone-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    
+    .header-icon-box {
+        width: 36px; height: 36px; 
+        background: rgba(255, 255, 255, 0.85); 
+        backdrop-filter: blur(4px);
+        border-radius: 10px; 
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 10px rgba(139, 115, 85, 0.15);
+        color: var(--stone-secondary);
+        font-size: 1.1rem;
+    }
+
+    .header-text h1 { color: var(--stone-text); font-size: 1.35rem; margin: 0; letter-spacing: -0.5px; line-height: 1.1; font-weight: 400; }
+    .header-text h1 span { font-weight: 700; }
+    .header-text p { color: #795548; font-size: 0.72rem; margin: 0; font-weight: 500; opacity: 0.9; }
+
+    /* CONTROLES COMPACTOS */
+    .form-control, .form-select, .form-control-sm, .form-select-sm {
+        height: 28px !important; min-height: 28px !important;
+        padding: 2px 8px !important; font-size: 0.75rem !important;
+        border-color: #D4C4A8 !important; border-radius: 6px !important;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #6F5B44 !important;
+        box-shadow: 0 0 0 0.15rem rgba(111, 91, 68, 0.2) !important;
+        outline: none !important;
+    }
+
+    .btn-action-primary {
+        background: #8B8B3A !important; border: 1px solid #6F6F2E !important; color: #fff !important;
+        padding: 4px 12px !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 0.75rem !important;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
+    }
+    .btn-action-primary:hover { background: #6F6F2E !important; color: #fff !important; }
+
+    .btn-action-secondary {
+        background: #fff !important; border: 1px solid #D4C4A8 !important; color: #5D4037 !important;
+        padding: 4px 12px !important; border-radius: 6px !important; font-weight: 600 !important; font-size: 0.75rem !important;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
+    }
+    .btn-action-secondary:hover { background: #F5F1E8 !important; color: #5D4037 !important; }
+
+    .btn-action-success {
+        background: #43A047 !important; border: 1px solid #2E7D32 !important; color: #fff !important;
+        padding: 4px 12px !important; border-radius: 6px !important; font-weight: 700 !important; font-size: 0.75rem !important;
+        display: inline-flex; align-items: center; gap: 4px; text-decoration: none;
+    }
+    .btn-action-success:hover { background: #2E7D32 !important; color: #fff !important; }
+
+    /* TABLA ESTILO PIEDRA ULTRA COMPACTA (1 FILA POR FACTURA) */
+    table.table-piedra {
+        width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+    }
+    .table-piedra thead th {
+        padding: 2px 6px !important;
+        font-size: 0.65rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.3px !important;
+        background: #FDFCFB !important;
+        border-bottom: 2px solid #E8DCC8 !important;
+        color: #8B7355 !important;
+        height: 26px !important;
+        line-height: 26px !important;
+        white-space: nowrap !important;
+    }
+    .table-piedra tbody tr {
+        height: 24px !important;
+        transition: background 0.15s ease;
+    }
+    .table-piedra tbody tr:nth-of-type(odd) { background-color: rgba(245, 241, 232, 0.35); }
+    .table-piedra tbody tr:hover { background-color: #F5F1E8 !important; }
+    .table-piedra tbody td {
+        height: 24px !important;
+        padding: 0 6px !important;
+        font-size: 0.68rem !important;
+        line-height: 24px !important;
+        vertical-align: middle !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        border-bottom: 1px solid #F0E6D8;
+    }
+
+    .badge-vencido {
+        background: #FFEBEE;
+        color: #C62828;
+        border: 1px solid #EF9A9A;
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    .badge-vigente {
+        background: #E8F5E9;
+        color: #2E7D32;
+        border: 1px solid #A5D6A7;
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+    /* ==========================================================================
+       ESTILOS DE IMPRESIÓN PROFESIONAL Y EJECUTIVO
+       ========================================================================== */
+    @media print {
+        @page {
+            size: letter landscape;
+            margin: 8mm 8mm 10mm 8mm;
+        }
+
+        html, body, .main-content, .card-body, .single-card-container, 
+        .table-container, table, tbody, thead, tfoot, tr, td, th {
+            background-image: none !important;
+            background-color: #FFFFFF !important;
+            color: #1A202C !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+
+        body {
+            font-size: 7pt !important;
+            line-height: 1.15 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .no-print, form, .btn, .card-header, .stone-header-premium, .gc-folio-alertas, .gc-folio-alerta {
+            display: none !important;
+        }
+
+        .single-card-container {
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .card-body {
+            padding: 0 !important;
+        }
+
+        /* HEADER EJECUTIVO DE IMPRESIÓN */
+        .print-header-executive {
+            display: block !important;
+            border-bottom: 2px solid #5D4037 !important;
+            padding-bottom: 5px !important;
+            margin-bottom: 6px !important;
+        }
+
+        /* RESUMEN KPIS EN 1 SOLA LÍNEA HORIZONTAL */
+        .kpis-summary-grid {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 6px !important;
+            margin-bottom: 6px !important;
+            width: 100% !important;
+        }
+        .kpis-summary-grid > div {
+            flex: 1 1 25% !important;
+            max-width: 25% !important;
+            width: 25% !important;
+            padding: 0 !important;
+        }
+        .kpis-summary-grid .card {
+            background: #FAFAF8 !important;
+            border: 1px solid #D4C4A8 !important;
+            box-shadow: none !important;
+            border-radius: 4px !important;
+            min-height: auto !important;
+            padding: 4px 6px !important;
+        }
+        .kpis-summary-grid .stat-icon-bg {
+            display: none !important;
+        }
+        .kpis-summary-grid .stat-label {
+            font-size: 6.5pt !important;
+            color: #5D4037 !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.3px !important;
+            margin-bottom: 1px !important;
+        }
+        .kpis-summary-grid .stat-value {
+            font-size: 10.5pt !important;
+            font-weight: 700 !important;
+            color: #1A202C !important;
+            line-height: 1.1 !important;
+        }
+        .kpis-summary-grid .badge {
+            font-size: 6pt !important;
+            border: 1px solid #CBD5E0 !important;
+            background: #FFF !important;
+            color: #2D3748 !important;
+            padding: 1px 4px !important;
+            border-radius: 3px !important;
+        }
+
+        /* TABLA DE DETALLE ULTRA COMPACTA (1 LÍNEA ESTRICTA POR FACTURA) */
+        .table-container {
+            border: 1px solid #D4C4A8 !important;
+            overflow: visible !important;
+            border-radius: 0 !important;
+        }
+        table.table-piedra {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            font-size: 6.5pt !important;
+        }
+        table.table-piedra thead th {
+            background: #F5F1E8 !important;
+            color: #5D4037 !important;
+            font-size: 6.5pt !important;
+            font-weight: 700 !important;
+            padding: 2px 4px !important;
+            border-bottom: 1.5px solid #5D4037 !important;
+            border-top: 1px solid #D4C4A8 !important;
+            border-left: 1px solid #EAE2D5 !important;
+            border-right: 1px solid #EAE2D5 !important;
+            height: 18px !important;
+            line-height: 18px !important;
+            text-transform: uppercase !important;
+            white-space: nowrap !important;
+        }
+        table.table-piedra tbody tr {
+            height: 18px !important;
+            page-break-inside: avoid !important;
+        }
+        table.table-piedra tbody tr:nth-of-type(odd) {
+            background-color: #FAFAF8 !important;
+        }
+        table.table-piedra tbody td {
+            padding: 0 4px !important;
+            font-size: 6.5pt !important;
+            line-height: 18px !important;
+            height: 18px !important;
+            border: 1px solid #EAE2D5 !important;
+            color: #2D3748 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            vertical-align: middle !important;
+        }
+        table.table-piedra tfoot {
+            background: #F5F1E8 !important;
+            border-top: 2px solid #5D4037 !important;
+            border-bottom: 2px solid #5D4037 !important;
+            font-weight: 700 !important;
+        }
+        table.table-piedra tfoot td {
+            padding: 2px 4px !important;
+            font-size: 7pt !important;
+            color: #1A202C !important;
+            border: 1px solid #D4C4A8 !important;
+            white-space: nowrap !important;
+        }
+
+        .badge-vencido {
+            background: #FFF0F0 !important;
+            color: #B71C1C !important;
+            border: 1px solid #E57373 !important;
+            font-size: 5.5pt !important;
+            padding: 0 2px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+        .badge-vigente {
+            background: #F0FFF4 !important;
+            color: #1B5E20 !important;
+            border: 1px solid #81C784 !important;
+            font-size: 5.5pt !important;
+            padding: 0 2px !important;
+            font-weight: 700 !important;
+            white-space: nowrap !important;
+        }
+
+        .print-footer-report {
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #D4C4A8;
+            margin-top: 6px;
+            padding-top: 3px;
+            font-size: 6.5pt;
+            color: #718096;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 8px 12px;">
+    
+    <!-- ENCABEZADO EJECUTIVO EXCLUSIVO PARA IMPRESIÓN -->
+    <div class="print-header-executive d-none">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                {% if request.empresa.logo %}
+                    <img src="{{ request.empresa.logo.url }}" alt="Logo {{ request.empresa.nombre }}" style="max-height: 48px; max-width: 140px; object-fit: contain;">
+                {% endif %}
+                <div>
+                    <h2 class="mb-0 fw-bold" style="color: #2D3748; font-size: 13pt; letter-spacing: -0.3px;">
+                        {{ request.empresa.nombre|default:"GESTIONCLOUD ERP"|upper }}
+                    </h2>
+                    <div style="font-size: 7.5pt; color: #4A5568;">
+                        RUT: <strong>{{ request.empresa.rut|default:"-" }}</strong> &bull; INFORME FINANCIERO OFICIAL DE CUENTAS POR PAGAR
+                    </div>
+                </div>
+            </div>
+            <div class="text-end">
+                <h3 class="mb-0 fw-bold text-uppercase" style="color: #5D4037; font-size: 11pt;">
+                    Facturas por Pagar
+                </h3>
+                <div style="font-size: 7pt; color: #718096;">
+                    Fecha Emisión: <strong>{% now "d/m/Y H:i" %}</strong> | Vcto: {{ fecha_desde|default:"Inicio" }} al {{ fecha_hasta|default:"Fin" }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="single-card-container">
+        <!-- Header Premium Pantalla -->
+        <div class="stone-header-premium no-print">
+            <div class="d-flex align-items-center gap-2">
+                <div class="header-icon-box">
+                    <i class="fas fa-file-invoice"></i>
+                </div>
+                <div class="header-text">
+                    <h1>Facturas por <span>Pagar</span></h1>
+                    <p>Cuentas corrientes y compras a proveedores pendientes de pago</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 no-print">
+                <a href="{% url 'informes:dashboard' %}" class="btn-action-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <button onclick="window.print()" class="btn-action-secondary">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+                <a href="{% url 'informes:exportar_cuentas_pagar_excel' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&search={{ search }}&estado={{ estado }}{% if sin_filtro_fecha %}&sin_filtro_fecha=1{% endif %}" class="btn-action-success">
+                    <i class="fas fa-file-excel"></i> Exportar Excel
+                </a>
+            </div>
+        </div>
+
+        <div class="card-body" style="padding: 10px; background: #FAFAF8;">
+            
+            <!-- TARJETAS DE ESTADÍSTICAS (Pastel Warm Autumn en pantalla / Strip compacto en impresión) -->
+            <div class="row g-2 mb-2 kpis-summary-grid">
+                <!-- Total por Pagar (Terracota) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-terracota stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-money-bill-wave"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #795548; letter-spacing: 0.5px;">Total por Pagar</div>
+                                <div class="stat-value" style="font-size: 1.15rem; font-weight: 700; color: #3E2723;">${{ total_por_pagar|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-white bg-opacity-75 text-dark" style="font-size: 0.65rem; border-radius: 12px; font-weight: 600;">{{ cantidad_documentos }} facturas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Vencido (Rosa Coral) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-rosa stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #8D4B41; letter-spacing: 0.5px;">Vencidas</div>
+                                <div class="stat-value text-danger" style="font-size: 1.15rem; font-weight: 700;">${{ total_vencido|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.65rem; border-radius: 12px; font-weight: 700;">{{ cantidad_vencidos }} vencidas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Por Vencer (Verde Salvia) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-verde stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-clock"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #335936; letter-spacing: 0.5px;">Por Vencer (Vigentes)</div>
+                                <div class="stat-value text-success" style="font-size: 1.15rem; font-weight: 700;">${{ total_por_vencer|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25" style="font-size: 0.65rem; border-radius: 12px; font-weight: 700;">{{ cantidad_por_vencer }} al día</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Total Monto Compras (Moka / Arena) -->
+                <div class="col-xl-3 col-md-6">
+                    <div class="card card-stats-pastel-moka stat-card-compact border-0 shadow-sm h-100" style="min-height: 52px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <div class="stat-icon-bg"><i class="fas fa-boxes"></i></div>
+                        <div class="card-body py-1 px-3 d-flex align-items-center justify-content-between" style="position: relative; z-index: 2;">
+                            <div>
+                                <div class="stat-label" style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #5D4037; letter-spacing: 0.5px;">Total Facturado Compras</div>
+                                <div class="stat-value" style="font-size: 1.15rem; font-weight: 700; color: #3E2723;">${{ total_monto_documentos|format_miles }}</div>
+                            </div>
+                            <span class="badge bg-white bg-opacity-75 text-dark" style="font-size: 0.65rem; border-radius: 12px; font-weight: 600;">Total compras</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BARRA DE FILTROS (Rango de fecha vencimiento por defecto últimos 30 días) -->
+            <div class="card mb-2 shadow-sm no-print" style="border: 1px solid #E8DCC8; border-radius: 8px; background: white;">
+                <div class="card-body p-2">
+                    <form method="get" class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                <i class="fas fa-calendar-alt text-secondary"></i> Vencimiento Desde:
+                            </label>
+                            <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                <i class="fas fa-calendar-alt text-secondary"></i> Vencimiento Hasta:
+                            </label>
+                            <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                <i class="fas fa-search text-secondary"></i> Buscar Proveedor / Folio / RUT:
+                            </label>
+                            <input type="text" name="search" class="form-control form-control-sm" placeholder="Nombre proveedor, RUT, N° doc..." value="{{ search }}">
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label small text-muted mb-0 d-flex align-items-center gap-1" style="font-size: 0.68rem; font-weight: 600;">
+                                Estado:
+                            </label>
+                            <select name="estado" class="form-select form-select-sm">
+                                <option value="todos" {% if estado == 'todos' %}selected{% endif %}>Todos</option>
+                                <option value="vencidas" {% if estado == 'vencidas' or estado == 'vencidos' %}selected{% endif %}>Vencidas</option>
+                                <option value="por_vencer" {% if estado == 'por_vencer' %}selected{% endif %}>Por Vencer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex gap-1 align-items-end" style="padding-top: 14px;">
+                            <button type="submit" class="btn btn-action-primary flex-fill justify-content-center">
+                                <i class="fas fa-filter"></i> Filtrar
+                            </button>
+                            {% if sin_filtro_fecha %}
+                            <a href="{% url 'informes:cuentas_por_pagar' %}" class="btn btn-action-secondary" title="Restaurar filtro de 30 días">
+                                <i class="fas fa-undo"></i>
+                            </a>
+                            {% else %}
+                            <a href="{% url 'informes:cuentas_por_pagar' %}?sin_filtro_fecha=1" class="btn btn-action-secondary" title="Ver todos sin límite de fecha">
+                                <i class="fas fa-globe"></i> Todos
+                            </a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- TABLA DE DOCUMENTOS POR PAGAR -->
+            <div class="table-container bg-white rounded-3 shadow-sm border" style="border-color: #E8DCC8 !important; overflow: hidden;">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 tabla-informe table-piedra" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                        <thead>
+                            <tr>
+                                <th style="width: 30%;">Proveedor</th>
+                                <th style="width: 11%;">RUT</th>
+                                <th class="text-center" style="width: 3.5%;">Doc</th>
+                                <th style="width: 8%;">N° Doc</th>
+                                <th style="width: 7.5%;">Emisión</th>
+                                <th style="width: 7.5%;">Vcto.</th>
+                                <th class="text-end" style="width: 11%;">Total Doc.</th>
+                                <th class="text-end" style="width: 10%;">Pagado</th>
+                                <th class="text-end" style="width: 10%;">Saldo</th>
+                                <th class="text-center" style="width: 1.5%;">Est.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in documentos %}
+                            <tr>
+                                <td style="color: #5D4037; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ doc.proveedor.nombre }}">
+                                    {{ doc.proveedor.nombre|default:"Sin proveedor" }}
+                                </td>
+                                <td style="color: #795548; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                    {{ doc.proveedor.rut|default:"-" }}
+                                </td>
+                                <td class="text-center">
+                                    {% if 'credito' in doc.tipo_documento|lower or doc.tipo_documento == '61' %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Nota de Crédito">NC</span>
+                                    {% elif 'debito' in doc.tipo_documento|lower or doc.tipo_documento == '56' %}
+                                        <span class="badge bg-warning bg-opacity-10 text-dark border border-warning border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Nota de Débito">ND</span>
+                                    {% elif 'guia' in doc.tipo_documento|lower or doc.tipo_documento == '52' %}
+                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Guía de Despacho">GD</span>
+                                    {% elif 'boleta' in doc.tipo_documento|lower or doc.tipo_documento in '39 41' %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Boleta">BL</span>
+                                    {% else %}
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25" style="font-size: 0.62rem; padding: 1px 3px;" title="Factura">FA</span>
+                                    {% endif %}
+                                </td>
+                                <td style="font-weight: 600; font-size: 0.68rem; color: #3E2723;">
+                                    {{ doc.numero_documento|limpiar_folio }}
+                                </td>
+                                <td style="color: #5D4037;">
+                                    {{ doc.fecha_emision|date:"d-m-Y" }}
+                                </td>
+                                <td>
+                                    {% if doc.fecha_vencimiento %}
+                                        <span style="font-weight: 600; color: {% if doc.fecha_vencimiento < today %}#C62828{% else %}#2E7D32{% endif %};">
+                                            {{ doc.fecha_vencimiento|date:"d-m-Y" }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end" style="color: #5D4037;">
+                                    ${{ doc.total_documento|format_miles }}
+                                </td>
+                                <td class="text-end" style="color: #689F38;">
+                                    ${{ doc.monto_pagado|format_miles }}
+                                </td>
+                                <td class="text-end fw-bold" style="color: #C62828; font-size: 0.85rem;">
+                                    ${{ doc.saldo_pendiente|format_miles }}
+                                </td>
+                                <td class="text-center">
+                                    {% if doc.fecha_vencimiento and doc.fecha_vencimiento < today %}
+                                        <span class="badge-vencido"><i class="fas fa-exclamation-triangle me-1"></i>Venc.</span>
+                                    {% else %}
+                                        <span class="badge-vigente"><i class="fas fa-check-circle me-1"></i>Al Día</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="10" class="text-center py-4 text-muted" style="height: 60px;">
+                                    <div class="d-flex flex-column align-items-center justify-content-center gap-1">
+                                        <i class="fas fa-check-circle text-success" style="font-size: 1.5rem;"></i>
+                                        <span>No se encontraron facturas por pagar a proveedores en el rango de vencimiento seleccionado.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if documentos %}
+                        <tfoot style="background: #FAF8F5; border-top: 2px solid #E8DCC8; font-weight: 700;">
+                            <tr>
+                                <td colspan="6" class="text-end text-uppercase" style="font-size: 0.75rem; color: #5D4037;">
+                                    Totales del Período:
+                                </td>
+                                <td class="text-end" style="color: #5D4037;">${{ total_monto_documentos|format_miles }}</td>
+                                <td class="text-end" style="color: #689F38;">${{ total_pagado|format_miles }}</td>
+                                <td class="text-end" style="color: #C62828; font-size: 0.9rem;">${{ total_por_pagar|format_miles }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pie de reporte impreso -->
+            <div class="print-footer-report d-none">
+                <div>GestionCloud ERP &bull; Informe Financiero de Cuentas por Pagar &bull; {{ request.empresa.nombre }}</div>
+                <div>Impreso el {% now "d/m/Y H:i" %}</div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

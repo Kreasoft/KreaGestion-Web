@@ -17,6 +17,13 @@ urlpatterns = [
     path('ajax/<int:pk>/contactos/crear/', views.ajax_contacto_save, name='ajax_contacto_create'),
     path('ajax/<int:pk>/contactos/<int:contacto_id>/editar/', views.ajax_contacto_save, name='ajax_contacto_update'),
     path('ajax/<int:pk>/contactos/<int:contacto_id>/eliminar/', views.ajax_contacto_delete, name='ajax_contacto_delete'),
+    
+    # URLs AJAX para direcciones
+    path('ajax/<int:pk>/direcciones/', views.ajax_cliente_direcciones, name='ajax_cliente_direcciones'),
+    path('ajax/<int:pk>/direcciones/crear/', views.ajax_direccion_save, name='ajax_direccion_create'),
+    path('ajax/<int:pk>/direcciones/<int:direccion_id>/editar/', views.ajax_direccion_save, name='ajax_direccion_update'),
+    path('ajax/<int:pk>/direcciones/<int:direccion_id>/eliminar/', views.ajax_direccion_delete, name='ajax_direccion_delete'),
+    
     path('ajax/<int:pk>/', views.ajax_cliente_detail, name='ajax_cliente_detail'),
     path('ajax/<int:pk>/editar/', views.ajax_cliente_update, name='ajax_cliente_update'),
     
@@ -24,4 +31,9 @@ urlpatterns = [
     path('<int:cliente_id>/contactos/crear/', views.contacto_create, name='contacto_create'),
     path('<int:cliente_id>/contactos/<int:contacto_id>/editar/', views.contacto_update, name='contacto_update'),
     path('<int:cliente_id>/contactos/<int:contacto_id>/eliminar/', views.contacto_delete, name='contacto_delete'),
+
+    # URLs para direcciones
+    path('<int:cliente_id>/direcciones/crear/', views.direccion_create, name='direccion_create'),
+    path('<int:cliente_id>/direcciones/<int:direccion_id>/editar/', views.direccion_update, name='direccion_update'),
+    path('<int:cliente_id>/direcciones/<int:direccion_id>/eliminar/', views.direccion_delete, name='direccion_delete'),
 ]

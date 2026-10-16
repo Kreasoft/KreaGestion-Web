@@ -9,10 +9,12 @@ from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime
 
+from decimal import Decimal
 from .models import OrdenPedido, ItemOrdenPedido #, DespachoPedido
 from .forms import OrdenPedidoForm, ItemOrdenPedidoFormSet, BusquedaPedidoForm #, DespachoPedidoForm, DespachoEstadoForm, BusquedaDespachoForm, ItemDespachoPedidoFormSet
 from empresas.models import Empresa
 from articulos.models import Articulo
+from ventas.models import Venta, VentaDetalle
 from core.decorators import requiere_empresa
 
 
@@ -30,6 +32,116 @@ def articulos_con_stock(empresa):
 def total_saldo_por_despachar(qs):
     """Suma el monto de unidades aún no despachadas (no el total del pedido)."""
     return OrdenPedido.total_saldo_por_despachar(qs)
+
+
+def _crear_cotizacion_desde_pedido(empresa, user, form, formset):
+    """Crea una cotización en el módulo de Ventas con el contenido del formulario de pedido."""
+    with transaction.atomic():
+        Empresa.objects.select_for_update().get(pk=empresa.pk)
+        
+        import re
+        cots_empresa = Venta.objects.filter(
+            empresa=empresa,
+            tipo_documento='cotizacion'
+        ).values_list('numero_venta', flat=True)
+        
+        max_num = 0
+        for num_str in cots_empresa:
+            if not num_str:
+                continue
+            match = re.search(r'(\d+)$', str(num_str))
+            if match:
+                try:
+                    val = int(match.group(1))
+                    if val < 100000000 and val > max_num:
+                        max_num = val
+                except ValueError:
+                    pass
+                    
+        nuevo_numero = max_num + 1
+        numero_cot = f"{nuevo_numero:06d}"
+        while Venta.objects.filter(empresa=empresa, tipo_documento='cotizacion', numero_venta=numero_cot).exists():
+            nuevo_numero += 1
+            numero_cot = f"{nuevo_numero:06d}"
+
+        cliente = form.cleaned_data.get('cliente')
+        vendedor = form.cleaned_data.get('vendedor')
+        fecha_pedido = form.cleaned_data.get('fecha_pedido') or timezone.localdate()
+        
+        obs_list = []
+        if form.cleaned_data.get('observaciones'):
+            obs_list.append(form.cleaned_data.get('observaciones'))
+        if form.cleaned_data.get('condiciones_pago'):
+            obs_list.append(f"Condiciones de pago: {form.cleaned_data.get('condiciones_pago')}")
+        if form.cleaned_data.get('numero_oc_cliente'):
+            obs_list.append(f"OC Cliente: {form.cleaned_data.get('numero_oc_cliente')}")
+        obs_texto = "\n".join(obs_list)
+
+        cotizacion = Venta.objects.create(
+            empresa=empresa,
+            numero_venta=numero_cot,
+            fecha=fecha_pedido,
+            cliente=cliente,
+            vendedor=vendedor,
+            tipo_documento='cotizacion',
+            tipo_documento_planeado='factura',
+            direccion_despacho=form.cleaned_data.get('direccion_despacho') or getattr(cliente, 'direccion', '') or '',
+            comuna_despacho=form.cleaned_data.get('comuna_despacho') or getattr(cliente, 'comuna', '') or '',
+            ciudad_despacho=form.cleaned_data.get('ciudad_despacho') or getattr(cliente, 'ciudad', '') or '',
+            direccion_cliente=form.cleaned_data.get('direccion_cliente'),
+            estado='confirmada',
+            estado_cotizacion='pendiente',
+            facturado=False,
+            observaciones=obs_texto,
+            usuario_creacion=user
+        )
+
+        subtotal_acum = Decimal('0.00')
+        descuento_acum = Decimal('0.00')
+        neto_acum = Decimal('0.00')
+        iva_acum = Decimal('0.00')
+
+        for item_form in formset:
+            if not item_form.cleaned_data or item_form.cleaned_data.get('DELETE'):
+                continue
+            articulo = item_form.cleaned_data.get('articulo')
+            if not articulo:
+                continue
+            
+            cantidad = Decimal(str(item_form.cleaned_data.get('cantidad') or 1))
+            precio_unitario = Decimal(str(item_form.cleaned_data.get('precio_unitario') or 0))
+            desc_porc = Decimal(str(item_form.cleaned_data.get('descuento_porcentaje') or 0))
+            imp_porc = Decimal(str(item_form.cleaned_data.get('impuesto_porcentaje') or 19))
+            
+            subtotal_linea = cantidad * precio_unitario
+            desc_monto = subtotal_linea * (desc_porc / Decimal('100'))
+            base_linea = subtotal_linea - desc_monto
+            iva_linea = base_linea * (imp_porc / Decimal('100'))
+            
+            subtotal_acum += subtotal_linea
+            descuento_acum += desc_monto
+            neto_acum += base_linea
+            iva_acum += iva_linea
+
+            precio_unit_efectivo = precio_unitario * (Decimal('1') - (desc_porc / Decimal('100')))
+            
+            VentaDetalle.objects.create(
+                venta=cotizacion,
+                articulo=articulo,
+                cantidad=cantidad,
+                precio_unitario=precio_unit_efectivo,
+                precio_total=base_linea,
+                impuesto_especifico=Decimal('0.00')
+            )
+
+        cotizacion.subtotal = round(subtotal_acum)
+        cotizacion.descuento = round(descuento_acum)
+        cotizacion.neto = round(neto_acum)
+        cotizacion.iva = round(iva_acum)
+        cotizacion.total = round(neto_acum + iva_acum)
+        cotizacion.save()
+
+        return cotizacion
 
 
 @login_required
@@ -135,10 +247,7 @@ def orden_pedido_create(request):
             return redirect('/')
     
     if request.method == 'POST':
-        print("=== DEBUG PEDIDO POST ===")
-        print(f"POST data: {request.POST}")
-        
-        form = OrdenPedidoForm(request.POST)
+        form = OrdenPedidoForm(request.POST, empresa=empresa)
         formset = ItemOrdenPedidoFormSet(request.POST, empresa=empresa)
         
         if not form.is_valid() or not formset.is_valid():
@@ -149,35 +258,57 @@ def orden_pedido_create(request):
                 f.write(f"POST: {request.POST}\n")
         
         if form.is_valid() and formset.is_valid():
-            try:
-                with transaction.atomic():
-                    # El bloqueo es por empresa: cada tenant conserva su propio correlativo.
-                    Empresa.objects.select_for_update().get(pk=empresa.pk)
-                    pedido = form.save(commit=False)
-                    pedido.empresa = empresa
-                    pedido.creado_por = request.user
-                    pedido.estado = 'confirmada'
+            items_validos = [
+                f for f in formset 
+                if f.cleaned_data and not f.cleaned_data.get('DELETE') and f.cleaned_data.get('articulo')
+            ]
+            if not items_validos:
+                messages.error(request, 'Debe ingresar al menos un producto en la orden de pedido.')
+                articulos_empresa = articulos_con_stock(empresa)
+                return render(request, 'pedidos/orden_pedido_form.html', {
+                    'form': form,
+                    'formset': formset,
+                    'articulos_empresa': articulos_empresa,
+                    'empresa': empresa,
+                })
 
-                    pedido.generar_numero_pedido()
-                    print(f"Numero de pedido generado: {pedido.numero_pedido}")
-                    pedido.save()
-                    print(f"Pedido guardado con ID: {pedido.id}")
+            accion = request.POST.get('accion')
+            if accion == 'guardar_cotizacion':
+                try:
+                    cotizacion = _crear_cotizacion_desde_pedido(empresa, request.user, form, formset)
+                    messages.success(request, f'Cotización #{cotizacion.numero_venta} creada exitosamente desde orden de pedido.')
+                    return redirect('ventas:cotizacion_list')
+                except Exception as e:
+                    import traceback
+                    print(f"Error al guardar cotización: {str(e)}")
+                    print(traceback.format_exc())
+                    messages.error(request, f'Error al guardar la cotización: {str(e)}')
+            else:
+                try:
+                    with transaction.atomic():
+                        # El bloqueo es por empresa: cada tenant conserva su propio correlativo.
+                        Empresa.objects.select_for_update().get(pk=empresa.pk)
+                        pedido = form.save(commit=False)
+                        pedido.empresa = empresa
+                        pedido.creado_por = request.user
+                        pedido.estado = 'confirmada'
 
-                    formset.instance = pedido
-                    items = formset.save()
-                    print(f"Items guardados: {len(items)}")
+                        pedido.generar_numero_pedido()
+                        pedido.save()
 
-                    pedido.calcular_totales()
-                    print(f"Totales calculados - Total: {pedido.total_pedido}")
-                
-                messages.success(request, f'Orden de pedido {pedido.numero_pedido} creada exitosamente.')
-                from django.urls import reverse
-                return redirect(f"{reverse('pedidos:orden_pedido_detail', kwargs={'pk': pedido.pk})}?nuevo=1")
-            except Exception as e:
-                import traceback
-                print(f"Error al guardar: {str(e)}")
-                print(traceback.format_exc())
-                messages.error(request, f'Error al guardar el pedido: {str(e)}')
+                        formset.instance = pedido
+                        formset.save()
+
+                        pedido.calcular_totales()
+                    
+                    messages.success(request, f'Orden de pedido {pedido.numero_pedido} creada exitosamente.')
+                    from django.urls import reverse
+                    return redirect(f"{reverse('pedidos:orden_pedido_detail', kwargs={'pk': pedido.pk})}?nuevo=1")
+                except Exception as e:
+                    import traceback
+                    print(f"Error al guardar: {str(e)}")
+                    print(traceback.format_exc())
+                    messages.error(request, f'Error al guardar el pedido: {str(e)}')
         else:
             # Mostrar errores del formulario
             if form.errors:
@@ -194,7 +325,7 @@ def orden_pedido_create(request):
                     for error in formset.non_form_errors():
                         messages.error(request, f'Error general: {error}')
     else:
-        form = OrdenPedidoForm()
+        form = OrdenPedidoForm(empresa=empresa)
         formset = ItemOrdenPedidoFormSet(empresa=empresa)
     
     articulos_empresa = articulos_con_stock(empresa)
@@ -400,6 +531,7 @@ def orden_pedido_pdf(request, pk):
     if pedido.fecha_oc_cliente:
         oc_txt += f" ({pedido.fecha_oc_cliente.strftime('%d-%m-%Y')})"
 
+    vendedor_txt = pedido.vendedor.nombre if pedido.vendedor else (pedido.creado_por.get_full_name() or pedido.creado_por.username if pedido.creado_por else '—')
     datos_cliente = [
         [
             Paragraph("SEÑOR(ES):", st_label), Paragraph(cliente.nombre.upper(), st_val_b),
@@ -419,7 +551,7 @@ def orden_pedido_pdf(request, pk):
         ],
         [
             Paragraph("N° OC CLIENTE:", st_label), Paragraph(oc_txt, st_val),
-            Paragraph("RESPONSABLE:", st_label), Paragraph(pedido.creado_por.get_full_name() or pedido.creado_por.username, st_val)
+            Paragraph("VENDEDOR:", st_label), Paragraph(vendedor_txt, st_val)
         ]
     ]
     tabla_cliente = Table(datos_cliente, colWidths=[27 * mm, 73 * mm, 27 * mm, 55 * mm])
@@ -628,10 +760,25 @@ def orden_pedido_update(request, pk):
             return redirect('/')
     
     if request.method == 'POST':
-        form = OrdenPedidoForm(request.POST, instance=pedido)
+        form = OrdenPedidoForm(request.POST, instance=pedido, empresa=pedido.empresa)
         formset = ItemOrdenPedidoFormSet(request.POST, instance=pedido, empresa=pedido.empresa)
         
         if form.is_valid() and formset.is_valid():
+            items_validos = [
+                f for f in formset 
+                if f.cleaned_data and not f.cleaned_data.get('DELETE') and f.cleaned_data.get('articulo')
+            ]
+            if not items_validos:
+                messages.error(request, 'Debe ingresar al menos un producto en la orden de pedido.')
+                articulos_empresa = articulos_con_stock(pedido.empresa)
+                return render(request, 'pedidos/orden_pedido_form.html', {
+                    'form': form,
+                    'formset': formset,
+                    'pedido': pedido,
+                    'articulos_empresa': articulos_empresa,
+                    'empresa': pedido.empresa,
+                })
+
             pedido = form.save()
             formset.save()
             
@@ -659,7 +806,7 @@ def orden_pedido_update(request, pk):
                             for error in errors:
                                 messages.error(request, f'Item {i+1} - {field}: {error}')
     else:
-        form = OrdenPedidoForm(instance=pedido)
+        form = OrdenPedidoForm(instance=pedido, empresa=pedido.empresa)
         formset = ItemOrdenPedidoFormSet(instance=pedido, empresa=pedido.empresa)
     
     articulos_empresa = articulos_con_stock(pedido.empresa)

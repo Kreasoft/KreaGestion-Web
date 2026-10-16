@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Eliminar Dirección{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-control, .form-select, input[type="text"], input[type="email"], input[type="number"], input[type="password"], input[type="tel"], input[type="url"], input[type="date"], input[type="file"], textarea, select {
+        height: 26px !important; min-height: 26px !important; padding: 2px 8px !important;
+        font-size: 0.72rem !important; border-color: #D4C4A8 !important;
+    }
+    textarea, textarea.form-control { height: auto !important; min-height: 52px !important; }
+    .form-control:focus, .form-select:focus, input:focus, select:focus, textarea:focus {
+        border-color: #6F5B44 !important; box-shadow: 0 0 0 2px rgba(111,91,68,0.15) !important; outline: none;
+    }
+    .form-label { font-size: 0.72rem; color: #5D4037; font-weight: 600; margin-bottom: 2px; }
+    .modal-header { padding: 8px 16px !important; }
+    .modal-body { padding: 8px 12px !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="padding: 8px 12px;">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px;">
+                <div class="card-header" style="background: linear-gradient(135deg, #dc3545 0%, #f8d7da 100%); border: none; padding: 8px 16px;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0 text-white" style="font-weight: 600; font-size: 1.25rem; font-family: 'Poppins', sans-serif;">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Eliminar Dirección / Sucursal
+                            </h4>
+                            <small class="text-white opacity-75" style="font-size: 0.75rem;">
+                                Confirmar eliminación de la dirección
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body" style="padding: 16px;">
+                    <div class="alert alert-warning" style="border: none; background-color: #fff3cd; color: #856404; font-size: 0.85rem;">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>¿Estás seguro de que deseas eliminar esta dirección de despacho?</strong>
+                    </div>
+                    
+                    <div class="p-3 mb-3 bg-light rounded" style="border: 1px solid #dee2e6;">
+                        <h6 style="color: #2c3e50; font-weight: 600;">
+                            <i class="fas fa-map-marker-alt me-2" style="color: #dc3545;"></i>
+                            {{ direccion.alias|default:direccion.direccion }}
+                        </h6>
+                        <p class="mb-1 text-muted" style="font-size: 0.8rem;">
+                            <strong>Dirección:</strong> {{ direccion.direccion }}
+                        </p>
+                        <p class="mb-1 text-muted" style="font-size: 0.8rem;">
+                            <strong>Comuna/Ciudad:</strong> {{ direccion.comuna }}{% if direccion.ciudad %}, {{ direccion.ciudad }}{% endif %}
+                        </p>
+                        {% if direccion.es_principal %}
+                        <span class="badge bg-primary">Dirección Principal</span>
+                        {% endif %}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{% url 'clientes:cliente_detail' cliente.id %}" class="btn btn-sm btn-outline-secondary">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash me-1"></i> Sí, Eliminar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

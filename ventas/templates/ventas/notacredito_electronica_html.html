@@ -47,10 +47,12 @@
                 min-height: 1080px;
                 margin: 20px auto 40px auto;
                 background: #ffffff;
-                padding: 32px 36px 40px 36px;
+                padding: 32px 36px 36px 36px;
                 box-sizing: border-box;
                 box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.12);
                 border-radius: 4px;
+                display: flex;
+                flex-direction: column;
             }
         }
 
@@ -64,11 +66,13 @@
             .factura-container {
                 width: 100% !important;
                 max-width: none !important;
-                min-height: auto !important;
+                min-height: 278mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 box-shadow: none !important;
                 border-radius: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
 
             .no-print {
@@ -107,13 +111,17 @@
 
         .company-logo-container {
             text-align: center;
-            margin-top: 4px;
+            margin-top: 6px;
+            margin-bottom: 4px;
         }
 
         .company-logo {
-            max-width: 160px;
-            max-height: 80px;
+            max-width: 240px;
+            max-height: 75px;
+            width: auto;
+            height: auto;
             object-fit: contain;
+            display: inline-block;
         }
 
         table.sii-box {
@@ -196,25 +204,44 @@
             background-color: #ffffff;
         }
 
+        .detalle-container {
+            flex: 1 1 auto;
+            border: 1px solid #b0c4de;
+            border-radius: 2px;
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            box-sizing: border-box;
+            min-height: 200px;
+        }
+
         table.detalle-table {
             width: 100%;
             border-collapse: collapse;
-            border: 1px solid #b0c4de;
-            margin-bottom: 8px;
+            border: 0;
+            margin-bottom: 0;
         }
 
         table.detalle-table th {
             background-color: #dbe5f1;
-            border: 1px solid #b0c4de;
+            border-top: none;
+            border-bottom: 1px solid #b0c4de;
+            border-left: none;
+            border-right: 1px solid #b0c4de;
             padding: 4px 3px;
             font-size: 7pt;
             font-weight: bold;
             text-align: center;
         }
 
+        table.detalle-table th:last-child {
+            border-right: none;
+        }
+
         table.detalle-table td {
-            border: 1px solid #b0c4de;
-            padding: 3px 4px;
+            border: 0 !important;
+            padding: 2.5px 4px;
             font-size: 7pt;
             vertical-align: top;
         }
@@ -229,7 +256,9 @@
         table.footer-grid {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 4px;
+            margin-top: auto;
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
         table.footer-grid > tbody > tr > td {
@@ -359,54 +388,43 @@
             </tr>
         </table>
 
-        <!-- DETALLE -->
-        <table class="detalle-table">
-            <thead>
-                <tr>
-                    <th class="col-afecto">Afecto IVA</th>
-                    <th class="col-detalle">Detalle</th>
-                    <th class="col-cantidad">Cantidad</th>
-                    <th class="col-precio">Precio</th>
-                    <th class="col-descuento">% Desc.</th>
-                    <th class="col-monto">Monto</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for detalle in detalles %}
-                <tr>
-                    <td class="col-afecto">
-                        {% if detalle.articulo.afecto_iva or detalle.es_afecto %}SI{% else %}NO{% endif %}
-                    </td>
-                    <td class="col-detalle">
-                        {{ detalle.articulo.nombre|default:detalle.descripcion }}
-                    </td>
-                    <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
-                    <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
-                    <td class="col-descuento">
-                        {% if detalle.descuento > 0 %}
-                        -${{ detalle.descuento|format_miles }}
-                        {% else %}
-                        -
-                        {% endif %}
-                    </td>
-                    <td class="col-monto">${{ detalle.monto_total|default:detalle.precio_total|format_miles }}</td>
-                </tr>
-                {% endfor %}
-
-                {% for i in "12345678" %}
-                {% if forloop.counter > detalles|length %}
-                <tr>
-                    <td class="col-afecto">&nbsp;</td>
-                    <td class="col-detalle">&nbsp;</td>
-                    <td class="col-cantidad">&nbsp;</td>
-                    <td class="col-precio">&nbsp;</td>
-                    <td class="col-descuento">&nbsp;</td>
-                    <td class="col-monto">&nbsp;</td>
-                </tr>
-                {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
+        <!-- DETALLE (EN RECUADRO ESTÁNDAR) -->
+        <div class="detalle-container">
+            <table class="detalle-table">
+                <thead>
+                    <tr>
+                        <th class="col-afecto">Afecto IVA</th>
+                        <th class="col-detalle">Detalle</th>
+                        <th class="col-cantidad">Cantidad</th>
+                        <th class="col-precio">Precio</th>
+                        <th class="col-descuento">% Desc.</th>
+                        <th class="col-monto">Monto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for detalle in detalles %}
+                    <tr>
+                        <td class="col-afecto">
+                            {% if detalle.articulo.afecto_iva or detalle.es_afecto %}SI{% else %}NO{% endif %}
+                        </td>
+                        <td class="col-detalle">
+                            {{ detalle.articulo.nombre|default:detalle.descripcion }}
+                        </td>
+                        <td class="col-cantidad">{{ detalle.cantidad|floatformat:0 }}</td>
+                        <td class="col-precio">${{ detalle.precio_unitario|format_miles }}</td>
+                        <td class="col-descuento">
+                            {% if detalle.descuento > 0 %}
+                            -${{ detalle.descuento|format_miles }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="col-monto">${{ detalle.monto_total|default:detalle.precio_total|format_miles }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
         {% include "includes/visor_observacion.html" with observacion=nota.observaciones %}
 

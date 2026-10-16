@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
 from datetime import datetime, time, timedelta
-from core.decorators import requiere_empresa, requiere_permiso
+from core.decorators import requiere_empresa, requiere_permiso, requiere_empresa_json
 from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
 from facturacion_electronica.ind_traslado import TIPO_DESPACHO_SII_CHOICES
 from .models import (
@@ -29,6 +29,7 @@ from .telefono_app import (
 from .forms import VendedorForm, FormaPagoForm, EstacionTrabajoForm
 from articulos.models import Articulo, KitOferta
 from clientes.models import Cliente
+from empresas.models import Empresa
 from inventario.models import TransferenciaInventario
 import io
 import re
@@ -3876,13 +3877,20 @@ def cotizacion_list(request):
         tipo_documento='cotizacion'
     ).order_by('-fecha_creacion')
     
-    # Filtro por estado - por defecto excluir rechazadas
+    # Filtro por estado: por defecto solo cotizaciones activas (pendiente, enviada, aceptada)
     estado = request.GET.get('estado', '')
-    if estado:
+    if estado == 'todas':
+        # Mostrar todas sin excepción
+        pass
+    elif estado:
         cotizaciones = cotizaciones.filter(estado_cotizacion=estado)
     else:
-        # Por defecto, excluir las rechazadas
-        cotizaciones = cotizaciones.exclude(estado_cotizacion='rechazada')
+        # Por defecto (Opción A): mostrar activas excluyendo convertidas, rechazadas y vencidas
+        cotizaciones = cotizaciones.filter(
+            Q(estado_cotizacion__in=['pendiente', 'enviada', 'aceptada']) |
+            Q(estado_cotizacion__isnull=True) |
+            Q(estado_cotizacion='')
+        )
     
     # Búsqueda
     search = request.GET.get('search', '')
@@ -3900,21 +3908,23 @@ def cotizacion_list(request):
     
     # Opciones de estado para el filtro
     ESTADO_CHOICES = [
-        ('', 'Todos los estados'),
+        ('', 'Activas (Pendientes, Enviadas, Aceptadas)'),
+        ('todas', 'Todas las cotizaciones'),
         ('pendiente', 'Pendiente'),
         ('enviada', 'Enviada'),
         ('aceptada', 'Aceptada'),
-        ('rechazada', 'Rechazada'),
+        ('convertida', 'Convertida en Venta'),
+        ('rechazada', 'Rechazada / Cancelada'),
         ('vencida', 'Vencida'),
-        ('convertida', 'Convertida'),
     ]
     
     # Estadísticas para el Estilo Piedra
     stats = {
-        'total_pendientes': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion='pendiente').count(),
-        'monto_pendientes': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion='pendiente').aggregate(Sum('total'))['total__sum'] or 0,
+        'total_pendientes': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion__in=['pendiente', 'enviada', None, '']).count(),
+        'monto_pendientes': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion__in=['pendiente', 'enviada', None, '']).aggregate(Sum('total'))['total__sum'] or 0,
         'total_aceptadas': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion='aceptada').count(),
         'monto_aceptadas': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion='aceptada').aggregate(Sum('total'))['total__sum'] or 0,
+        'total_convertidas': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', estado_cotizacion='convertida').count(),
         'total_hoy': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', fecha_creacion__date=datetime.now().date()).count(),
         'total_mes': Venta.objects.filter(empresa=request.empresa, tipo_documento='cotizacion', fecha_creacion__month=datetime.now().month).count(),
     }
@@ -3932,21 +3942,340 @@ def cotizacion_list(request):
 
 @login_required
 @requiere_empresa
+@requiere_permiso(['ventas.add_cotizacion', 'ventas.add_venta'])
+def cotizacion_create(request):
+    """Crear nueva cotización con la interfaz estandarizada de propuestas y pedidos"""
+    from articulos.models import Articulo
+    from .forms import CotizacionForm, CotizacionItemFormSet
+    
+    empresa = request.empresa
+    
+    if request.method == 'POST':
+        form = CotizacionForm(request.POST, empresa=empresa)
+        formset = CotizacionItemFormSet(request.POST)
+        
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    Empresa.objects.select_for_update().get(pk=empresa.pk)
+                    
+                    import re
+                    cots_empresa = Venta.objects.filter(
+                        empresa=empresa,
+                        tipo_documento='cotizacion'
+                    ).values_list('numero_venta', flat=True)
+                    
+                    max_num = 0
+                    for num_str in cots_empresa:
+                        if not num_str:
+                            continue
+                        match = re.search(r'(\d+)$', str(num_str))
+                        if match:
+                            try:
+                                val = int(match.group(1))
+                                if val < 100000000 and val > max_num:
+                                    max_num = val
+                            except ValueError:
+                                pass
+                                
+                    nuevo_numero = max_num + 1
+                    numero_cot = f"{nuevo_numero:06d}"
+                    while Venta.objects.filter(empresa=empresa, tipo_documento='cotizacion', numero_venta=numero_cot).exists():
+                        nuevo_numero += 1
+                        numero_cot = f"{nuevo_numero:06d}"
+                    
+                    cliente = form.cleaned_data.get('cliente')
+                    vendedor = form.cleaned_data.get('vendedor')
+                    fecha = form.cleaned_data.get('fecha') or timezone.localdate()
+                    
+                    obs_list = []
+                    if form.cleaned_data.get('observaciones'):
+                        obs_list.append(form.cleaned_data.get('observaciones'))
+                    if form.cleaned_data.get('condiciones_pago'):
+                        obs_list.append(f"Condiciones de pago: {form.cleaned_data.get('condiciones_pago')}")
+                    if form.cleaned_data.get('numero_oc_cliente'):
+                        obs_list.append(f"OC Cliente: {form.cleaned_data.get('numero_oc_cliente')}")
+                    obs_texto = "\n".join(obs_list)
+                    
+                    cotizacion = Venta.objects.create(
+                        empresa=empresa,
+                        numero_venta=numero_cot,
+                        fecha=fecha,
+                        cliente=cliente,
+                        vendedor=vendedor,
+                        tipo_documento='cotizacion',
+                        tipo_documento_planeado='factura',
+                        direccion_despacho=form.cleaned_data.get('direccion_despacho') or getattr(cliente, 'direccion', '') or '',
+                        comuna_despacho=form.cleaned_data.get('comuna_despacho') or getattr(cliente, 'comuna', '') or '',
+                        ciudad_despacho=form.cleaned_data.get('ciudad_despacho') or getattr(cliente, 'ciudad', '') or '',
+                        direccion_cliente=form.cleaned_data.get('direccion_cliente'),
+                        estado='confirmada',
+                        estado_cotizacion='pendiente',
+                        facturado=False,
+                        observaciones=obs_texto,
+                        usuario_creacion=request.user
+                    )
+                    
+                    subtotal_acum = Decimal('0.00')
+                    descuento_acum = Decimal('0.00')
+                    neto_acum = Decimal('0.00')
+                    iva_acum = Decimal('0.00')
+                    
+                    for item_form in formset:
+                        if not item_form.cleaned_data or item_form.cleaned_data.get('DELETE'):
+                            continue
+                        articulo = item_form.cleaned_data.get('articulo')
+                        if not articulo:
+                            continue
+                            
+                        cantidad = Decimal(str(item_form.cleaned_data.get('cantidad') or 1))
+                        precio_unitario = Decimal(str(item_form.cleaned_data.get('precio_unitario') or 0))
+                        desc_porc = Decimal(str(item_form.cleaned_data.get('descuento_porcentaje') or 0))
+                        imp_porc = Decimal(str(item_form.cleaned_data.get('impuesto_porcentaje') or 19))
+                        
+                        subtotal_linea = cantidad * precio_unitario
+                        desc_monto = subtotal_linea * (desc_porc / Decimal('100'))
+                        base_linea = subtotal_linea - desc_monto
+                        iva_linea = base_linea * (imp_porc / Decimal('100'))
+                        
+                        subtotal_acum += subtotal_linea
+                        descuento_acum += desc_monto
+                        neto_acum += base_linea
+                        iva_acum += iva_linea
+                        
+                        precio_unit_efectivo = precio_unitario * (Decimal('1') - (desc_porc / Decimal('100')))
+                        
+                        VentaDetalle.objects.create(
+                            venta=cotizacion,
+                            articulo=articulo,
+                            cantidad=cantidad,
+                            precio_unitario=precio_unit_efectivo,
+                            precio_total=base_linea,
+                            impuesto_especifico=Decimal('0.00')
+                        )
+                        
+                    cotizacion.subtotal = round(subtotal_acum)
+                    cotizacion.descuento = round(descuento_acum)
+                    cotizacion.neto = round(neto_acum)
+                    cotizacion.iva = round(iva_acum)
+                    cotizacion.total = round(neto_acum + iva_acum)
+                    cotizacion.save()
+                    
+                messages.success(request, f'Cotización #{cotizacion.numero_venta} creada exitosamente.')
+                return redirect('ventas:cotizacion_list')
+            except Exception as e:
+                import traceback
+                print(f"Error al crear cotización: {str(e)}")
+                print(traceback.format_exc())
+                messages.error(request, f'Error al guardar cotización: {str(e)}')
+        else:
+            if form.errors:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'Campo {field}: {error}')
+            if formset.errors:
+                for i, form_errors in enumerate(formset.errors):
+                    if form_errors:
+                        for field, errors in form_errors.items():
+                            for error in errors:
+                                messages.error(request, f'Ítem {i+1} - {field}: {error}')
+    else:
+        form = CotizacionForm(empresa=empresa, initial={'fecha': timezone.localdate()})
+        formset = CotizacionItemFormSet()
+
+    from pedidos.views import articulos_con_stock
+    articulos_empresa = articulos_con_stock(empresa)
+    
+    context = {
+        'form': form,
+        'formset': formset,
+        'articulos_empresa': articulos_empresa,
+        'empresa': empresa,
+    }
+    return render(request, 'ventas/cotizacion_form.html', context)
+
+
+@login_required
+@requiere_empresa
+@requiere_permiso(['ventas.change_cotizacion', 'ventas.change_venta'])
+def cotizacion_edit(request, pk):
+    """Editar cotización existente"""
+    from articulos.models import Articulo
+    from .forms import CotizacionForm, CotizacionItemFormSet
+    
+    empresa = request.empresa
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=empresa, tipo_documento='cotizacion')
+    
+    if cotizacion.estado_cotizacion == 'convertida':
+        messages.warning(request, 'No se puede editar una cotización que ya ha sido convertida en venta.')
+        return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
+        
+    if request.method == 'POST':
+        form = CotizacionForm(request.POST, instance=cotizacion, empresa=empresa)
+        formset = CotizacionItemFormSet(request.POST)
+        
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    cotizacion = form.save(commit=False)
+                    cotizacion.empresa = empresa
+                    cotizacion.save()
+                    
+                    cotizacion.ventadetalle_set.all().delete()
+                    
+                    subtotal_acum = Decimal('0.00')
+                    descuento_acum = Decimal('0.00')
+                    neto_acum = Decimal('0.00')
+                    iva_acum = Decimal('0.00')
+                    
+                    for item_form in formset:
+                        if not item_form.cleaned_data or item_form.cleaned_data.get('DELETE'):
+                            continue
+                        articulo = item_form.cleaned_data.get('articulo')
+                        if not articulo:
+                            continue
+                            
+                        cantidad = Decimal(str(item_form.cleaned_data.get('cantidad') or 1))
+                        precio_unitario = Decimal(str(item_form.cleaned_data.get('precio_unitario') or 0))
+                        desc_porc = Decimal(str(item_form.cleaned_data.get('descuento_porcentaje') or 0))
+                        imp_porc = Decimal(str(item_form.cleaned_data.get('impuesto_porcentaje') or 19))
+                        
+                        subtotal_linea = cantidad * precio_unitario
+                        desc_monto = subtotal_linea * (desc_porc / Decimal('100'))
+                        base_linea = subtotal_linea - desc_monto
+                        iva_linea = base_linea * (imp_porc / Decimal('100'))
+                        
+                        subtotal_acum += subtotal_linea
+                        descuento_acum += desc_monto
+                        neto_acum += base_linea
+                        iva_acum += iva_linea
+                        
+                        precio_unit_efectivo = precio_unitario * (Decimal('1') - (desc_porc / Decimal('100')))
+                        
+                        VentaDetalle.objects.create(
+                            venta=cotizacion,
+                            articulo=articulo,
+                            cantidad=cantidad,
+                            precio_unitario=precio_unit_efectivo,
+                            precio_total=base_linea,
+                            impuesto_especifico=Decimal('0.00')
+                        )
+                        
+                    cotizacion.subtotal = round(subtotal_acum)
+                    cotizacion.descuento = round(descuento_acum)
+                    cotizacion.neto = round(neto_acum)
+                    cotizacion.iva = round(iva_acum)
+                    cotizacion.total = round(neto_acum + iva_acum)
+                    cotizacion.save()
+                    
+                messages.success(request, f'Cotización #{cotizacion.numero_venta} actualizada exitosamente.')
+                return redirect('ventas:cotizacion_list')
+            except Exception as e:
+                import traceback
+                print(f"Error al editar cotización: {str(e)}")
+                print(traceback.format_exc())
+                messages.error(request, f'Error al actualizar cotización: {str(e)}')
+        else:
+            if form.errors:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'Campo {field}: {error}')
+            if formset.errors:
+                for i, form_errors in enumerate(formset.errors):
+                    if form_errors:
+                        for field, errors in form_errors.items():
+                            for error in errors:
+                                messages.error(request, f'Ítem {i+1} - {field}: {error}')
+    else:
+        form = CotizacionForm(instance=cotizacion, empresa=empresa)
+        
+        initial_items = []
+        for det in cotizacion.ventadetalle_set.all():
+            initial_items.append({
+                'id': det.id,
+                'articulo': det.articulo,
+                'cantidad': det.cantidad,
+                'precio_unitario': det.precio_unitario,
+                'descuento_porcentaje': Decimal('0'),
+                'impuesto_porcentaje': 19
+            })
+        formset = CotizacionItemFormSet(initial=initial_items)
+        if initial_items:
+            formset.extra = 0
+
+    from pedidos.views import articulos_con_stock
+    articulos_empresa = articulos_con_stock(empresa)
+    
+    context = {
+        'cotizacion': cotizacion,
+        'form': form,
+        'formset': formset,
+        'articulos_empresa': articulos_empresa,
+        'empresa': empresa,
+    }
+    return render(request, 'ventas/cotizacion_form.html', context)
+
+
+@login_required
+@requiere_empresa
+@requiere_permiso(['ventas.delete_cotizacion', 'ventas.delete_venta'])
+def cotizacion_delete(request, pk):
+    """Eliminar una cotización"""
+    empresa = request.empresa
+    cotizacion = get_object_or_404(Venta, pk=pk, empresa=empresa, tipo_documento='cotizacion')
+    
+    if cotizacion.estado_cotizacion == 'convertida':
+        messages.error(request, 'No se puede eliminar una cotización que ya fue convertida en venta.')
+        return redirect('ventas:cotizacion_list')
+        
+    num = cotizacion.numero_venta
+    cotizacion.ventadetalle_set.all().delete()
+    cotizacion.delete()
+    messages.success(request, f'Cotización #{num} eliminada exitosamente.')
+    return redirect('ventas:cotizacion_list')
+
+
+@login_required
+@requiere_empresa
 @requiere_permiso(['ventas.view_cotizacion', 'ventas.view_venta'])
 def cotizacion_detail(request, pk):
     """Detalle de cotización"""
+    from pedidos.models_transporte import Vehiculo, Chofer
+    
     cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
     detalles = VentaDetalle.objects.filter(venta=cotizacion).select_related('articulo')
+    
+    vehiculos = Vehiculo.objects.filter(empresa=request.empresa, activo=True).order_by('patente')
+    choferes = Chofer.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    venta_convertida = None
+    dte_convertido = None
+    if cotizacion.estado_cotizacion == 'convertida':
+        venta_convertida = Venta.objects.filter(
+            empresa=request.empresa,
+            observaciones__icontains=f"Convertida desde cotización #{cotizacion.numero_venta}"
+        ).order_by('-id').first()
+        if venta_convertida:
+            dte_convertido = getattr(venta_convertida, 'dte', None) or getattr(venta_convertida, 'dte_asociado', None)
     
     context = {
         'cotizacion': cotizacion,
         'detalles': detalles,
+        'venta_convertida': venta_convertida,
+        'dte_convertido': dte_convertido,
         'estados': Venta.ESTADO_COTIZACION_CHOICES,
         'tipos_venta': [
             ('factura', 'Factura'),
             ('boleta', 'Boleta'),
             ('guia', 'Guía de Despacho'),
         ],
+        'tipo_despacho_choices': Venta.TIPO_DESPACHO_CHOICES,
+        'tipo_despacho_sii_choices': TIPO_DESPACHO_SII_CHOICES,
+        'vehiculos': vehiculos,
+        'choferes': choferes,
+        'rut_empresa': request.empresa.rut or '',
+        'hora_actual': timezone.localtime().strftime('%H:%M'),
+        'today': timezone.localdate(),
         'abrir_modal': request.GET.get('modal'),
     }
     
@@ -4705,72 +5034,228 @@ def cotizacion_cambiar_estado(request, pk):
 @requiere_empresa
 @permission_required('ventas.add_venta', raise_exception=True)
 def cotizacion_convertir_venta(request, pk):
-    """Convertir cotización en venta"""
+    """Convertir cotización en venta electrónica oficial (Factura, Boleta o Guía) con DTE, timbre y envío al SII"""
+    from pedidos.models_transporte import Vehiculo, Chofer
+    from facturacion_electronica.dte_service import DTEService
+    
     cotizacion = get_object_or_404(Venta, pk=pk, empresa=request.empresa, tipo_documento='cotizacion')
     
     if request.method == 'POST':
         tipo_venta = request.POST.get('tipo_venta')
         
         if tipo_venta in ['factura', 'boleta', 'guia']:
-            # Generar número único para la nueva venta
-            ultima_venta = Venta.objects.filter(empresa=cotizacion.empresa).order_by('-id').first()
-            if ultima_venta and ultima_venta.numero_venta and ultima_venta.numero_venta != 'TEMP':
-                try:
-                    ultimo_numero = int(ultima_venta.numero_venta)
-                    numero_nueva_venta = f"{ultimo_numero + 1:06d}"
-                except ValueError:
-                    # Si no se puede convertir, usar un número basado en la cotización
-                    numero_nueva_venta = f"V{cotizacion.numero_venta}"
+            # Mapear tipo de documento a código DTE
+            if tipo_venta == 'guia':
+                tipo_dte = '52'
+            elif tipo_venta == 'factura':
+                todos_exentos = all(bool(getattr(d.articulo.categoria, 'exenta_iva', False)) for d in cotizacion.ventadetalle_set.all()) if cotizacion.ventadetalle_set.exists() else False
+                tipo_dte = '34' if todos_exentos else '33'
+            elif tipo_venta == 'boleta':
+                todos_exentos = all(bool(getattr(d.articulo.categoria, 'exenta_iva', False)) for d in cotizacion.ventadetalle_set.all()) if cotizacion.ventadetalle_set.exists() else False
+                tipo_dte = '41' if todos_exentos else '39'
             else:
-                numero_nueva_venta = f"V{cotizacion.numero_venta}"
+                tipo_dte = '39'
+
+            vehiculo = None
+            chofer = None
+            tipo_despacho = None
+            tipo_despacho_sii = '2'
+            patente_carro = ''
+            rut_transportista = ''
+            fecha_salida = None
+            hora_salida = ''
+            fecha_llegada = None
+            obs_extra = []
             
-            # Verificar que el número no exista
-            while Venta.objects.filter(empresa=cotizacion.empresa, numero_venta=numero_nueva_venta).exists():
+            if tipo_venta == 'guia':
+                vehiculo_id = request.POST.get('vehiculo_id')
+                chofer_id = request.POST.get('chofer_id')
+                tipo_despacho = request.POST.get('tipo_despacho') or '1'
+                tipo_despacho_sii = request.POST.get('tipo_despacho_sii') or '2'
+                patente_carro = (request.POST.get('patente_carro') or '').strip().upper()[:8]
+                rut_transportista = (request.POST.get('rut_transportista') or '').strip()
+                fecha_salida = request.POST.get('fecha_salida')
+                hora_salida = (request.POST.get('hora_salida') or '').strip()
+                fecha_llegada = request.POST.get('fecha_llegada')
+                
+                if vehiculo_id:
+                    vehiculo = Vehiculo.objects.filter(pk=vehiculo_id, empresa=request.empresa, activo=True).first()
+                if chofer_id:
+                    chofer = Chofer.objects.filter(pk=chofer_id, empresa=request.empresa, activo=True).first()
+                
+                # Fallback inteligente si solo se seleccionó uno
+                if not chofer and vehiculo and vehiculo.chofer:
+                    chofer = vehiculo.chofer
+                if not vehiculo and chofer:
+                    vehiculo = Vehiculo.objects.filter(empresa=request.empresa, chofer=chofer, activo=True).first()
+                
+                despacho_detalles = []
+                if tipo_despacho:
+                    despacho_detalles.append(f"Tipo Traslado: {dict(Venta.TIPO_DESPACHO_CHOICES).get(tipo_despacho, tipo_despacho)}")
+                if tipo_despacho_sii:
+                    despacho_detalles.append(f"Tipo Despacho SII: {tipo_despacho_sii}")
+                if vehiculo:
+                    despacho_detalles.append(f"Vehículo: {vehiculo.patente}")
+                if chofer:
+                    despacho_detalles.append(f"Chofer: {chofer.nombre} ({chofer.rut})")
+                if rut_transportista:
+                    despacho_detalles.append(f"RUT Transp: {rut_transportista}")
+                if patente_carro:
+                    despacho_detalles.append(f"Carro: {patente_carro}")
+                if fecha_salida:
+                    despacho_detalles.append(f"Salida: {fecha_salida} {hora_salida}".strip())
+                if fecha_llegada:
+                    despacho_detalles.append(f"Llegada: {fecha_llegada}")
+                
+                if despacho_detalles:
+                    obs_extra.append("[DATOS GUÍA] " + " | ".join(despacho_detalles))
+            
+            obs_final = f"Convertida desde cotización #{cotizacion.numero_venta}"
+            if cotizacion.observaciones:
+                obs_final = f"{obs_final}\n{cotizacion.observaciones}"
+            if obs_extra:
+                obs_final = f"{obs_final}\n" + "\n".join(obs_extra)
+            
+            # Validaciones de cliente para Factura y Guía
+            cliente = cotizacion.cliente
+            if tipo_dte in ['33', '34', '52']:
+                if not cliente or not cliente.rut:
+                    messages.error(request, 'El cliente debe tener un RUT válido para emitir Factura o Guía Electrónica.')
+                    return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
+            
+            # Buscar estación de trabajo para asignar a la venta
+            estacion = cotizacion.estacion_trabajo
+            if not estacion:
+                estacion_id = request.session.get('pos_estacion_id')
+                if estacion_id:
+                    estacion = EstacionTrabajo.objects.filter(id=estacion_id, empresa=request.empresa, activo=True).first()
+            if not estacion:
+                estacion = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).order_by('numero').first()
+
+            forma_pago = cotizacion.forma_pago
+            if not forma_pago and cliente and cliente.forma_pago_defecto:
+                forma_pago = cliente.forma_pago_defecto
+            if not forma_pago:
+                forma_pago = FormaPago.objects.filter(empresa=request.empresa, activo=True).first()
+
+            try:
+                with transaction.atomic():
+                    temp_numero = f"CV{timezone.now().strftime('%y%m%d%H%M%S%f')[:18]}"
+                    nueva_venta = Venta.objects.create(
+                        empresa=cotizacion.empresa,
+                        sucursal=cotizacion.sucursal,
+                        numero_venta=temp_numero,
+                        fecha=timezone.localdate(),
+                        cliente=cotizacion.cliente,
+                        vendedor=cotizacion.vendedor,
+                        forma_pago=forma_pago,
+                        estacion_trabajo=estacion,
+                        tipo_documento=tipo_venta,
+                        tipo_documento_planeado=tipo_venta,
+                        direccion_despacho=cotizacion.direccion_despacho,
+                        comuna_despacho=cotizacion.comuna_despacho,
+                        ciudad_despacho=cotizacion.ciudad_despacho,
+                        direccion_cliente=cotizacion.direccion_cliente,
+                        vehiculo=vehiculo,
+                        chofer=chofer,
+                        tipo_despacho=tipo_despacho,
+                        subtotal=cotizacion.subtotal,
+                        descuento=cotizacion.descuento,
+                        neto=cotizacion.neto,
+                        iva=cotizacion.iva,
+                        impuesto_especifico=cotizacion.impuesto_especifico,
+                        total=cotizacion.total,
+                        estado='confirmada',
+                        observaciones=obs_final,
+                        usuario_creacion=request.user
+                    )
+                    
+                    # Copiar detalles
+                    for detalle in cotizacion.ventadetalle_set.all():
+                        VentaDetalle.objects.create(
+                            venta=nueva_venta,
+                            articulo=detalle.articulo,
+                            cantidad=detalle.cantidad,
+                            precio_unitario=detalle.precio_unitario,
+                            precio_total=detalle.precio_total,
+                            impuesto_especifico=detalle.impuesto_especifico
+                        )
+                    
+                    nueva_venta.calcular_totales()
+                    nueva_venta.save()
+
+                    # Generar DTE oficial con timbre electrónico
+                    dte_service = DTEService(request.empresa)
+                    patente_transporte = (vehiculo.patente if vehiculo else '') or (request.POST.get('patente_transporte') or '').strip()
+                    nombre_chofer = (chofer.nombre if chofer else '') or (request.POST.get('nombre_chofer') or '').strip()
+                    
+                    dte = dte_service.generar_dte_desde_venta(
+                        nueva_venta,
+                        tipo_dte,
+                        patente_transporte=patente_transporte,
+                        rut_transportista=rut_transportista,
+                        nombre_chofer=nombre_chofer,
+                        tipo_despacho_sii=tipo_despacho_sii,
+                        patente_carro=patente_carro,
+                        fecha_salida=fecha_salida,
+                        hora_salida=hora_salida,
+                        fecha_llegada=fecha_llegada,
+                    )
+                    
+                    if not dte:
+                        raise ValueError("El servicio DTE no pudo generar el documento tributario.")
+                    
+                    numero_final = f"{dte.folio:06d}"
+                    if not Venta.objects.filter(empresa=request.empresa, tipo_documento=nueva_venta.tipo_documento, numero_venta=numero_final).exclude(pk=nueva_venta.pk).exists():
+                        nueva_venta.numero_venta = numero_final
+                        nueva_venta.save(update_fields=['numero_venta'])
+                    
+                    # Actualizar estado de la cotización
+                    cotizacion.estado_cotizacion = 'convertida'
+                    cotizacion.save(update_fields=['estado_cotizacion'])
+
+                # Envío al SII
+                envio = {'success': False, 'message': 'No enviado'}
                 try:
-                    numero_nueva_venta = f"{int(numero_nueva_venta) + 1:06d}"
-                except ValueError:
-                    # Si tiene prefijo, agregar sufijo numérico
-                    import random
-                    numero_nueva_venta = f"{numero_nueva_venta}{random.randint(1000, 9999)}"
-            
-            # Crear nueva venta basada en la cotización
-            nueva_venta = Venta.objects.create(
-                empresa=cotizacion.empresa,
-                numero_venta=numero_nueva_venta,
-                cliente=cotizacion.cliente,
-                vendedor=cotizacion.vendedor,
-                estacion_trabajo=cotizacion.estacion_trabajo,
-                tipo_documento=tipo_venta,
-                subtotal=cotizacion.subtotal,
-                descuento=cotizacion.descuento,
-                neto=cotizacion.neto,
-                iva=cotizacion.iva,
-                impuesto_especifico=cotizacion.impuesto_especifico,
-                total=cotizacion.total,
-                estado='confirmada',
-                observaciones=f"Convertida desde cotización #{cotizacion.numero_venta}",
-                usuario_creacion=request.user
-            )
-            
-            # Copiar detalles
-            for detalle in cotizacion.ventadetalle_set.all():
-                VentaDetalle.objects.create(
-                    venta=nueva_venta,
-                    articulo=detalle.articulo,
-                    cantidad=detalle.cantidad,
-                    precio_unitario=detalle.precio_unitario,
-                    precio_total=detalle.precio_total,
-                    impuesto_especifico=detalle.impuesto_especifico
-                )
-            
-            # Actualizar estado de la cotización
-            cotizacion.estado_cotizacion = 'convertida'
-            cotizacion.save()
-            
-            messages.success(request, f'Cotización convertida en {tipo_venta} #{nueva_venta.numero_venta}')
-            return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
+                    envio = dte_service.enviar_dte_al_sii(dte)
+                except Exception as exc:
+                    envio = {'success': False, 'message': str(exc)}
+                
+                if envio.get('success'):
+                    messages.success(request, f'{dte.get_tipo_dte_display()} #{dte.folio} emitida con timbre y enviada al SII exitosamente.')
+                else:
+                    messages.warning(request, f'{dte.get_tipo_dte_display()} #{dte.folio} emitida con timbre electrónico. Aviso SII: {envio.get("message") or "Pendiente de envío"}')
+                
+                return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
+
+            except Exception as e:
+                import traceback
+                print(f"[ERROR CONVERSION COTIZACION] {str(e)}")
+                traceback.print_exc()
+                messages.error(request, f'No se pudo generar el documento electrónico: {str(e)}')
+                return redirect('ventas:cotizacion_detail', pk=cotizacion.pk)
     
-    return redirect(reverse('ventas:cotizacion_detail', args=[pk]) + '?modal=convertir')
+    # GET: fallback standalone view
+    vehiculos = Vehiculo.objects.filter(empresa=request.empresa, activo=True).order_by('patente')
+    choferes = Chofer.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
+    
+    context = {
+        'cotizacion': cotizacion,
+        'detalles': cotizacion.ventadetalle_set.all(),
+        'tipos_venta': [
+            ('factura', 'Factura'),
+            ('boleta', 'Boleta'),
+            ('guia', 'Guía de Despacho'),
+        ],
+        'tipo_despacho_choices': Venta.TIPO_DESPACHO_CHOICES,
+        'tipo_despacho_sii_choices': TIPO_DESPACHO_SII_CHOICES,
+        'vehiculos': vehiculos,
+        'choferes': choferes,
+        'rut_empresa': request.empresa.rut or '',
+        'hora_actual': timezone.localtime().strftime('%H:%M'),
+        'today': timezone.localdate(),
+    }
+    return render(request, 'ventas/cotizacion_convertir_venta.html', context)
 
 
 # ========================================
@@ -5799,9 +6284,9 @@ def precio_cliente_create(request):
     form = PrecioClienteArticuloForm()
     form.fields['cliente'].queryset = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
     
-    # Preparar artículos con sus precios FINALES (con IVA e impuestos) para JavaScript
+    # Preparar artículos con sus precios BASE NETOS para JavaScript
     articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
-    articulos_precios = {str(a.id): int(round(float(a.precio_final))) for a in articulos}
+    articulos_precios = {str(a.id): int(round(float(a._string_to_decimal(a.precio_venta)))) for a in articulos}
     
     form.fields['articulo'].queryset = articulos
     
@@ -5837,9 +6322,9 @@ def precio_cliente_edit(request, pk):
         form = PrecioClienteArticuloForm(instance=precio)
         form.fields['cliente'].queryset = Cliente.objects.filter(empresa=request.empresa, estado='activo').order_by('nombre')
         
-        # Preparar artículos con sus precios FINALES (con IVA e impuestos) para JavaScript
+        # Preparar artículos con sus precios BASE NETOS para JavaScript
         articulos = Articulo.objects.filter(empresa=request.empresa, activo=True).order_by('nombre')
-        articulos_precios = {str(a.id): int(round(float(a.precio_final))) for a in articulos}
+        articulos_precios = {str(a.id): int(round(float(a._string_to_decimal(a.precio_venta)))) for a in articulos}
         
         form.fields['articulo'].queryset = articulos
         
@@ -5870,28 +6355,35 @@ def precio_cliente_delete(request, pk):
 
 
 @login_required
-@requiere_empresa
+@requiere_empresa_json
 def precio_cliente_articulo_api(request, cliente_id, articulo_id):
     """API para obtener precio especial de un artículo para un cliente"""
     from .models import PrecioClienteArticulo
     from django.http import JsonResponse
-    from datetime import date
+    from django.db.models import Q
+    from django.utils import timezone
     
     try:
-        # Buscar precio especial activo y vigente
+        hoy = timezone.localdate()
+        # Buscar precio especial activo y vigente (fechas nulas = vigencia abierta)
         precio_especial = PrecioClienteArticulo.objects.filter(
             empresa=request.empresa,
             cliente_id=cliente_id,
             articulo_id=articulo_id,
-            activo=True,
-            fecha_inicio__lte=date.today(),
-            fecha_fin__gte=date.today()
-        ).first()
+            activo=True
+        ).filter(
+            Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=hoy),
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=hoy)
+        ).select_related('articulo', 'articulo__categoria').first()
         
-        if precio_especial:
+        if precio_especial and precio_especial.esta_vigente():
             return JsonResponse({
                 'success': True,
-                'precio_especial': float(precio_especial.precio_especial)
+                'precio_especial': float(precio_especial.precio_especial),
+                'precio_final': float(precio_especial.get_precio_final()),
+                'precio_neto': float(round(precio_especial.get_precio_neto(), 2)),
+                'precio_con_iva': float(round(precio_especial.get_precio_con_iva(), 2)),
+                'descuento_porcentaje': float(precio_especial.descuento_porcentaje or 0)
             })
         else:
             return JsonResponse({
@@ -5902,6 +6394,53 @@ def precio_cliente_articulo_api(request, cliente_id, articulo_id):
         return JsonResponse({
             'success': False,
             'error': str(e)
+        })
+
+
+@login_required
+@requiere_empresa_json
+def precios_cliente_todos_api(request, cliente_id):
+    """
+    API para obtener todos los precios especiales activos y vigentes de un cliente.
+    Retorna un diccionario {articulo_id: {precio_especial, precio_final, precio_neto, precio_con_iva, descuento_porcentaje}}
+    """
+    from .models import PrecioClienteArticulo
+    from django.http import JsonResponse
+    from django.db.models import Q
+    from django.utils import timezone
+    
+    try:
+        hoy = timezone.localdate()
+        precios_qs = PrecioClienteArticulo.objects.filter(
+            empresa=request.empresa,
+            cliente_id=cliente_id,
+            activo=True
+        ).filter(
+            Q(fecha_inicio__isnull=True) | Q(fecha_inicio__lte=hoy),
+            Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=hoy)
+        ).select_related('articulo', 'articulo__categoria')
+        
+        precios_dict = {}
+        for p in precios_qs:
+            if p.esta_vigente():
+                precios_dict[p.articulo_id] = {
+                    'precio_especial': float(p.precio_especial),
+                    'precio_final': float(p.get_precio_final()),
+                    'precio_neto': float(round(p.get_precio_neto(), 2)),
+                    'precio_con_iva': float(round(p.get_precio_con_iva(), 2)),
+                    'descuento_porcentaje': float(p.descuento_porcentaje or 0)
+                }
+        
+        return JsonResponse({
+            'success': True,
+            'cliente_id': cliente_id,
+            'precios': precios_dict
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'precios': {}
         })
 
 
@@ -7657,14 +8196,20 @@ def facturar_directo(request):
     if request.method == 'POST':
         import json
         from facturacion_electronica.dte_service import DTEService
-        from facturacion_electronica.models import DocumentoTributarioElectronico
-
         try:
             data = json.loads(request.body.decode('utf-8') if request.body else '{}')
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'message': 'Solicitud invalida.'}, status=400)
 
-        dte_service = DTEService(empresa)
+        try:
+            dte_service = DTEService(empresa)
+        except ValueError as exc:
+            return JsonResponse({'success': False, 'message': str(exc)}, status=400)
+        except Exception as exc:
+            return JsonResponse({'success': False, 'message': f'Error al inicializar servicio DTE: {exc}'}, status=400)
+
+        from facturacion_electronica.models import DocumentoTributarioElectronico
+
         reenviar_id = _id_from_payload(data.get('reenviar_dte_id') or data.get('dte_id_existente'))
         if reenviar_id:
             dte = DocumentoTributarioElectronico.objects.filter(pk=reenviar_id, empresa=empresa).first()
@@ -7918,6 +8463,25 @@ def facturar_directo(request):
         elif monto_pagado > total:
             monto_pagado = total
 
+        # Obtener dirección de despacho seleccionada
+        direccion_receptor = (data.get('direccion_receptor') or '').strip()
+        comuna_receptor = (data.get('comuna_receptor') or '').strip()
+        ciudad_receptor = (data.get('ciudad_receptor') or '').strip()
+        direccion_cliente_id = data.get('direccion_cliente_id')
+        direccion_cliente = None
+        if direccion_cliente_id and str(direccion_cliente_id).isdigit():
+            from clientes.models import DireccionCliente
+            direccion_cliente = DireccionCliente.objects.filter(pk=direccion_cliente_id, cliente=cliente).first()
+            if direccion_cliente:
+                direccion_receptor = direccion_receptor or direccion_cliente.direccion
+                comuna_receptor = comuna_receptor or direccion_cliente.comuna or ''
+                ciudad_receptor = ciudad_receptor or direccion_cliente.ciudad or ''
+
+        if not direccion_receptor:
+            direccion_receptor = cliente.direccion or ''
+            comuna_receptor = cliente.comuna or ''
+            ciudad_receptor = getattr(cliente, 'ciudad', '') or ''
+
         with transaction.atomic():
             temp_numero = 'FD' + timezone.now().strftime('%y%m%d%H%M%S%f')[:18]
             venta = Venta.objects.create(
@@ -7932,6 +8496,10 @@ def facturar_directo(request):
                 tipo_documento=tipo_documento_venta,
                 tipo_documento_planeado=tipo_documento_venta,
                 tipo_despacho=tipo_despacho or None,
+                direccion_despacho=direccion_receptor,
+                comuna_despacho=comuna_receptor,
+                ciudad_despacho=ciudad_receptor,
+                direccion_cliente=direccion_cliente,
                 vehiculo=vehiculo,
                 chofer=chofer,
                 subtotal=neto + exento,
@@ -7978,6 +8546,9 @@ def facturar_directo(request):
                     fecha_salida=fecha_salida,
                     hora_salida=hora_salida,
                     fecha_llegada=fecha_llegada,
+                    direccion_receptor=direccion_receptor,
+                    comuna_receptor=comuna_receptor,
+                    ciudad_receptor=ciudad_receptor,
                 )
             except ValueError as exc:
                 transaction.set_rollback(True)
@@ -8022,7 +8593,7 @@ def facturar_directo(request):
             'print_url': reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.id}),
         }, status=200 if enviado else 400)
 
-    clientes = Cliente.objects.filter(empresa=empresa, estado='activo').order_by('nombre')
+    clientes = Cliente.objects.filter(empresa=empresa, estado='activo').prefetch_related('direcciones').order_by('nombre')
     articulos = Articulo.objects.filter(empresa=empresa, activo=True).select_related('categoria', 'unidad_medida').order_by('nombre')[:1000]
     formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
     vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
@@ -8068,8 +8639,9 @@ def facturar_directo(request):
         'direccion': cliente.direccion or '',
         'comuna': cliente.comuna or '',
         'ciudad': cliente.ciudad or '',
-        'plazo_pago': int(cliente.plazo_pago or 0),
+        'plazo_pago': int(str(cliente.plazo_pago).strip()) if str(cliente.plazo_pago or '').strip().isdigit() else 0,
         'forma_pago_defecto_id': cliente.forma_pago_defecto_id,
+        'direcciones': cliente.get_direcciones_list(),
     } for cliente in clientes]
 
     return render(request, 'ventas/facturar_directo.html', {
