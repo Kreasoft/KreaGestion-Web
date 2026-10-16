@@ -4912,6 +4912,8 @@ def venta_html(request, pk):
         'nombre_impresora': nombre_impresora,  # Nombre de impresora física
         'formas_pago_list': formas_pago_list,  # Lista de formas de pago múltiples
         'copias_range': range(n_copias),
+        'vehiculo': getattr(venta, 'vehiculo', None),
+        'chofer': getattr(venta, 'chofer', None),
         # Alias para compatibilidad con templates específicos
         'boleta': venta if venta.tipo_documento == 'boleta' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'boleta') else None,
         'factura': venta if venta.tipo_documento == 'factura' or (venta.tipo_documento == 'ticket' and venta.tipo_documento_planeado == 'factura') else None,

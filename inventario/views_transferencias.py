@@ -695,6 +695,8 @@ def transferencia_imprimir_guia(request, pk):
         'empresa': request.empresa,
         'n_copias': n_copias,
         'copias_range': range(n_copias),
+        'vehiculo': getattr(dte, 'vehiculo', None),
+        'chofer': getattr(dte, 'chofer', None),
     }
 
     if usar_termica:

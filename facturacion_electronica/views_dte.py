@@ -1195,6 +1195,12 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
         def __getitem__(self, name):
             return SafeDummy()
 
+        def __iter__(self):
+            return iter([])
+
+        def __len__(self):
+            return 0
+
         def __bool__(self):
             return False
 
@@ -1453,10 +1459,20 @@ def ver_factura_electronica(request, dte_id, forzar_a4=False):
     fallback_retorno = _resolver_fallback_retorno_dte(dte, request=request)
     back_url = _safe_internal_url(request.GET.get('return_url'), fallback_retorno, request=request)
 
+    # Vehículo y chofer seguros para templates
+    vehiculo_obj = getattr(dte, 'vehiculo', None) or getattr(venta, 'vehiculo', None)
+    if not vehiculo_obj:
+        vehiculo_obj = SafeDummy(patente="", marca="", modelo="")
+    chofer_obj = getattr(dte, 'chofer', None) or getattr(venta, 'chofer', None)
+    if not chofer_obj:
+        chofer_obj = SafeDummy(nombre="", rut="", telefono="")
+
     context = {
         'dte': dte,
         'venta': venta,
         'guia': venta,
+        'vehiculo': vehiculo_obj,
+        'chofer': chofer_obj,
         'cliente_display': cliente_display,
         'receptor_display': receptor_display,
         'bodega_display': bodega_display,
