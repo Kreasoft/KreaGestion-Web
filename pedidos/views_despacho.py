@@ -345,24 +345,40 @@ def orden_despacho_edit(request, pk):
 @permission_required('pedidos.delete_ordendespacho', raise_exception=True)
 def orden_despacho_delete(request, pk):
     """Eliminar orden de despacho"""
+    from django.urls import reverse
     orden = get_object_or_404(OrdenDespacho, pk=pk, empresa=request.empresa)
     
-    # Solo permitir eliminar si está pendiente
-    if orden.estado != 'pendiente':
+    # Validar documentos tributarios asociados
+    documentos = orden.get_documentos_asociados()
+    if documentos:
         messages.error(
             request,
-            'Solo se pueden eliminar órdenes de despacho en estado pendiente.'
+            f'No se puede eliminar la Orden de Despacho {orden.numero_despacho} porque ya tiene documentos tributarios emitidos asociados (Guía o Factura).'
+        )
+        return redirect('pedidos:orden_despacho_detail', pk=pk)
+
+    if orden.estado == 'entregado':
+        messages.error(
+            request,
+            f'No se puede eliminar la Orden de Despacho {orden.numero_despacho} porque ya figura como entregada.'
         )
         return redirect('pedidos:orden_despacho_detail', pk=pk)
     
+    fallback_retorno = reverse('pedidos:orden_despacho_list')
+    return_url = request.GET.get('return_url') or request.POST.get('return_url') or fallback_retorno
+
     if request.method == 'POST':
         numero = orden.numero_despacho
+        pedido = orden.orden_pedido
         orden.delete()
+        if pedido:
+            pedido.actualizar_estado_segun_despachos()
         messages.success(request, f'Orden de Despacho {numero} eliminada exitosamente.')
-        return redirect('pedidos:orden_despacho_list')
+        return redirect(return_url)
     
     context = {
-        'orden': orden
+        'orden': orden,
+        'return_url': return_url,
     }
     
     return render(request, 'pedidos/orden_despacho_confirm_delete.html', context)

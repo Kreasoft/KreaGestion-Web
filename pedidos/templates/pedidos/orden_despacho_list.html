@@ -212,7 +212,7 @@
                             <th>Chofer / Vehículo</th>
                             <th class="text-center">Items</th>
                             <th style="width: 60px; text-align: center;" title="Estado de la orden de despacho">Estado</th>
-                            <th style="width: 64px; text-align: center;">Acciones</th>
+                            <th style="width: 96px; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -245,6 +245,11 @@
                                 <a href="{% url 'pedidos:orden_despacho_detail' orden.pk %}?return_url={{ request.get_full_path|urlencode }}" class="ico-32" title="Ver"><i class="fas fa-eye"></i></a>
                                 {% if orden.estado not in 'entregado,cancelado' %}
                                 <a href="{% url 'pedidos:orden_despacho_edit' orden.pk %}?return_url={{ request.get_full_path|urlencode }}" class="ico-32" title="Editar"><i class="fas fa-edit"></i></a>
+                                {% endif %}
+                                {% if perms.pedidos.delete_ordendespacho or user.is_superuser %}
+                                {% if orden.estado != 'entregado' %}
+                                <a href="{% url 'pedidos:orden_despacho_delete' orden.pk %}?return_url={{ request.get_full_path|urlencode }}" class="ico-32 text-danger" title="Eliminar"><i class="fas fa-trash-alt"></i></a>
+                                {% endif %}
                                 {% endif %}
                             </td>
                         </tr>

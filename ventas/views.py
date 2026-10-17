@@ -6928,22 +6928,23 @@ def mobile_api_sync(request):
 @requiere_empresa
 def mobile_api_verify_device(request):
     """
-    Autoriza la app por número de celular del vendedor.
-    El número debe estar registrado y activo. Devuelve un token para trabajar offline.
+    Autoriza la app por número de celular del vendedor o por código de dispositivo (ej: CELU-JUAN, DEV-XXXX).
+    Devuelve un token para trabajar offline y los datos del vendedor asignado.
     """
     import json
+    from .models import DispositivoMovil
 
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
     try:
         data = json.loads(request.body or '{}')
-        telefono = normalizar_telefono_cl(data.get('telefono') or data.get('deviceId') or '')
+        raw_code = str(data.get('codigo') or data.get('deviceId') or data.get('telefono') or '').strip()
 
-        if not telefono:
+        if not raw_code:
             return JsonResponse({
                 'success': False,
-                'error': 'Ingrese un celular chileno, por ejemplo +56 9 63697225.',
+                'error': 'Ingrese el código de su dispositivo (ej: CELU-JUAN) o su celular.',
             }, status=400)
 
         user_agent = (request.META.get('HTTP_USER_AGENT') or '')[:250]
@@ -6953,63 +6954,148 @@ def mobile_api_verify_device(request):
         else:
             ip = request.META.get('REMOTE_ADDR')
 
-        vendedor = Vendedor.objects.filter(
+        # 1. Intentar validar primero como Código de Dispositivo registrado (ej: CELU-JUAN, DEV-XXXX)
+        dispositivo = DispositivoMovil.objects.filter(
             empresa=request.empresa,
-            telefono_app=telefono,
+            unique_id__iexact=raw_code
         ).first()
 
-        if not vendedor:
-            # Registrar o actualizar solicitud de acceso pendiente
-            solicitud, created = SolicitudAccesoMovil.objects.get_or_create(
-                empresa=request.empresa,
-                telefono=telefono,
-                defaults={
-                    'dispositivo_info': user_agent,
-                    'ip_origen': ip if ip else None,
-                    'intentos': 1,
-                    'estado': 'pendiente',
-                }
-            )
-            if not created:
-                solicitud.intentos = F('intentos') + 1
-                solicitud.estado = 'pendiente'
-                if user_agent:
-                    solicitud.dispositivo_info = user_agent
-                if ip:
-                    solicitud.ip_origen = ip
-                solicitud.save(update_fields=['intentos', 'estado', 'dispositivo_info', 'ip_origen', 'fecha_ultimo_intento'])
+        if dispositivo:
+            if not dispositivo.autorizado:
+                return JsonResponse({
+                    'success': True,
+                    'authorized': False,
+                    'codigo': raw_code,
+                    'error': f'El dispositivo "{raw_code}" está registrado pero su acceso fue cancelado por el administrador.',
+                    'vendedor': None,
+                })
+
+            if not dispositivo.vendedor:
+                return JsonResponse({
+                    'success': True,
+                    'authorized': False,
+                    'codigo': raw_code,
+                    'error': f'El dispositivo "{raw_code}" está autorizado pero no tiene un vendedor asignado en Gestión Ventas Móviles.',
+                    'vendedor': None,
+                })
+
+            vendedor = dispositivo.vendedor
+            if not vendedor.activo:
+                return JsonResponse({
+                    'success': True,
+                    'authorized': False,
+                    'codigo': raw_code,
+                    'error': f'El vendedor {vendedor.nombre} ({vendedor.codigo}) está inactivo en el sistema.',
+                    'vendedor': None,
+                })
+
+            dispositivo.ultima_sincronizacion = timezone.now()
+            dispositivo.save(update_fields=['ultima_sincronizacion'])
+
+            token = emitir_token_app(request.empresa.id, vendedor.id, raw_code)
 
             return JsonResponse({
                 'success': True,
-                'authorized': False,
-                'telefono': formatear_telefono_cl(telefono),
-                'error': 'Número no registrado. Pida a administración que lo active en Vendedores.',
-                'vendedor': None,
+                'authorized': True,
+                'codigo': raw_code,
+                'deviceId': raw_code,
+                'telefono': getattr(vendedor, 'telefono_app', '') or raw_code,
+                'authToken': token,
+                'offlineHours': AUTH_OFFLINE_HOURS,
+                'vendedor': {
+                    'id': vendedor.id,
+                    'nombre': vendedor.nombre,
+                    'codigo': vendedor.codigo,
+                },
+                'error': None,
             })
 
-        autorizado = bool(vendedor.activo and vendedor.app_movil_activa and vendedor.telefono_app)
-        if autorizado:
-            # Actualizar solicitud como aprobada si existía
-            SolicitudAccesoMovil.objects.filter(
+        # 2. Si no es un Dispositivo registrado, intentar como Celular del vendedor
+        telefono = normalizar_telefono_cl(raw_code)
+        if telefono:
+            vendedor = Vendedor.objects.filter(
                 empresa=request.empresa,
-                telefono=telefono,
-                estado='pendiente'
-            ).update(estado='aprobada', vendedor_asignado=vendedor)
+                telefono_app=telefono,
+            ).first()
 
-        token = emitir_token_app(request.empresa.id, vendedor.id, telefono) if autorizado else ''
+            if not vendedor:
+                # Registrar solicitud pendiente
+                solicitud, created = SolicitudAccesoMovil.objects.get_or_create(
+                    empresa=request.empresa,
+                    telefono=telefono,
+                    defaults={
+                        'dispositivo_info': user_agent,
+                        'ip_origen': ip if ip else None,
+                        'intentos': 1,
+                        'estado': 'pendiente',
+                    }
+                )
+                if not created:
+                    solicitud.intentos = F('intentos') + 1
+                    solicitud.estado = 'pendiente'
+                    if user_agent:
+                        solicitud.dispositivo_info = user_agent
+                    if ip:
+                        solicitud.ip_origen = ip
+                    solicitud.save(update_fields=['intentos', 'estado', 'dispositivo_info', 'ip_origen', 'fecha_ultimo_intento'])
+
+                return JsonResponse({
+                    'success': True,
+                    'authorized': False,
+                    'telefono': formatear_telefono_cl(telefono),
+                    'error': 'Celular no registrado. Pida a administración que lo active en Vendedores.',
+                    'vendedor': None,
+                })
+
+            autorizado = bool(vendedor.activo and vendedor.app_movil_activa and vendedor.telefono_app)
+            if autorizado:
+                SolicitudAccesoMovil.objects.filter(
+                    empresa=request.empresa,
+                    telefono=telefono,
+                    estado='pendiente'
+                ).update(estado='aprobada', vendedor_asignado=vendedor)
+
+            token = emitir_token_app(request.empresa.id, vendedor.id, telefono) if autorizado else ''
+
+            return JsonResponse({
+                'success': True,
+                'authorized': autorizado,
+                'telefono': formatear_telefono_cl(telefono),
+                'authToken': token,
+                'offlineHours': AUTH_OFFLINE_HOURS,
+                'vendedor': {
+                    'id': vendedor.id,
+                    'nombre': vendedor.nombre,
+                    'codigo': vendedor.codigo,
+                } if autorizado else None,
+                'error': None if autorizado else 'Este celular no está activo para vender.',
+            })
+
+        # 3. Intentar como Código de Vendedor directo (ej: V002)
+        vendedor_cod = Vendedor.objects.filter(empresa=request.empresa, codigo__iexact=raw_code, activo=True).first()
+        if vendedor_cod:
+            token = emitir_token_app(request.empresa.id, vendedor_cod.id, raw_code)
+            return JsonResponse({
+                'success': True,
+                'authorized': True,
+                'codigo': raw_code,
+                'deviceId': raw_code,
+                'telefono': getattr(vendedor_cod, 'telefono_app', '') or raw_code,
+                'authToken': token,
+                'offlineHours': AUTH_OFFLINE_HOURS,
+                'vendedor': {
+                    'id': vendedor_cod.id,
+                    'nombre': vendedor_cod.nombre,
+                    'codigo': vendedor_cod.codigo,
+                },
+                'error': None,
+            })
 
         return JsonResponse({
             'success': True,
-            'authorized': autorizado,
-            'telefono': formatear_telefono_cl(telefono),
-            'authToken': token,
-            'offlineHours': AUTH_OFFLINE_HOURS,
-            'vendedor': {
-                'id': vendedor.id,
-                'nombre': vendedor.nombre,
-                'codigo': vendedor.codigo,
-            } if autorizado else None,
-            'error': None if autorizado else 'Este celular no está activo para vender.',
+            'authorized': False,
+            'error': f'No se encontró ningún dispositivo o vendedor registrado con "{raw_code}". Regístrelo en Gestión Ventas Móviles o Vendedores.',
+            'vendedor': None,
         })
 
     except Exception as e:
@@ -8735,6 +8821,21 @@ def facturar_guias_list(request):
     
     vendedores = Vendedor.objects.filter(empresa=empresa, activo=True).order_by('nombre')
     formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
+    tiene_credito = any(fp.es_credito for fp in formas_pago)
+    if not tiene_credito:
+        fp_cred, _ = FormaPago.objects.get_or_create(
+            empresa=empresa,
+            codigo='006',
+            defaults={
+                'nombre': 'CRÉDITO',
+                'es_cuenta_corriente': True,
+                'activo': True
+            }
+        )
+        if not fp_cred.activo:
+            fp_cred.activo = True
+            fp_cred.save(update_fields=['activo'])
+        formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
 
     context = {
         'page_obj': page_obj,
@@ -8787,6 +8888,12 @@ def api_guias_pendientes_cliente(request, cliente_id):
         forma_pago_sugerida_id = cliente.forma_pago_defecto_id
     elif guias.filter(forma_pago__isnull=False).exists():
         forma_pago_sugerida_id = guias.filter(forma_pago__isnull=False).values_list('forma_pago_id', flat=True).last()
+    if not forma_pago_sugerida_id and cliente and (getattr(cliente, 'plazo_pago', 0) or getattr(cliente, 'plazo_pago_dias', 0)):
+        fp_cred = FormaPago.objects.filter(empresa=empresa, activo=True).filter(
+            Q(es_cuenta_corriente=True) | Q(nombre__icontains='credito') | Q(nombre__icontains='crédito')
+        ).first()
+        if fp_cred:
+            forma_pago_sugerida_id = fp_cred.id
 
     data = []
     for g in guias:
@@ -8937,12 +9044,28 @@ def api_procesar_factura_consolidada(request):
             folios_guias.append(str(f))
         observaciones_consolidada = f"Factura consolidada de Guías: {', '.join(folios_guias)}"
 
+        # Determinar si la forma de pago es Crédito
+        es_credito = bool(forma_pago and getattr(forma_pago, 'es_credito', False))
+        if es_credito and tipo_documento_venta == 'boleta':
+            return JsonResponse({
+                'success': False,
+                'message': 'El crédito / cuenta corriente solo se permite en facturas. Las boletas se emiten al contado.'
+            })
+
+        from core.fechas import calcular_fecha_vencimiento
+        if es_credito:
+            dias_credito = getattr(cliente, 'plazo_pago', 0) or getattr(cliente, 'plazo_pago_dias', 0) or 30
+            fecha_vencimiento = calcular_fecha_vencimiento(timezone.localdate(), dias_credito)
+        else:
+            fecha_vencimiento = None
+
         # Crear nueva Venta para la Factura (Consolidada)
         nueva_venta = Venta.objects.create(
             empresa=request.empresa,
             sucursal=guias[0].sucursal if guias.exists() else None,
             numero_venta=temp_numero,
             fecha=timezone.localdate(),
+            fecha_vencimiento=fecha_vencimiento,
             cliente=cliente,
             tipo_documento=tipo_documento_venta,
             tipo_documento_planeado=tipo_documento_venta,
@@ -8966,14 +9089,13 @@ def api_procesar_factura_consolidada(request):
         nueva_venta.calcular_totales()
 
         # Configurar cobro y estado financiero según la forma de pago
-        es_credito = bool(forma_pago and getattr(forma_pago, 'es_credito', False))
         if es_credito:
             nueva_venta.monto_pagado = Decimal('0.00')
             nueva_venta.saldo_pendiente = nueva_venta.total
         else:
             nueva_venta.monto_pagado = nueva_venta.total
             nueva_venta.saldo_pendiente = Decimal('0.00')
-        nueva_venta.save(update_fields=['monto_pagado', 'saldo_pendiente'])
+        nueva_venta.save(update_fields=['monto_pagado', 'saldo_pendiente', 'fecha_vencimiento'])
 
         # Crear referencias tributarias a las guías consolidadas
         from .models import VentaReferencia
@@ -9006,10 +9128,18 @@ def api_procesar_factura_consolidada(request):
             for guia in guias:
                 dte.orden_despacho.add(guia)
             
+            # Registrar en cuentas por cobrar / tesorería si es crédito
+            cuenta_corriente = False
+            if tipo_documento_venta == 'factura' and es_credito and nueva_venta.saldo_pendiente > 0:
+                cuenta_corriente = _registrar_factura_directa_cuenta_corriente(
+                    nueva_venta, dte, nueva_venta.monto_pagado, request.user
+                )
+
             return JsonResponse({
                 'success': True, 
                 'message': f'Documento #{dte.folio} generado exitosamente.',
                 'dte_id': dte.id,
+                'cuenta_corriente': cuenta_corriente,
                 'print_url': reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.id}),
             })
         else:

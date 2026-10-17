@@ -1186,20 +1186,20 @@
     <div id="loginView" class="login-view">
         <div class="login-card">
             <img src="{% static 'image/LogoCloud.png' %}" alt="Logo" style="width: 150px; margin-bottom: 20px;">
-            <h4 style="color: var(--secondary); font-weight: 700;">Vendedor</h4>
-            <p class="text-muted small">Ingrese su celular para comenzar</p>
+            <h4 style="color: var(--secondary); font-weight: 700;">Acceso Vendedor</h4>
+            <p class="text-muted small">Ingrese su <strong>Código de Dispositivo</strong> (ej: <code>CELU-JUAN</code>) o su <strong>Celular</strong></p>
             <div class="mb-3">
-                <input type="tel" id="sellerCodeInput" class="form-control text-center form-control-lg" placeholder="+56 9 63697225" inputmode="numeric" style="border: 2px solid var(--primary);">
+                <input type="text" id="sellerCodeInput" class="form-control text-center form-control-lg text-uppercase" placeholder="CELU-JUAN o +56 9..." style="border: 2px solid var(--primary); font-weight: 700; letter-spacing: 0.5px;">
             </div>
             <button onclick="app.login()" class="btn-terroso btn-lg">ACCEDER <i class="fas fa-sign-in-alt ms-2"></i></button>
             
             <div id="loginError" class="text-danger mt-3 small" style="display: none; background: #ffeeee; padding: 10px; border-radius: 8px;"></div>
             
             <div class="mt-4 pt-3 border-top">
-                <p class="text-muted" style="font-size: 0.7rem;">¿Es su primera vez en este dispositivo?</p>
-                <button onclick="app.syncData()" class="btn btn-sm btn-outline-secondary w-100" style="font-size: 0.7rem;">
-                    <i class="fas fa-sync me-1"></i> SINCRONIZAR VENDEDORES
-                </button>
+                <p class="text-muted" style="font-size: 0.7rem;">¿Configuró una tablet o teléfono en el sistema?</p>
+                <div class="small text-muted" style="font-size: 0.7rem;">
+                    Use el mismo código registrado en <em>Gestión Ventas Móviles → Dispositivos</em>.
+                </div>
             </div>
         </div>
     </div>
@@ -1645,7 +1645,10 @@
             },
 
             formatClMobile: function(raw) {
-                const digits = String(raw || '').replace(/\D/g, '');
+                if (!raw) return '';
+                const trimmed = String(raw).trim();
+                if (/[a-zA-Z]/.test(trimmed)) return trimmed.toUpperCase();
+                const digits = trimmed.replace(/\D/g, '');
                 let rest = digits;
                 if (rest.startsWith('56')) rest = rest.slice(2);
                 if (rest.startsWith('9')) rest = rest.slice(1);
@@ -1654,11 +1657,17 @@
             },
 
             normalizeClMobile: function(raw) {
-                const digits = String(raw || '').replace(/\D/g, '');
+                if (!raw) return '';
+                const trimmed = String(raw).trim();
+                // Si contiene letras (ej: CELU-JUAN, DEV-LTU94, V002), es un código de dispositivo/vendedor
+                if (/[a-zA-Z]/.test(trimmed)) {
+                    return trimmed.toUpperCase();
+                }
+                const digits = trimmed.replace(/\D/g, '');
                 if (digits.startsWith('56') && digits.length >= 11) return digits.slice(0, 11);
                 if (digits.startsWith('9') && digits.length >= 9) return '56' + digits.slice(0, 9);
                 if (digits.length === 8) return '569' + digits;
-                return '';
+                return digits;
             },
 
             getCookie: function(name) {
@@ -1684,12 +1693,11 @@
             },
 
             resolveDeviceId: function() {
-                const phone = this.normalizeClMobile(
-                    localStorage.getItem('gc_phone')
+                const raw = localStorage.getItem('gc_phone')
                     || document.getElementById('sellerCodeInput')?.value
                     || document.getElementById('displayDeviceId')?.value
-                    || ''
-                );
+                    || '';
+                const phone = this.normalizeClMobile(raw);
                 this.persistDeviceId(phone);
                 this.isAuthorized = this.hasValidCachedAuth();
                 this.authToken = localStorage.getItem('gc_auth_token') || '';
@@ -1923,14 +1931,16 @@
             },
 
             login: function() {
-                const phone = this.normalizeClMobile(document.getElementById('sellerCodeInput').value);
+                const raw = (document.getElementById('sellerCodeInput').value || '').trim();
+                const code = this.normalizeClMobile(raw);
                 const err = document.getElementById('loginError');
-                if (!phone) {
+                if (!code) {
                     err.style.display = 'block';
-                    err.innerText = 'Ingrese un celular +56 9 63697225';
+                    err.innerText = 'Ingrese su Código de Dispositivo (ej: CELU-JUAN) o su celular';
                     return;
                 }
-                this.persistDeviceId(phone);
+                err.style.display = 'none';
+                this.persistDeviceId(code);
                 this.checkDevice(true);
             },
 
@@ -2239,19 +2249,20 @@
                 }
 
                 if (manual) {
-                    Swal.fire({ title: 'Verificando celular...', didOpen: () => Swal.showLoading() });
+                    Swal.fire({ title: 'Verificando autorización...', didOpen: () => Swal.showLoading() });
                 }
-                if (statusEl) statusEl.innerText = 'Consultando si el celular está activo...';
+                if (statusEl) statusEl.innerText = 'Consultando autorización en el sistema...';
 
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 8000);
                 try {
+                    const codeToSend = (this.phone || '').trim();
                     const res = await fetch('/ventas/movil/api/verificar-dispositivo/', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                         credentials: 'same-origin',
                         signal: controller.signal,
-                        body: JSON.stringify({ telefono: this.phone })
+                        body: JSON.stringify({ telefono: codeToSend, deviceId: codeToSend, codigo: codeToSend })
                     });
                     clearTimeout(timeoutId);
                     const data = await res.json();
@@ -2264,18 +2275,18 @@
                         localStorage.setItem('gc_auth_token', this.authToken);
                         localStorage.setItem('gc_auth_checked_at', String(Date.now()));
                         localStorage.setItem('gc_phone', this.phone);
-                        if (statusEl) statusEl.innerText = 'Celular activo. Puede vender, también sin internet.';
+                        if (statusEl) statusEl.innerText = 'Dispositivo autorizado. Puede vender, también sin internet.';
                         if (data.vendedor) applySeller(data.vendedor);
                     } else {
                         localStorage.removeItem('gc_auth_token');
-                        if (statusEl) statusEl.innerText = data.error || 'Celular no activo.';
+                        if (statusEl) statusEl.innerText = data.error || 'Dispositivo no activo.';
                     }
 
                     if (manual) {
                         if (this.isAuthorized) {
-                            Swal.fire('Autorizado', data.vendedor ? data.vendedor.nombre : 'Celular activo', 'success').then(() => this.showView('viewDashboard'));
+                            Swal.fire('Autorizado', data.vendedor ? `${data.vendedor.nombre}` : 'Dispositivo activo', 'success').then(() => this.showView('viewDashboard'));
                         } else {
-                            Swal.fire('No autorizado', data.error || 'Este celular no está activo.', 'warning');
+                            Swal.fire('No autorizado', data.error || 'Este dispositivo o celular no está activo.', 'warning');
                         }
                     }
                 } catch (e) {

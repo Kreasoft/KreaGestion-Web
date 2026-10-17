@@ -48,12 +48,13 @@
                     <!-- Botones -->
                     <form method="post">
                         {% csrf_token %}
+                        <input type="hidden" name="return_url" value="{% firstof return_url request.GET.return_url %}">
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-danger btn-lg">
                                 <i class="fas fa-trash-alt me-2"></i>
                                 Sí, Eliminar Orden de Despacho
                             </button>
-                            <a href="{% url 'pedidos:orden_despacho_detail' orden.pk %}" class="btn btn-secondary btn-lg">
+                            <a href="{% firstof return_url request.GET.return_url %}{% if not return_url and not request.GET.return_url %}{% url 'pedidos:orden_despacho_detail' orden.pk %}{% endif %}" class="btn btn-secondary btn-lg">
                                 <i class="fas fa-times me-2"></i>
                                 No, Cancelar
                             </a>
