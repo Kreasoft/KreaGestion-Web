@@ -826,31 +826,31 @@ def orden_pedido_update(request, pk):
 @requiere_empresa
 def orden_pedido_delete(request, pk):
     """Eliminar orden de pedido"""
-    pedido = get_object_or_404(OrdenPedido, pk=pk)
+    pedido = get_object_or_404(OrdenPedido, pk=pk, empresa=request.empresa)
+    return_url = request.POST.get('return_url') or request.GET.get('return_url') or reverse('pedidos:orden_pedido_list')
     
     # Verificar permisos
-    if request.user.is_superuser:
-        empresa_id = request.session.get('empresa_activa')
-        if empresa_id and pedido.empresa_id != int(empresa_id):
-            messages.error(request, 'No tiene permisos para eliminar este pedido.')
-            return redirect('pedidos:orden_pedido_list')
-    else:
-        try:
-            if pedido.empresa != request.user.perfil.empresa:
-                messages.error(request, 'No tiene permisos para eliminar este pedido.')
-                return redirect('pedidos:orden_pedido_list')
-        except:
-            messages.error(request, 'Usuario no tiene empresa asociada.')
-            return redirect('/')
+    if not (request.user.is_superuser or request.user.has_perm('pedidos.delete_ordenpedido')):
+        messages.error(request, 'No tiene permisos para eliminar pedidos.')
+        return redirect(return_url)
+    
+    # Validar si tiene despachos asociados
+    if hasattr(pedido, 'despachos') and pedido.despachos.exists():
+        messages.error(request, f'No se puede eliminar el pedido {pedido.numero_pedido} porque ya tiene órdenes de despacho asociadas.')
+        return redirect(return_url)
     
     if request.method == 'POST':
         numero_pedido = pedido.numero_pedido
-        pedido.delete()
-        messages.success(request, f'Orden de pedido {numero_pedido} eliminada exitosamente.')
-        return redirect('pedidos:orden_pedido_list')
+        try:
+            pedido.delete()
+            messages.success(request, f'Orden de pedido {numero_pedido} eliminada exitosamente.')
+        except Exception as e:
+            messages.error(request, f'No se pudo eliminar el pedido {numero_pedido}: {str(e)}')
+        return redirect(return_url)
     
     context = {
         'pedido': pedido,
+        'return_url': return_url,
     }
     
     return render(request, 'pedidos/orden_pedido_confirm_delete.html', context)

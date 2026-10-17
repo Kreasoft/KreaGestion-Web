@@ -12,15 +12,6 @@
 
 {% block content %}
 <div class="container-fluid" style="padding: 8px 12px; background: #FAFAF8; min-height: 100vh;">
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show py-2 mb-2" role="alert" style="font-size: 0.8rem;">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
     <div class="card" style="border: 2px solid #E8DCC8; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(139, 115, 85, 0.15);">
         <div class="card-header" style="background: var(--gradient-piedra); border-bottom: 3px solid var(--color-piedra-borde); padding: 8px 16px;">
             <div class="d-flex justify-content-between align-items-center">
@@ -90,7 +81,7 @@
                             <th>OC Cliente</th>
                             <th class="text-end">Total</th>
                             <th>Estado</th>
-                            <th style="width: 105px; text-align: center;">Acciones</th>
+                            <th style="width: 140px; text-align: center;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -114,6 +105,9 @@
                                 <a href="{% url 'pedidos:orden_pedido_detail' pedido.pk %}?return_url={{ request.get_full_path|urlencode }}" class="ico-32" title="Ver Detalle"><i class="fas fa-eye"></i></a>
                                 <a href="{% url 'pedidos:orden_pedido_pdf' pedido.pk %}" target="_blank" class="ico-32 text-danger" title="Imprimir Comprobante PDF"><i class="fas fa-file-pdf"></i></a>
                                 <a href="{% url 'pedidos:orden_pedido_update' pedido.pk %}?return_url={{ request.get_full_path|urlencode }}" class="ico-32" title="Editar"><i class="fas fa-edit"></i></a>
+                                {% if perms.pedidos.delete_ordenpedido or user.is_superuser %}
+                                <a href="{% url 'pedidos:orden_pedido_delete' pedido.pk %}?return_url={{ request.get_full_path|urlencode }}" class="ico-32 text-danger btn-eliminar-pedido" data-numero="{{ pedido.numero_pedido }}" data-url="{% url 'pedidos:orden_pedido_delete' pedido.pk %}" title="Eliminar"><i class="fas fa-trash-alt"></i></a>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
@@ -148,6 +142,47 @@ document.addEventListener('DOMContentLoaded', function() {
         input.style.borderColor = '#D4C4A8';
         input.style.fontSize = '0.75rem';
         input.style.height = '28px';
+    });
+
+    document.querySelectorAll('.btn-eliminar-pedido').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.getAttribute('data-url');
+            const numero = this.getAttribute('data-numero') || 'este pedido';
+            const returnUrl = window.location.pathname + window.location.search;
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Confirmar Eliminación',
+                text: '¿Está seguro de eliminar el pedido ' + numero + '?',
+                showCancelButton: true,
+                confirmButtonColor: '#8D3B2F',
+                cancelButtonColor: '#8B7355',
+                confirmButtonText: 'Sí, eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(function(result) {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = url;
+
+                    const csrf = document.createElement('input');
+                    csrf.type = 'hidden';
+                    csrf.name = 'csrfmiddlewaretoken';
+                    csrf.value = '{{ csrf_token }}';
+                    form.appendChild(csrf);
+
+                    const retInput = document.createElement('input');
+                    retInput.type = 'hidden';
+                    retInput.name = 'return_url';
+                    retInput.value = returnUrl;
+                    form.appendChild(retInput);
+
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
     });
 });
 </script>

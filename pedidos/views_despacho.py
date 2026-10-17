@@ -133,14 +133,45 @@ def orden_despacho_create(request):
                             plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
                             if not orden.fecha_vencimiento:
                                 orden.fecha_vencimiento = calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
+                        from ventas.models import FormaPago, Vendedor
+                        from bodegas.models import Bodega
+
                         if not orden.forma_pago:
-                            orden.forma_pago = getattr(pedido.cliente, 'forma_pago_defecto', None) or getattr(pedido, 'forma_pago', None) or getattr(pedido, 'condiciones_pago', None)
+                            fp = getattr(getattr(pedido, 'cliente', None), 'forma_pago_defecto', None)
+                            if not isinstance(fp, FormaPago):
+                                fp = None
+                            if not fp and pedido:
+                                cand_fp = getattr(pedido, 'forma_pago', None)
+                                if isinstance(cand_fp, FormaPago):
+                                    fp = cand_fp
+                                elif isinstance(cand_fp, str) and cand_fp.strip():
+                                    fp = FormaPago.objects.filter(empresa=request.empresa, nombre__iexact=cand_fp.strip(), activo=True).first()
+                            if not fp and pedido:
+                                cond = (getattr(pedido, 'condiciones_pago', '') or '').strip()
+                                if cond:
+                                    fp = FormaPago.objects.filter(empresa=request.empresa, nombre__iexact=cond, activo=True).first()
+                            if not fp:
+                                fp = FormaPago.objects.filter(empresa=request.empresa, activo=True).first()
+                            orden.forma_pago = fp
+
                         if not orden.vendedor:
-                            orden.vendedor = getattr(pedido, 'vendedor', None) or getattr(pedido.cliente, 'vendedor', None)
+                            vend = getattr(pedido, 'vendedor', None) or getattr(getattr(pedido, 'cliente', None), 'vendedor', None)
+                            if not isinstance(vend, Vendedor):
+                                vend = None
+                            if not vend:
+                                vend = Vendedor.objects.filter(empresa=request.empresa, activo=True).first()
+                            orden.vendedor = vend
+
                         if not orden.bodega:
-                            orden.bodega = getattr(pedido, 'bodega', None)
+                            bod = getattr(pedido, 'bodega', None)
+                            if not isinstance(bod, Bodega):
+                                bod = None
+                            if not bod:
+                                bod = Bodega.objects.filter(empresa=request.empresa, activa=True).first()
+                            orden.bodega = bod
+
                         if not orden.direccion_entrega:
-                            orden.direccion_entrega = getattr(pedido, 'direccion_despacho', '') or getattr(pedido.cliente, 'direccion', '') or ''
+                            orden.direccion_entrega = getattr(pedido, 'direccion_despacho', '') or getattr(getattr(pedido, 'cliente', None), 'direccion', '') or ''
                         
                         orden.save()
                         formset.instance = orden
@@ -187,7 +218,26 @@ def orden_despacho_create(request):
                     with open(r'C:\PROYECTOS-WEB-SII\GestionCloud-SII\debug_errors.log', 'a', encoding='utf-8') as f:
                         f.write('\n=== Error al crear orden de despacho ===\n')
                         f.write(traceback.format_exc())
-                    messages.error(request, f'Error al crear orden: {error_msg}')
+                    
+                    msg_lower = error_msg.lower()
+                    if 'forma_pago' in msg_lower or 'formapago' in msg_lower:
+                        mensaje_claro = 'Por favor seleccione una forma de pago válida para el despacho.'
+                    elif 'bodega' in msg_lower:
+                        mensaje_claro = 'Por favor seleccione una bodega válida para la rebaja de stock.'
+                    elif 'vendedor' in msg_lower:
+                        mensaje_claro = 'Por favor asigne un vendedor responsable.'
+                    elif 'caf' in msg_lower:
+                        mensaje_claro = 'No hay CAF activo disponible para emitir el documento tributario.'
+                    elif 'chofer' in msg_lower or 'vehiculo' in msg_lower or 'traslado' in msg_lower:
+                        mensaje_claro = 'Faltan datos obligatorios del transporte (chofer, vehículo o motivo de traslado).'
+                    elif 'cliente' in msg_lower:
+                        mensaje_claro = 'El cliente del pedido tiene datos incompletos.'
+                    elif 'saldo' in msg_lower or 'stock' in msg_lower or 'cantidad' in msg_lower:
+                        mensaje_claro = error_msg
+                    else:
+                        mensaje_claro = f'No fue posible generar el despacho: {error_msg}'
+                    
+                    messages.error(request, mensaje_claro)
         else:
             if form.errors:
                 for field, error_list in form.errors.items():
