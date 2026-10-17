@@ -116,6 +116,8 @@ class FormaPago(models.Model):
         if self.es_cuenta_corriente:
             return True
         nom = (self.nombre or '').lower()
+        if 'tarjeta' in nom or 'transbank' in nom or 'redcompra' in nom:
+            return False
         return 'credito' in nom or 'crédito' in nom or 'cuenta corriente' in nom
 
 

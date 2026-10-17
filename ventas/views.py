@@ -8823,18 +8823,25 @@ def facturar_guias_list(request):
     formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
     tiene_credito = any(fp.es_credito for fp in formas_pago)
     if not tiene_credito:
+        codigos_usados = set(FormaPago.objects.filter(empresa=empresa).values_list('codigo', flat=True))
+        codigo_cand = '05'
+        if codigo_cand in codigos_usados:
+            codigo_cand = '006'
+        if codigo_cand in codigos_usados:
+            codigo_cand = 'CRED'
         fp_cred, _ = FormaPago.objects.get_or_create(
             empresa=empresa,
-            codigo='006',
+            codigo=codigo_cand,
             defaults={
-                'nombre': 'CRÉDITO',
+                'nombre': 'Crédito',
                 'es_cuenta_corriente': True,
                 'activo': True
             }
         )
-        if not fp_cred.activo:
+        if not fp_cred.activo or not fp_cred.es_cuenta_corriente:
             fp_cred.activo = True
-            fp_cred.save(update_fields=['activo'])
+            fp_cred.es_cuenta_corriente = True
+            fp_cred.save(update_fields=['activo', 'es_cuenta_corriente'])
         formas_pago = FormaPago.objects.filter(empresa=empresa, activo=True).order_by('nombre')
 
     context = {

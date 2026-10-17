@@ -334,7 +334,12 @@ class DTEXMLGenerator:
                 v = self.documento.venta
                 if hasattr(v, 'forma_pago') and v.forma_pago:
                     fp = v.forma_pago
-                    es_cred = getattr(fp, 'es_cuenta_corriente', False) or getattr(fp, 'es_credito', False) or ('credito' in (fp.nombre or '').lower()) or ('crédito' in (fp.nombre or '').lower())
+                    nom_fp = (fp.nombre or '').lower()
+                    es_cred = (
+                        getattr(fp, 'es_cuenta_corriente', False)
+                        or getattr(fp, 'es_credito', False)
+                        or (('credito' in nom_fp or 'crédito' in nom_fp or 'cuenta corriente' in nom_fp) and 'tarjeta' not in nom_fp and 'transbank' not in nom_fp)
+                    )
                     forma_pago = "2" if es_cred else "1"
 
             etree.SubElement(id_doc, "FmaPago").text = forma_pago
