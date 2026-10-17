@@ -124,11 +124,15 @@ def orden_despacho_create(request):
                         if not orden.numero_despacho:
                             orden.generar_numero_despacho()
                         
-                        # Si no se ingresó fecha de vencimiento, calcularla a partir de la fecha de despacho y plazo del cliente
-                        from core.fechas import calcular_fecha_vencimiento
-                        plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
-                        if not orden.fecha_vencimiento:
-                            orden.fecha_vencimiento = calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
+                        # Si es guía de despacho no debe ir fecha de vencimiento; si es factura y no se ingresó, calcularla
+                        tipo_documento = form.cleaned_data.get('tipo_documento') or request.POST.get('tipo_documento')
+                        if tipo_documento == 'guia':
+                            orden.fecha_vencimiento = None
+                        else:
+                            from core.fechas import calcular_fecha_vencimiento
+                            plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
+                            if not orden.fecha_vencimiento:
+                                orden.fecha_vencimiento = calcular_fecha_vencimiento(orden.fecha_despacho, plazo_cliente)
                         if not orden.forma_pago:
                             orden.forma_pago = getattr(pedido.cliente, 'forma_pago_defecto', None) or getattr(pedido, 'forma_pago', None) or getattr(pedido, 'condiciones_pago', None)
                         if not orden.vendedor:
@@ -203,21 +207,24 @@ def orden_despacho_create(request):
         from core.fechas import calcular_fecha_vencimiento
         from django.utils import timezone
         fecha_despacho = timezone.localdate()
+        initial_tipo = request.GET.get('tipo_documento', 'guia')
         if pedido:
-            plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
-            fecha_vencimiento = calcular_fecha_vencimiento(fecha_despacho, plazo_cliente)
             initial_data = {
                 'orden_pedido': pedido,
                 'fecha_despacho': fecha_despacho,
-                'fecha_vencimiento': fecha_vencimiento,
+                'tipo_documento': initial_tipo,
                 'bodega': getattr(pedido, 'bodega', None),
                 'vendedor': getattr(pedido, 'vendedor', None) or getattr(pedido.cliente, 'vendedor', None),
                 'forma_pago': getattr(pedido.cliente, 'forma_pago_defecto', None) or getattr(pedido, 'forma_pago', None) or getattr(pedido, 'condiciones_pago', None),
                 'direccion_entrega': getattr(pedido, 'direccion_despacho', '') or getattr(pedido.cliente, 'direccion', '') or '',
             }
+            if initial_tipo != 'guia':
+                plazo_cliente = getattr(pedido.cliente, 'plazo_pago', 0) or 0
+                initial_data['fecha_vencimiento'] = calcular_fecha_vencimiento(fecha_despacho, plazo_cliente)
         else:
             initial_data = {
                 'fecha_despacho': fecha_despacho,
+                'tipo_documento': initial_tipo,
             }
         form = OrdenDespachoForm(initial=initial_data, empresa=request.empresa)
         formset = DetalleOrdenDespachoFormSet()

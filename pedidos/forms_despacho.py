@@ -19,7 +19,8 @@ class OrdenDespachoForm(forms.ModelForm):
         choices=TIPO_DOCUMENTO_CHOICES,
         widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
         required=True,
-        label="Documento a Generar"
+        label="Documento a Generar",
+        initial='guia'
     )
     
     class Meta:
@@ -177,6 +178,9 @@ class OrdenDespachoForm(forms.ModelForm):
         cleaned = super().clean()
         tipo = cleaned.get('tipo_documento')
         if tipo == 'guia':
+            cleaned['fecha_vencimiento'] = None
+            if self.instance:
+                self.instance.fecha_vencimiento = None
             if not cleaned.get('tipo_traslado'):
                 self.add_error('tipo_traslado', 'Obligatorio en guía de despacho.')
             if not cleaned.get('chofer'):
