@@ -235,6 +235,38 @@ class Empresa(models.Model):
         help_text="Porcentaje máximo de descuento permitido sobre el total de una venta"
     )
     
+    # Límites de líneas/ítems impresos por tipo de documento
+    max_items_factura = models.PositiveIntegerField(
+        default=20,
+        verbose_name="Máx. Líneas por Factura",
+        help_text="Cantidad máxima de líneas de detalle impresas en Factura (recomendado: 19 a 20)"
+    )
+    max_items_boleta = models.PositiveIntegerField(
+        default=35,
+        verbose_name="Máx. Líneas por Boleta",
+        help_text="Cantidad máxima de líneas de detalle impresas en Boleta"
+    )
+    max_items_guia = models.PositiveIntegerField(
+        default=20,
+        verbose_name="Máx. Líneas por Guía de Despacho",
+        help_text="Cantidad máxima de líneas de detalle impresas en Guía (recomendado: 19 a 20)"
+    )
+    max_items_cotizacion = models.PositiveIntegerField(
+        default=50,
+        verbose_name="Máx. Líneas por Cotización",
+        help_text="Cantidad máxima de líneas de detalle impresas en Cotización"
+    )
+    max_items_nota_venta = models.PositiveIntegerField(
+        default=50,
+        verbose_name="Máx. Líneas por Nota de Venta",
+        help_text="Cantidad máxima de líneas de detalle impresas en Nota de Venta"
+    )
+    max_items_vale = models.PositiveIntegerField(
+        default=30,
+        verbose_name="Máx. Líneas por Vale Interno",
+        help_text="Cantidad máxima de líneas de detalle impresas en Vale Interno"
+    )
+    
     # === FACTURACIÓN ELECTRÓNICA ===
     facturacion_electronica = models.BooleanField(
         default=False,
@@ -559,6 +591,23 @@ class Empresa(models.Model):
         )
         
         return sucursal
+
+    def get_max_items_por_tipo(self, tipo_documento):
+        """Retorna el máximo de ítems/líneas permitidas según el tipo de documento."""
+        mapeo = {
+            'factura': self.max_items_factura or 20,
+            'boleta': self.max_items_boleta or 35,
+            'guia': self.max_items_guia or 20,
+            'cotizacion': self.max_items_cotizacion or 50,
+            'nota_venta': self.max_items_nota_venta or 50,
+            'vale': self.max_items_vale or 30,
+            'ticket': self.max_items_vale or 30,
+            '33': self.max_items_factura or 20,
+            '34': self.max_items_factura or 20,
+            '39': self.max_items_boleta or 35,
+            '52': self.max_items_guia or 20,
+        }
+        return mapeo.get(str(tipo_documento).lower(), 20)
 
 
 class Sucursal(models.Model):

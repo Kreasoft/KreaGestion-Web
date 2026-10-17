@@ -111,6 +111,8 @@ class EmpresaForm(forms.ModelForm):
             'smtp_usar_tls', 'sitio_web', 'logo',
             'regimen_tributario', 'tipo_industria', 'usa_produccion', 'usa_sistema_despacho',
             'max_descuento_lineal', 'max_descuento_total',
+            'max_items_factura', 'max_items_boleta', 'max_items_guia',
+            'max_items_cotizacion', 'max_items_nota_venta', 'max_items_vale',
             'facturacion_electronica',
             'ambiente_sii', 'modo_reutilizacion_folios', 'password_certificado',
             'razon_social_sii', 'giro_sii', 'codigo_actividad_economica',
@@ -143,6 +145,12 @@ class EmpresaForm(forms.ModelForm):
             'usa_sistema_despacho': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'max_descuento_lineal': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
             'max_descuento_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'max_items_factura': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_boleta': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_guia': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_nota_venta': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_vale': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
             'facturacion_electronica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'ambiente_sii': forms.Select(attrs={'class': 'form-select'}),
             'modo_reutilizacion_folios': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -174,7 +182,9 @@ class ConfiguracionesGeneralesForm(forms.ModelForm):
         model = Empresa
         fields = [
             'usa_produccion', 'usa_sistema_despacho',
-            'tipo_industria', 'max_descuento_lineal', 'max_descuento_total'
+            'tipo_industria', 'max_descuento_lineal', 'max_descuento_total',
+            'max_items_factura', 'max_items_boleta', 'max_items_guia',
+            'max_items_cotizacion', 'max_items_nota_venta', 'max_items_vale'
         ]
         widgets = {
             'usa_produccion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -182,6 +192,12 @@ class ConfiguracionesGeneralesForm(forms.ModelForm):
             'tipo_industria': forms.Select(attrs={'class': 'form-select'}),
             'max_descuento_lineal': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
             'max_descuento_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'max_items_factura': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_boleta': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_guia': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_cotizacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_nota_venta': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_items_vale': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
         }
 
 

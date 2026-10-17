@@ -8398,13 +8398,11 @@ def facturar_directo(request):
             return JsonResponse({'success': False, 'message': 'No hay una sucursal activa disponible para emitir el documento.'}, status=400)
 
         tipo_documento_venta = 'guia' if es_guia else ('boleta' if es_boleta else 'factura')
-        max_items_permitidos = 50
-        if estacion_activa:
-            max_items_permitidos = estacion_activa.get_max_items_por_tipo(tipo_documento_venta)
+        max_items_permitidos = empresa.get_max_items_por_tipo(tipo_documento_venta) if hasattr(empresa, 'get_max_items_por_tipo') else (estacion_activa.get_max_items_por_tipo(tipo_documento_venta) if estacion_activa else 20)
         if len(lineas) > max_items_permitidos:
             return JsonResponse({
                 'success': False,
-                'message': f'El máximo permitido para {tipo_documento_venta} es {max_items_permitidos} ítems y seleccionaste {len(lineas)}.',
+                'message': f'El máximo permitido para {tipo_documento_venta} en la configuración de la empresa es {max_items_permitidos} líneas y seleccionaste {len(lineas)}.',
                 'max_items': max_items_permitidos,
                 'cantidad_items': len(lineas),
                 'tipo_documento': tipo_documento_venta,
@@ -8744,9 +8742,11 @@ def facturar_directo(request):
         'today': timezone.localdate(),
         'estacion_activa': estacion_activa,
         'max_items_config': {
-            'factura': estacion_activa.max_items_factura if estacion_activa else 20,
-            'boleta': estacion_activa.max_items_boleta if estacion_activa else 35,
-            'guia': estacion_activa.max_items_guia if estacion_activa else 50,
+            'factura': empresa.get_max_items_por_tipo('factura'),
+            'boleta': empresa.get_max_items_por_tipo('boleta'),
+            'guia': empresa.get_max_items_por_tipo('guia'),
+            'cotizacion': empresa.get_max_items_por_tipo('cotizacion'),
+            'vale': empresa.get_max_items_por_tipo('vale'),
         },
         'tipo_despacho_choices': Venta.TIPO_DESPACHO_CHOICES,
         'tipo_despacho_sii_choices': TIPO_DESPACHO_SII_CHOICES,
@@ -8853,11 +8853,11 @@ def facturar_guias_list(request):
         'vendedores': vendedores,
         'formas_pago': formas_pago,
         'max_items_config': {
-            'factura': estacion_activa.max_items_factura if estacion_activa else 20,
-            'boleta': estacion_activa.max_items_boleta if estacion_activa else 35,
-            'guia': estacion_activa.max_items_guia if estacion_activa else 50,
-            'cotizacion': estacion_activa.max_items_cotizacion if estacion_activa else 50,
-            'vale': estacion_activa.max_items_vale if estacion_activa else 30,
+            'factura': empresa.get_max_items_por_tipo('factura'),
+            'boleta': empresa.get_max_items_por_tipo('boleta'),
+            'guia': empresa.get_max_items_por_tipo('guia'),
+            'cotizacion': empresa.get_max_items_por_tipo('cotizacion'),
+            'vale': empresa.get_max_items_por_tipo('vale'),
         }
     }
     
@@ -9003,13 +9003,13 @@ def api_procesar_factura_consolidada(request):
             return JsonResponse({'success': False, 'message': 'No hay estaciones de trabajo configuradas.'})
 
         tipo_documento_venta = 'factura' if tipo_factura == '33' else 'boleta'
-        max_items_permitidos = estacion.get_max_items_por_tipo(tipo_documento_venta)
+        max_items_permitidos = request.empresa.get_max_items_por_tipo(tipo_documento_venta) if hasattr(request.empresa, 'get_max_items_por_tipo') else (estacion.get_max_items_por_tipo(tipo_documento_venta) if estacion else 20)
         if cantidad_items_consolidados > max_items_permitidos:
             return JsonResponse({
                 'success': False,
                 'message': (
                     f'Las guías seleccionadas generan {cantidad_items_consolidados} ítems consolidados y '
-                    f'el máximo permitido para {tipo_documento_venta} es {max_items_permitidos}.'
+                    f'el máximo permitido para {tipo_documento_venta} en la configuración de la empresa es {max_items_permitidos} líneas impresas.'
                 ),
                 'cantidad_items': cantidad_items_consolidados,
                 'max_items': max_items_permitidos,
