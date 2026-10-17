@@ -362,6 +362,9 @@ def orden_pedido_detail(request, pk):
             return redirect('/')
     
     items = pedido.items.select_related('articulo').all()
+    if pedido.total_pedido == 0 and items.exists():
+        pedido.calcular_totales()
+        pedido.refresh_from_db()
     
     # Obtener despachos asociados
     despachos = pedido.despachos.select_related('creado_por').prefetch_related('items').all()
@@ -401,6 +404,10 @@ def orden_pedido_pdf(request, pk):
         pk=pk,
         empresa=request.empresa
     )
+
+    if pedido.total_pedido == 0 and pedido.items.exists():
+        pedido.calcular_totales()
+        pedido.refresh_from_db()
 
     # Si no se solicita el binario directo (raw=1) o descarga (dl=1), mostrar visor interactivo con botones Volver / Cerrar / Imprimir
     if request.GET.get('raw') != '1' and request.GET.get('dl') != '1':

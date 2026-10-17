@@ -98,16 +98,22 @@ class OrdenPedido(models.Model):
     def __str__(self):
         return f"Pedido {self.numero_pedido} - {self.cliente.nombre}"
     
-    def calcular_totales(self):
+    def calcular_totales(self, commit=True):
         """Calcula los totales del pedido basado en sus items"""
-        items = self.items.all()
+        items = list(self.items.all())
         
         self.subtotal = sum(item.get_subtotal() for item in items)
         self.descuentos_totales = sum(item.get_descuento_monto() for item in items)
         self.impuestos_totales = sum(item.get_impuesto_monto() for item in items)
         self.total_pedido = self.subtotal - self.descuentos_totales + self.impuestos_totales
         
-        self.save()
+        if commit and self.pk:
+            OrdenPedido.objects.filter(pk=self.pk).update(
+                subtotal=self.subtotal,
+                descuentos_totales=self.descuentos_totales,
+                impuestos_totales=self.impuestos_totales,
+                total_pedido=self.total_pedido,
+            )
     
     def generar_numero_pedido(self):
         """Genera el correlativo independiente y garantizado único de la empresa activa."""
@@ -234,10 +240,18 @@ class ItemOrdenPedido(models.Model):
         verbose_name_plural = "Items de Orden de Pedido"
     
     def save(self, *args, **kwargs):
-        """Failsafe para asegurar que el impuesto nunca sea nulo en la BD"""
+        """Failsafe para asegurar que el impuesto nunca sea nulo en la BD y recalcular totales"""
         if self.impuesto_porcentaje is None:
             self.impuesto_porcentaje = 19
         super().save(*args, **kwargs)
+        if self.orden_pedido_id:
+            self.orden_pedido.calcular_totales()
+
+    def delete(self, *args, **kwargs):
+        orden = self.orden_pedido
+        super().delete(*args, **kwargs)
+        if orden:
+            orden.calcular_totales()
     
     def __str__(self):
         return f"{self.articulo.nombre} - {self.cantidad} unidades"

@@ -7510,8 +7510,10 @@
 
     <!-- SweetAlert2 Functions & Interceptor (Paleta Piedra + Tipografía Delgado/Grueso) -->
     <script>
-        // Función para formatear mensajes y títulos de SweetAlert: si tiene más de 2 palabras, primera mitad delgada y última gruesa
-        function formatearSwalDelgadoGrueso(texto) {
+        // Función para formatear mensajes y títulos de SweetAlert:
+        // Si es título: si tiene más de 1 palabra (>= 2 palabras), primera parte delgada y final gruesa
+        // Si es mensaje: si tiene más de 2 palabras (>= 3 palabras), primera mitad delgada y final gruesa
+        function formatearSwalDelgadoGrueso(texto, esTitulo) {
             if (!texto || typeof texto !== 'string') return texto;
             var trimmed = texto.trim();
             if (!trimmed) return texto;
@@ -7519,12 +7521,14 @@
             if (/<span|<b|<strong|<em|<font|<p|<div/i.test(trimmed)) return texto;
 
             var palabras = trimmed.split(/\s+/);
-            if (palabras.length <= 2) {
-                return texto; // Si tiene 1 o 2 palabras, se mantiene normal
+            var minPalabras = esTitulo ? 1 : 2;
+            if (palabras.length <= minPalabras) {
+                return texto; // Títulos de 1 palabra o mensajes de <= 2 palabras se mantienen normales
             }
 
-            // Más de 2 palabras: primera parte delgada (font-weight: 300) y parte final gruesa (font-weight: 700/800)
-            var corte = Math.ceil(palabras.length / 2);
+            // Para 2 palabras (común en títulos): palabra 1 delgada, palabra 2 gruesa
+            // Para > 2 palabras: primera mitad delgada (font-weight: 300) y parte final gruesa (font-weight: 800)
+            var corte = (palabras.length === 2) ? 1 : Math.ceil(palabras.length / 2);
             var delgada = palabras.slice(0, corte).join(' ');
             var gruesa = palabras.slice(corte).join(' ');
 
@@ -7546,25 +7550,25 @@
                     if (typeof args[0] === 'object' && args[0] !== null) {
                         var opts = Object.assign({}, args[0]);
 
-                        // Formatear title si tiene más de 2 palabras
+                        // Formatear title si tiene más de 1 palabra
                         if (opts.title && typeof opts.title === 'string') {
-                            opts.title = formatearSwalDelgadoGrueso(opts.title);
+                            opts.title = formatearSwalDelgadoGrueso(opts.title, true);
                         } else if (opts.titleText && typeof opts.titleText === 'string') {
-                            opts.title = formatearSwalDelgadoGrueso(opts.titleText);
+                            opts.title = formatearSwalDelgadoGrueso(opts.titleText, true);
                             delete opts.titleText;
                         } else if (!opts.title && opts.text && typeof opts.text === 'string') {
                             var pTxt = opts.text.trim().split(/\s+/);
                             if (pTxt.length > 2 && pTxt.length <= 14) {
-                                opts.html = formatearSwalDelgadoGrueso(opts.text);
+                                opts.html = formatearSwalDelgadoGrueso(opts.text, false);
                                 delete opts.text;
                             }
                         }
 
-                        // Si el título es muy corto (<= 2 palabras) pero el mensaje text es de 3 a 14 palabras, formatear mensaje
-                        if (opts.text && typeof opts.text === 'string' && (!opts.title || opts.title.replace(/<[^>]*>/g, '').trim().split(/\s+/).length <= 2)) {
+                        // Formatear mensaje de texto si tiene más de 2 palabras
+                        if (opts.text && typeof opts.text === 'string') {
                             var pMensaje = opts.text.trim().split(/\s+/);
                             if (pMensaje.length > 2 && pMensaje.length <= 14) {
-                                opts.html = formatearSwalDelgadoGrueso(opts.text);
+                                opts.html = formatearSwalDelgadoGrueso(opts.text, false);
                                 delete opts.text;
                             }
                         }
@@ -7583,44 +7587,38 @@
 
                     // Invocación posicional: Swal.fire(title, text/html, icon)
                     if (typeof args[0] === 'string') {
-                        args[0] = formatearSwalDelgadoGrueso(args[0]);
+                        args[0] = formatearSwalDelgadoGrueso(args[0], true);
                     }
                     if (args.length >= 2 && typeof args[1] === 'string') {
-                        var palabrasA0 = (args[0] || '').replace(/<[^>]*>/g, '').trim().split(/\s+/);
-                        if (palabrasA0.length <= 2) {
-                            var palabrasA1 = args[1].trim().split(/\s+/);
-                            if (palabrasA1.length > 2 && palabrasA1.length <= 14) {
-                                args[1] = formatearSwalDelgadoGrueso(args[1]);
-                            }
+                        var palabrasA1 = args[1].trim().split(/\s+/);
+                        if (palabrasA1.length > 2 && palabrasA1.length <= 14) {
+                            args[1] = formatearSwalDelgadoGrueso(args[1], false);
                         }
                     }
 
                     return origFire.apply(this, args);
                 };
 
-                // Observer del DOM para capturar alertas y formatear títulos o mensajes con > 2 palabras
+                // Observer del DOM para capturar alertas y formatear títulos (> 1 palabra) o mensajes (> 2 palabras)
                 if (window.MutationObserver) {
                     var observer = new MutationObserver(function() {
                         var titleEl = document.querySelector('.swal2-title');
                         if (titleEl && !titleEl.querySelector('.swal-thin, .swal-bold') && !titleEl.querySelector('b, strong, span')) {
                             var rawTitle = (titleEl.textContent || '').trim();
                             var wordsT = rawTitle.split(/\s+/);
-                            if (wordsT.length > 2) {
-                                var corteT = Math.ceil(wordsT.length / 2);
+                            if (wordsT.length > 1) {
+                                var corteT = (wordsT.length === 2) ? 1 : Math.ceil(wordsT.length / 2);
                                 titleEl.innerHTML = '<span class="swal-thin" style="font-weight: 300 !important; color: #6F5B44 !important; opacity: 0.95;">' + wordsT.slice(0, corteT).join(' ') + '</span> <span class="swal-bold" style="font-weight: 800 !important; color: #5D4037 !important;">' + wordsT.slice(corteT).join(' ') + '</span>';
                             }
                         }
 
                         var htmlEl = document.querySelector('.swal2-html-container');
                         if (htmlEl && !htmlEl.querySelector('.swal-thin, .swal-bold') && !htmlEl.querySelector('b, strong, span, p')) {
-                            var titleWords = (titleEl && titleEl.textContent ? titleEl.textContent.trim().split(/\s+/).length : 0);
-                            if (titleWords <= 2) {
-                                var rawHtml = (htmlEl.textContent || '').trim();
-                                var wordsH = rawHtml.split(/\s+/);
-                                if (wordsH.length > 2 && wordsH.length <= 14) {
-                                    var corteH = Math.ceil(wordsH.length / 2);
-                                    htmlEl.innerHTML = '<span class="swal-thin" style="font-weight: 300 !important; color: #6F5B44 !important;">' + wordsH.slice(0, corteH).join(' ') + '</span> <span class="swal-bold" style="font-weight: 700 !important; color: #5D4037 !important;">' + wordsH.slice(corteH).join(' ') + '</span>';
-                                }
+                            var rawHtml = (htmlEl.textContent || '').trim();
+                            var wordsH = rawHtml.split(/\s+/);
+                            if (wordsH.length > 2 && wordsH.length <= 14) {
+                                var corteH = Math.ceil(wordsH.length / 2);
+                                htmlEl.innerHTML = '<span class="swal-thin" style="font-weight: 300 !important; color: #6F5B44 !important;">' + wordsH.slice(0, corteH).join(' ') + '</span> <span class="swal-bold" style="font-weight: 700 !important; color: #5D4037 !important;">' + wordsH.slice(corteH).join(' ') + '</span>';
                             }
                         }
                     });
