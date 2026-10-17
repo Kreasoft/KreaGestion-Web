@@ -7508,164 +7508,217 @@
 
 
 
-    <!-- SweetAlert2 Functions -->
-
+    <!-- SweetAlert2 Functions & Interceptor (Paleta Piedra + Tipografía Delgado/Grueso) -->
     <script>
+        // Función para formatear mensajes y títulos de SweetAlert: si tiene más de 2 palabras, primera mitad delgada y última gruesa
+        function formatearSwalDelgadoGrueso(texto) {
+            if (!texto || typeof texto !== 'string') return texto;
+            var trimmed = texto.trim();
+            if (!trimmed) return texto;
+            // Si ya contiene etiquetas HTML de formato, respetarlas
+            if (/<span|<b|<strong|<em|<font|<p|<div/i.test(trimmed)) return texto;
+
+            var palabras = trimmed.split(/\s+/);
+            if (palabras.length <= 2) {
+                return texto; // Si tiene 1 o 2 palabras, se mantiene normal
+            }
+
+            // Más de 2 palabras: primera parte delgada (font-weight: 300) y parte final gruesa (font-weight: 700/800)
+            var corte = Math.ceil(palabras.length / 2);
+            var delgada = palabras.slice(0, corte).join(' ');
+            var gruesa = palabras.slice(corte).join(' ');
+
+            return '<span class="swal-thin" style="font-weight: 300 !important; color: #6F5B44 !important; opacity: 0.95;">' + delgada + '</span> <span class="swal-bold" style="font-weight: 800 !important; color: #5D4037 !important;">' + gruesa + '</span>';
+        }
+
+        // Interceptor universal de Swal.fire para aplicar la regla en toda la plataforma
+        (function() {
+            function instalarSweetAlertInterceptor() {
+                if (!window.Swal || window.Swal._gcEnhanced) return;
+                window.Swal._gcEnhanced = true;
+
+                var origFire = window.Swal.fire;
+
+                window.Swal.fire = function() {
+                    var args = Array.prototype.slice.call(arguments);
+                    if (args.length === 0) return origFire.apply(this, args);
+
+                    if (typeof args[0] === 'object' && args[0] !== null) {
+                        var opts = Object.assign({}, args[0]);
+
+                        // Formatear title si tiene más de 2 palabras
+                        if (opts.title && typeof opts.title === 'string') {
+                            opts.title = formatearSwalDelgadoGrueso(opts.title);
+                        } else if (opts.titleText && typeof opts.titleText === 'string') {
+                            opts.title = formatearSwalDelgadoGrueso(opts.titleText);
+                            delete opts.titleText;
+                        } else if (!opts.title && opts.text && typeof opts.text === 'string') {
+                            var pTxt = opts.text.trim().split(/\s+/);
+                            if (pTxt.length > 2 && pTxt.length <= 14) {
+                                opts.html = formatearSwalDelgadoGrueso(opts.text);
+                                delete opts.text;
+                            }
+                        }
+
+                        // Si el título es muy corto (<= 2 palabras) pero el mensaje text es de 3 a 14 palabras, formatear mensaje
+                        if (opts.text && typeof opts.text === 'string' && (!opts.title || opts.title.replace(/<[^>]*>/g, '').trim().split(/\s+/).length <= 2)) {
+                            var pMensaje = opts.text.trim().split(/\s+/);
+                            if (pMensaje.length > 2 && pMensaje.length <= 14) {
+                                opts.html = formatearSwalDelgadoGrueso(opts.text);
+                                delete opts.text;
+                            }
+                        }
+
+                        // Paleta Piedra: eliminación de azul (#3085d6), celeste (#17a2b8) y bootstrap primary (#0d6efd)
+                        if (!opts.confirmButtonColor || opts.confirmButtonColor === '#3085d6' || opts.confirmButtonColor === '#17a2b8' || opts.confirmButtonColor === '#0d6efd') {
+                            opts.confirmButtonColor = '#8D6E63';
+                        }
+                        if (opts.cancelButtonColor === '#6c757d' || !opts.cancelButtonColor) {
+                            opts.cancelButtonColor = '#A89880';
+                        }
+
+                        args[0] = opts;
+                        return origFire.apply(this, args);
+                    }
+
+                    // Invocación posicional: Swal.fire(title, text/html, icon)
+                    if (typeof args[0] === 'string') {
+                        args[0] = formatearSwalDelgadoGrueso(args[0]);
+                    }
+                    if (args.length >= 2 && typeof args[1] === 'string') {
+                        var palabrasA0 = (args[0] || '').replace(/<[^>]*>/g, '').trim().split(/\s+/);
+                        if (palabrasA0.length <= 2) {
+                            var palabrasA1 = args[1].trim().split(/\s+/);
+                            if (palabrasA1.length > 2 && palabrasA1.length <= 14) {
+                                args[1] = formatearSwalDelgadoGrueso(args[1]);
+                            }
+                        }
+                    }
+
+                    return origFire.apply(this, args);
+                };
+
+                // Observer del DOM para capturar alertas y formatear títulos o mensajes con > 2 palabras
+                if (window.MutationObserver) {
+                    var observer = new MutationObserver(function() {
+                        var titleEl = document.querySelector('.swal2-title');
+                        if (titleEl && !titleEl.querySelector('.swal-thin, .swal-bold') && !titleEl.querySelector('b, strong, span')) {
+                            var rawTitle = (titleEl.textContent || '').trim();
+                            var wordsT = rawTitle.split(/\s+/);
+                            if (wordsT.length > 2) {
+                                var corteT = Math.ceil(wordsT.length / 2);
+                                titleEl.innerHTML = '<span class="swal-thin" style="font-weight: 300 !important; color: #6F5B44 !important; opacity: 0.95;">' + wordsT.slice(0, corteT).join(' ') + '</span> <span class="swal-bold" style="font-weight: 800 !important; color: #5D4037 !important;">' + wordsT.slice(corteT).join(' ') + '</span>';
+                            }
+                        }
+
+                        var htmlEl = document.querySelector('.swal2-html-container');
+                        if (htmlEl && !htmlEl.querySelector('.swal-thin, .swal-bold') && !htmlEl.querySelector('b, strong, span, p')) {
+                            var titleWords = (titleEl && titleEl.textContent ? titleEl.textContent.trim().split(/\s+/).length : 0);
+                            if (titleWords <= 2) {
+                                var rawHtml = (htmlEl.textContent || '').trim();
+                                var wordsH = rawHtml.split(/\s+/);
+                                if (wordsH.length > 2 && wordsH.length <= 14) {
+                                    var corteH = Math.ceil(wordsH.length / 2);
+                                    htmlEl.innerHTML = '<span class="swal-thin" style="font-weight: 300 !important; color: #6F5B44 !important;">' + wordsH.slice(0, corteH).join(' ') + '</span> <span class="swal-bold" style="font-weight: 700 !important; color: #5D4037 !important;">' + wordsH.slice(corteH).join(' ') + '</span>';
+                                }
+                            }
+                        }
+                    });
+                    if (document.body) {
+                        observer.observe(document.body, { childList: true, subtree: true });
+                    } else {
+                        document.addEventListener('DOMContentLoaded', function() {
+                            observer.observe(document.body, { childList: true, subtree: true });
+                        });
+                    }
+                }
+            }
+
+            if (window.Swal) {
+                instalarSweetAlertInterceptor();
+            } else {
+                document.addEventListener('DOMContentLoaded', instalarSweetAlertInterceptor);
+            }
+        })();
 
         // Función para mostrar alertas de éxito
-
         function showSuccess(message, title = '¡Éxito!') {
-
             Swal.fire({
-
                 icon: 'success',
-
                 title: title,
-
                 text: message,
-
                 confirmButtonText: 'Aceptar',
-
                 confirmButtonColor: '#28a745',
-
                 timer: 3000,
-
                 timerProgressBar: true
-
             });
-
         }
-
-
 
         // Función para mostrar alertas de error
-
         function showError(message, title = 'Error') {
-
             Swal.fire({
-
                 icon: 'error',
-
                 title: title,
-
                 text: message,
-
                 confirmButtonText: 'Aceptar',
-
+                confirmButtonColor: '#8D6E63'
             });
-
         }
-
-
 
         // Función para mostrar alertas de advertencia
-
         function showWarning(message, title = 'Advertencia') {
-
             Swal.fire({
-
                 icon: 'warning',
-
                 title: title,
-
                 text: message,
-
                 confirmButtonText: 'Aceptar',
-
-                confirmButtonColor: '#ffc107'
-
+                confirmButtonColor: '#D4A574'
             });
-
         }
-
-
 
         // Función para mostrar alertas de información
-
         function showInfo(message, title = 'Información') {
-
             Swal.fire({
-
                 icon: 'info',
-
                 title: title,
-
                 text: message,
-
                 confirmButtonText: 'Aceptar',
-
-                confirmButtonColor: '#17a2b8'
-
+                confirmButtonColor: '#8D6E63'
             });
-
         }
-
-
 
         // Función para confirmar acciones
-
         function showConfirm(title, text, confirmButtonText = 'Sí, continuar', cancelButtonText = 'Cancelar') {
-
             return Swal.fire({
-
                 title: title,
-
                 text: text,
-
                 icon: 'question',
-
                 showCancelButton: true,
-
-                confirmButtonColor: '#3085d6',
-
-                cancelButtonColor: '#d33',
-
+                confirmButtonColor: '#8D6E63',
+                cancelButtonColor: '#A89880',
                 confirmButtonText: confirmButtonText,
-
                 cancelButtonText: cancelButtonText
-
             });
-
         }
-
-
 
         // Función para mostrar loading
-
         function showLoading(title = 'Procesando...', text = 'Por favor espere') {
-
             Swal.fire({
-
                 title: title,
-
                 text: text,
-
                 allowOutsideClick: false,
-
                 allowEscapeKey: false,
-
                 showConfirmButton: false,
-
                 didOpen: () => {
-
                     Swal.showLoading();
-
                 }
-
             });
-
         }
-
-
 
         // Función para cerrar loading
-
         function hideLoading() {
-
             Swal.close();
-
         }
-
     </script>
 
     
