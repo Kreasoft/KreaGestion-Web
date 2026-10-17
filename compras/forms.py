@@ -8,9 +8,27 @@ from empresas.models import Sucursal
 from bodegas.models import Bodega
 
 
+class IntegerSeparadorMilesField(forms.IntegerField):
+    """Campo entero tolerante a separadores de miles (punto) y signos de moneda"""
+    def to_python(self, value):
+        if value in self.empty_values:
+            return 0
+        if isinstance(value, str):
+            value = value.replace('.', '').replace('$', '').replace(' ', '').strip()
+        return super().to_python(value)
+
+
 class OrdenCompraForm(forms.ModelForm):
     """Formulario para crear y editar órdenes de compra"""
     
+    subtotal = IntegerSeparadorMilesField(required=False, widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}))
+    descuentos_totales = IntegerSeparadorMilesField(required=False, widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-end', 'readonly': True}))
+    neto_ajustado = IntegerSeparadorMilesField(required=False, widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-end'}))
+    iva_ajustado = IntegerSeparadorMilesField(required=False, widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-end'}))
+    impuesto_especifico = IntegerSeparadorMilesField(required=False, widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-end'}))
+    impuestos_totales = IntegerSeparadorMilesField(required=False, widget=forms.HiddenInput())
+    total_orden = IntegerSeparadorMilesField(required=False, widget=forms.TextInput(attrs={'class': 'form-control form-control-sm text-end fw-bold'}))
+
     class Meta:
         model = OrdenCompra
         fields = [
