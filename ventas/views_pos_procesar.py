@@ -15,7 +15,7 @@ from django.utils import timezone
 from decimal import Decimal
 
 from core.decorators import requiere_empresa
-from core.fechas import fecha_documento_caja
+from core.fechas import caja_es_del_dia_actual, fecha_documento_caja, mensaje_caja_desfasada
 from .models import Venta, VentaDetalle, EstacionTrabajo, FormaPago
 from caja.models import VentaProcesada
 
@@ -184,6 +184,33 @@ def procesar_venta_pos_directo(request, ticket_id):
             messages.error(request, 'Debe seleccionar un Motivo de Traslado para la Guía de Despacho.')
             return redirect('ventas:procesar_venta_pos_directo', ticket_id=ticket_id)
 
+    # Actualizar dirección de despacho/entrega si se envió
+    direccion_cliente_id = request.POST.get('direccion_cliente_id')
+    if direccion_cliente_id and ticket.cliente:
+        if str(direccion_cliente_id).isdigit():
+            from clientes.models import DireccionCliente
+            dc = DireccionCliente.objects.filter(id=int(direccion_cliente_id), cliente=ticket.cliente).first()
+            if dc:
+                ticket.direccion_cliente = dc
+                ticket.direccion_despacho = dc.direccion
+                ticket.comuna_despacho = dc.comuna or ''
+                ticket.ciudad_despacho = dc.ciudad or ''
+                ticket.save(update_fields=['direccion_cliente', 'direccion_despacho', 'comuna_despacho', 'ciudad_despacho'])
+        elif str(direccion_cliente_id) == 'base':
+            ticket.direccion_cliente = None
+            ticket.direccion_despacho = ticket.cliente.direccion or ''
+            ticket.comuna_despacho = ticket.cliente.comuna or ''
+            ticket.ciudad_despacho = getattr(ticket.cliente, 'ciudad', '') or ''
+            ticket.save(update_fields=['direccion_cliente', 'direccion_despacho', 'comuna_despacho', 'ciudad_despacho'])
+    elif not ticket.direccion_despacho and ticket.cliente:
+        principal_dir = ticket.cliente.direcciones.filter(es_principal=True, activa=True).first()
+        if principal_dir:
+            ticket.direccion_cliente = principal_dir
+            ticket.direccion_despacho = principal_dir.direccion
+            ticket.comuna_despacho = principal_dir.comuna or ''
+            ticket.ciudad_despacho = principal_dir.ciudad or ''
+            ticket.save(update_fields=['direccion_cliente', 'direccion_despacho', 'comuna_despacho', 'ciudad_despacho'])
+
     # Generar DTE y completar procesamiento
     try:
         from caja.models import Caja, AperturaCaja, MovimientoCaja
@@ -206,6 +233,10 @@ def procesar_venta_pos_directo(request, ticket_id):
             if not apertura_activa:
                 messages.error(request, 'No hay caja abierta. Debe abrir una caja antes de procesar ventas.')
                 return redirect('ventas:procesar_venta_pos_directo', ticket_id=ticket_id)
+
+            if not caja_es_del_dia_actual(apertura_activa):
+                messages.error(request, mensaje_caja_desfasada(apertura_activa))
+                return redirect('caja:apertura_cerrar', pk=apertura_activa.pk)
             
             print(f"[POS DIRECTO] Apertura de caja encontrada: {apertura_activa.id}")
             
@@ -261,7 +292,7 @@ def procesar_venta_pos_directo(request, ticket_id):
                         monto=monto_fp,
                         descripcion=f"{ticket.tipo_documento_planeado.title()} #{numero_venta_final}",
                         usuario=request.user,
-                        fecha=apertura_activa.fecha_apertura # Forzar fecha contable de la caja
+                        fecha=timezone.now()
                     )
                     
                     # Guardar la primera forma de pago en el ticket (para trazabilidad y DTE)

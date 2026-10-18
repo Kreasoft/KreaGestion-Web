@@ -3582,6 +3582,64 @@
             // Alias para compatibilidad
             const procesarPreventa = processSale;
 
+            // Helper global para renderizar selector de direcciones de clientes
+            window.actualizarSelectDireccionesElement = function(selectEl, containerEl, direcciones, esGuia) {
+                if (!selectEl || !containerEl) return;
+                if (Array.isArray(direcciones) && direcciones.length > 1) {
+                    const currentVal = selectEl.value;
+                    selectEl.innerHTML = '';
+                    let principalVal = null;
+
+                    direcciones.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d.id;
+                        const comunaPart = d.comuna ? ` (${d.comuna})` : '';
+                        const princPart = d.es_principal ? ' [Principal]' : '';
+                        opt.textContent = `${d.alias ? d.alias + ': ' : ''}${d.direccion}${comunaPart}${princPart}`;
+                        opt.dataset.direccion = d.direccion || '';
+                        opt.dataset.comuna = d.comuna || '';
+                        opt.dataset.ciudad = d.ciudad || '';
+                        opt.dataset.esPrincipal = d.es_principal ? '1' : '0';
+                        if (d.es_principal) {
+                            principalVal = d.id;
+                        }
+                        selectEl.appendChild(opt);
+                    });
+
+                    // En guías la dirección de despacho debe ser por defecto la principal con opción de cambio
+                    if (esGuia && principalVal !== null) {
+                        selectEl.value = String(principalVal);
+                    } else if (currentVal && selectEl.querySelector(`option[value="${currentVal}"]`)) {
+                        selectEl.value = currentVal;
+                    } else if (principalVal !== null) {
+                        selectEl.value = String(principalVal);
+                    }
+
+                    containerEl.style.display = 'block';
+                } else {
+                    containerEl.style.display = 'none';
+                }
+            };
+
+            window.actualizarSelectorDireccionPOS = function() {
+                const dirContainer = document.getElementById('contenedor-direccion-despacho-pos');
+                const dirSelect = document.getElementById('direccion-despacho-pos-select');
+                if (!dirContainer || !dirSelect) return;
+
+                const tipoDocSelect = document.getElementById('tipo-documento');
+                const tipoDoc = (tipoDocSelect && tipoDocSelect.value) ? tipoDocSelect.value : (window.tipoDocumentoSeleccionado || '');
+                const esFacturaOGuia = (tipoDoc === 'factura' || tipoDoc === 'guia' || (tipoDoc === 'ticket' && ['factura', 'guia'].includes(window.tipoDocumentoPlaneadoTicket)));
+
+                if (!esFacturaOGuia) {
+                    dirContainer.style.display = 'none';
+                    return;
+                }
+
+                const esGuia = (tipoDoc === 'guia' || (tipoDoc === 'ticket' && window.tipoDocumentoPlaneadoTicket === 'guia'));
+                const dirs = window.clienteSeleccionado ? window.clienteSeleccionado.direcciones : null;
+                window.actualizarSelectDireccionesElement(dirSelect, dirContainer, dirs, esGuia);
+            };
+
             // Mostrar selector de tipo de documento para preventa
             function showDocumentTypeSelector() {
                 console.log('*** INICIO showDocumentTypeSelector() ***');
@@ -3904,6 +3962,14 @@
                     </div>
                 </div>
 
+                <div id="contenedor-direccion-despacho-pos" class="mt-2" style="display: none; background: #FAF7F2; border: 1px solid #E6D8C3; border-radius: 8px; padding: 8px 10px;">
+                    <label class="form-label mb-1" style="font-size: 0.78rem; font-weight: 700; color: #5D4037; text-align: left; display: block;">
+                        <i class="fas fa-shipping-fast me-1" style="color: #8B7355;"></i>Dirección de Envío / Despacho
+                    </label>
+                    <select id="direccion-despacho-pos-select" class="form-select form-select-sm" style="font-size: 0.8rem; border-color: #C49A52;">
+                    </select>
+                </div>
+
                 <div id="cliente-no-encontrado" class="mt-2" style="display: none;">
                     <div class="alert alert-warning">
                         <strong>Cliente no encontrado</strong><br>
@@ -3982,6 +4048,10 @@
                                 referenciasContainer.style.display = 'block';
                             } else {
                                 referenciasContainer.style.display = 'none';
+                            }
+
+                            if (typeof window.actualizarSelectorDireccionPOS === 'function') {
+                                window.actualizarSelectorDireccionPOS();
                             }
                         }
 
@@ -4102,6 +4172,28 @@
 
                         tipoDocSelect.addEventListener('change', toggleCamposSegunTipoDoc);
                         toggleCamposSegunTipoDoc(); // Verificar estado inicial
+
+                        if (clienteYaSeleccionado) {
+                            if ((!clienteYaSeleccionado.direcciones || clienteYaSeleccionado.direcciones.length === 0) && clienteYaSeleccionado.id) {
+                                fetch(`/clientes/ajax/${clienteYaSeleccionado.id}/direcciones/`)
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        if (d.success && Array.isArray(d.direcciones)) {
+                                            clienteYaSeleccionado.direcciones = d.direcciones;
+                                            if (window.clienteSeleccionado && window.clienteSeleccionado.id == clienteYaSeleccionado.id) {
+                                                window.clienteSeleccionado.direcciones = d.direcciones;
+                                            }
+                                            if (typeof window.actualizarSelectorDireccionPOS === 'function') {
+                                                window.actualizarSelectorDireccionPOS();
+                                            }
+                                        }
+                                    }).catch(e => console.warn('Error cargando direcciones cliente existente:', e));
+                            } else {
+                                if (typeof window.actualizarSelectorDireccionPOS === 'function') {
+                                    window.actualizarSelectorDireccionPOS();
+                                }
+                            }
+                        }
 
                         // Agregar evento click al botón de venta boleta
                         if (btnVentaBoleta) {
@@ -4225,6 +4317,21 @@
                         console.log('[CRITICAL DEBUG] tipoDocumento:', tipoDocumento);
                         console.log('[CRITICAL DEBUG] ¿Es guía?:', tipoDocumento === 'guia');
 
+                        // Capturar dirección de despacho/envío si está visible
+                        let dirDespachoId = null;
+                        let dirDespachoTexto = null;
+                        let comunaDespacho = null;
+                        let ciudadDespacho = null;
+                        const dirSelect = document.getElementById('direccion-despacho-pos-select');
+                        const dirContainer = document.getElementById('contenedor-direccion-despacho-pos');
+                        if (dirContainer && dirContainer.style.display !== 'none' && dirSelect && dirSelect.value) {
+                            const opt = dirSelect.selectedOptions[0];
+                            dirDespachoId = dirSelect.value;
+                            dirDespachoTexto = opt ? opt.dataset.direccion : '';
+                            comunaDespacho = opt ? opt.dataset.comuna : '';
+                            ciudadDespacho = opt ? opt.dataset.ciudad : '';
+                        }
+
                         // CRÍTICO: El tipo_documento enviado al servidor determina el flujo de procesamiento
                         // cotizacion -> se queda como borrador
                         // vale -> se procesa en caja y descuenta stock inmediatamente
@@ -4236,7 +4343,11 @@
                             cliente_id: window.clienteSeleccionado.id,
                             vendedor_id: vendedorId,
                             tipo_despacho: (tipoDespacho && tipoDespacho !== '') ? tipoDespacho : null,
-                            referencias: window.referencias || []
+                            referencias: window.referencias || [],
+                            direccion_cliente_id: dirDespachoId,
+                            direccion_despacho: dirDespachoTexto,
+                            comuna_despacho: comunaDespacho,
+                            ciudad_despacho: ciudadDespacho
                         };
 
                         // Determinar el documento planeado (el destino final)
@@ -4481,6 +4592,14 @@
                                         </button>
                                     </div>
                                 </div>
+
+                                <div id="contenedor-direccion-despacho-ticket" class="mt-2" style="display: none; background: #FAF7F2; border: 1px solid #E6D8C3; border-radius: 8px; padding: 8px 10px;">
+                                    <label class="form-label mb-1" style="font-size: 0.78rem; font-weight: 700; color: #5D4037; text-align: left; display: block;">
+                                        <i class="fas fa-shipping-fast me-1" style="color: #8B7355;"></i>Dirección de Despacho
+                                    </label>
+                                    <select id="direccion-despacho-ticket-select" class="form-select form-select-sm" style="font-size: 0.8rem; border-color: #C49A52;">
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     `,
@@ -4501,11 +4620,46 @@
                         });
 
                         btnBuscar.addEventListener('click', () => buscarClientesTicket(input.value));
+
+                        if (clienteYaSeleccionado) {
+                            const dirSelectT = document.getElementById('direccion-despacho-ticket-select');
+                            const dirContainerT = document.getElementById('contenedor-direccion-despacho-ticket');
+                            if ((!clienteYaSeleccionado.direcciones || clienteYaSeleccionado.direcciones.length === 0) && clienteYaSeleccionado.id) {
+                                fetch(`/clientes/ajax/${clienteYaSeleccionado.id}/direcciones/`)
+                                    .then(r => r.json())
+                                    .then(d => {
+                                        if (d.success && Array.isArray(d.direcciones)) {
+                                            clienteYaSeleccionado.direcciones = d.direcciones;
+                                            if (window.actualizarSelectDireccionesElement) {
+                                                window.actualizarSelectDireccionesElement(dirSelectT, dirContainerT, d.direcciones, true);
+                                            }
+                                        }
+                                    }).catch(e => console.warn(e));
+                            } else if (clienteYaSeleccionado.direcciones) {
+                                if (window.actualizarSelectDireccionesElement) {
+                                    window.actualizarSelectDireccionesElement(dirSelectT, dirContainerT, clienteYaSeleccionado.direcciones, true);
+                                }
+                            }
+                        }
                     },
                     preConfirm: () => {
                         if (!window.clienteSeleccionado) {
                             Swal.showValidationMessage('Debe seleccionar un cliente');
                             return false;
+                        }
+
+                        let dirDespachoIdT = null;
+                        let dirDespachoTextoT = null;
+                        let comunaDespachoT = null;
+                        let ciudadDespachoT = null;
+                        const dirSelectT = document.getElementById('direccion-despacho-ticket-select');
+                        const dirContainerT = document.getElementById('contenedor-direccion-despacho-ticket');
+                        if (dirContainerT && dirContainerT.style.display !== 'none' && dirSelectT && dirSelectT.value) {
+                            const optT = dirSelectT.selectedOptions[0];
+                            dirDespachoIdT = dirSelectT.value;
+                            dirDespachoTextoT = optT ? optT.dataset.direccion : '';
+                            comunaDespachoT = optT ? optT.dataset.comuna : '';
+                            ciudadDespachoT = optT ? optT.dataset.ciudad : '';
                         }
 
                         return {
@@ -4514,7 +4668,11 @@
                             tipo_despacho: window.tipoDespachoTicket,
                             rut_cliente: document.getElementById('busqueda-cliente-ticket').value,
                             cliente_id: window.clienteSeleccionado.id,
-                            referencias: window.referencias || []
+                            referencias: window.referencias || [],
+                            direccion_cliente_id: dirDespachoIdT,
+                            direccion_despacho: dirDespachoTextoT,
+                            comuna_despacho: comunaDespachoT,
+                            ciudad_despacho: ciudadDespachoT
                         };
                     }
                 }).then((result) => {
@@ -4554,6 +4712,9 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.clientes && data.clientes.length > 0) {
+                            window._posClientesCache = window._posClientesCache || {};
+                            data.clientes.forEach(c => { window._posClientesCache[c.id] = c; });
+
                             if (lista) {
                                 lista.innerHTML = data.clientes.map(cliente => `
                                     <button type="button" class="list-group-item list-group-item-action" 
@@ -4579,7 +4740,14 @@
 
             // Función para seleccionar cliente en modal Ticket-Guía
             window.seleccionarClienteTicket = function(id, nombre, rut, direccion) {
-                window.clienteSeleccionado = { id, nombre, rut, direccion };
+                const clienteCache = (window._posClientesCache && window._posClientesCache[id]) || {};
+                const listaDirecciones = (clienteCache.direcciones && clienteCache.direcciones.length)
+                    ? clienteCache.direcciones
+                    : (window.clienteSeleccionado && window.clienteSeleccionado.id == id && Array.isArray(window.clienteSeleccionado.direcciones))
+                        ? window.clienteSeleccionado.direcciones
+                        : [];
+
+                window.clienteSeleccionado = { id, nombre, rut, direccion, direcciones: listaDirecciones };
                 const input = document.getElementById('busqueda-cliente-ticket');
                 const results = document.getElementById('resultados-busqueda-ticket');
                 const info = document.getElementById('cliente-info-ticket');
@@ -4592,13 +4760,34 @@
                 if (nombreEl) nombreEl.textContent = nombre;
                 if (dirEl) dirEl.textContent = direccion || 'Sin dirección';
 
+                const dirSelectT = document.getElementById('direccion-despacho-ticket-select');
+                const dirContainerT = document.getElementById('contenedor-direccion-despacho-ticket');
+                if (window.actualizarSelectDireccionesElement) {
+                    window.actualizarSelectDireccionesElement(dirSelectT, dirContainerT, listaDirecciones, true);
+                }
+
+                if (id && listaDirecciones.length === 0) {
+                    fetch(`/clientes/ajax/${id}/direcciones/`)
+                        .then(r => r.json())
+                        .then(d => {
+                            if (d.success && Array.isArray(d.direcciones)) {
+                                if (window.clienteSeleccionado && String(window.clienteSeleccionado.id) === String(id)) {
+                                    window.clienteSeleccionado.direcciones = d.direcciones;
+                                    if (window.actualizarSelectDireccionesElement) {
+                                        window.actualizarSelectDireccionesElement(dirSelectT, dirContainerT, d.direcciones, true);
+                                    }
+                                }
+                            }
+                        }).catch(e => console.warn(e));
+                }
+
                 if (typeof actualizarPreciosCarritoPorCliente === 'function') {
                     actualizarPreciosCarritoPorCliente(id);
                 }
             };
 
             // Función para seleccionar cliente en modal principal
-            window.seleccionarCliente = function(id, nombre, rut, direccion) {
+            window.seleccionarCliente = function(id, nombre, rut, direccion, direcciones) {
                 try {
                     // Limpiar datos
                     id = String(id).trim().replace(/\s+/g, '');
@@ -4609,13 +4798,23 @@
                     console.log('=== SELECCIONANDO CLIENTE (BÚSQUEDA) ===');
                     console.log('ID:', id, 'Nombre:', nombre, 'RUT:', rut);
 
+                    const clienteCache = (window._posClientesCache && window._posClientesCache[id]) || {};
+                    const listaDirecciones = (Array.isArray(direcciones) && direcciones.length)
+                        ? direcciones
+                        : (clienteCache.direcciones && clienteCache.direcciones.length)
+                            ? clienteCache.direcciones
+                            : (window.clienteSeleccionado && window.clienteSeleccionado.id == id && Array.isArray(window.clienteSeleccionado.direcciones))
+                                ? window.clienteSeleccionado.direcciones
+                                : [];
+
                     // Guardar cliente seleccionado globalmente INMEDIATAMENTE
                     window.clienteSeleccionado = {
                         id: id,
                         nombre: nombre,
                         rut: rut,
                         rut_formatted: rut,
-                        direccion: direccion
+                        direccion: direccion,
+                        direcciones: listaDirecciones
                     };
 
                     // Intentar actualizar la UI (puede estar en diferentes partes del DOM)
@@ -4636,6 +4835,26 @@
                             if (u.value !== undefined) el.value = u.value;
                         }
                     });
+
+                    // Actualizar selector de direcciones en el modal si está abierto
+                    if (typeof window.actualizarSelectorDireccionPOS === 'function') {
+                        window.actualizarSelectorDireccionPOS();
+                    }
+
+                    if (id && listaDirecciones.length === 0) {
+                        fetch(`/clientes/ajax/${id}/direcciones/`)
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d.success && Array.isArray(d.direcciones)) {
+                                    if (window.clienteSeleccionado && String(window.clienteSeleccionado.id) === String(id)) {
+                                        window.clienteSeleccionado.direcciones = d.direcciones;
+                                        if (typeof window.actualizarSelectorDireccionPOS === 'function') {
+                                            window.actualizarSelectorDireccionPOS();
+                                        }
+                                    }
+                                }
+                            }).catch(e => console.warn('Error obteniendo direcciones:', e));
+                    }
 
                     // Mostrar cliente en header si existe el elemento
                     const clienteHeader = document.getElementById('clienteEnHeader');
@@ -4727,10 +4946,13 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success && data.clientes && data.clientes.length > 0) {
+                                window._posClientesCache = window._posClientesCache || {};
+                                data.clientes.forEach(c => { window._posClientesCache[c.id] = c; });
+
                                 // Si solo hay un resultado y buscamos por RUT, seleccionarlo automáticamente
                                 if (data.clientes.length === 1 && busqueda.includes('-')) {
                                     const c = data.clientes[0];
-                                    window.seleccionarCliente(c.id, c.nombre, c.rut || c.rut_formatted || '', c.direccion || '');
+                                    window.seleccionarCliente(c.id, c.nombre, c.rut || c.rut_formatted || '', c.direccion || '', c.direcciones);
                                     return;
                                 }
 
@@ -5098,6 +5320,10 @@
                     tipo_documento_original: data.tipo_documento_original, // ← AGREGAR TIPO ORIGINAL (CRÍTICO PARA FALLBACK DE VALES)
                     tipo_despacho: tipoDespachoFinal, // ← USAR TIPO DE DESPACHO DEL MODAL O DEL FORM
                     referencias: data.referencias || [], // ← AGREGAR REFERENCIAS
+                    direccion_cliente_id: data.direccion_cliente_id || null,
+                    direccion_despacho: data.direccion_despacho || null,
+                    comuna_despacho: data.comuna_despacho || null,
+                    ciudad_despacho: data.ciudad_despacho || null,
                     cliente_id: window.clienteSeleccionado.id,
                     items: cart,
                     totales: {
@@ -5984,6 +6210,10 @@
                 if (info) { info.style.display = 'none'; }
                 const noEncontrado = document.getElementById('cliente-no-encontrado');
                 if (noEncontrado) { noEncontrado.style.display = 'none'; }
+                const dirCont = document.getElementById('contenedor-direccion-despacho-pos');
+                if (dirCont) { dirCont.style.display = 'none'; }
+                const dirSel = document.getElementById('direccion-despacho-pos-select');
+                if (dirSel) { dirSel.innerHTML = ''; }
                 const header = document.getElementById('clienteEnHeader');
                 if (header) { header.innerHTML = ''; }
                 if (estacionPideClienteInicio()) {
@@ -7189,6 +7419,42 @@
         document.addEventListener('DOMContentLoaded', function () {
             const modal = new bootstrap.Modal(document.getElementById('modalAperturaCaja'));
             modal.show();
+        });
+    </script>
+    {% endif %}
+
+    {% if caja_desfasada and apertura_activa %}
+    <div class="modal fade" id="modalCajaDesfasadaPos" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border: none; border-radius: 14px; overflow: hidden; box-shadow: 0 10px 35px rgba(0,0,0,0.2);">
+                <div class="modal-header py-2 px-3" style="background: linear-gradient(135deg, #c76f43 0%, #8b5a2b 100%); color: white; border: none;">
+                    <h5 class="modal-title mb-0" style="font-size: 0.98rem;">
+                        <i class="fas fa-calendar-times me-2"></i>Fecha de Caja No Corresponde al Día Actual
+                    </h5>
+                </div>
+                <div class="modal-body px-3 py-3" style="font-size: 0.85rem; color: #3d312a;">
+                    <p class="mb-2">
+                        La caja abierta <strong>{{ apertura_activa.caja.nombre }}</strong> tiene fecha de apertura del
+                        <strong class="text-danger">{{ fecha_caja_abierta|date:"d-m-Y" }}</strong>, que no corresponde al día actual
+                        (<strong>{{ hoy_fecha|date:"d-m-Y" }}</strong>).
+                    </p>
+                    <p class="mb-0 text-muted" style="font-size: 0.78rem;">
+                        Para emitir e imprimir documentos por caja hoy, primero debe cerrar la caja pendiente y abrir una nueva caja con la fecha del día actual.
+                    </p>
+                </div>
+                <div class="modal-footer py-2 px-3" style="border-top: 1px solid #eee;">
+                    <a href="{% url 'caja:apertura_list' %}" class="btn btn-outline-secondary btn-sm">Ver Aperturas</a>
+                    <a href="{% url 'caja:apertura_cerrar' apertura_activa.pk %}" class="btn btn-danger btn-sm fw-bold">
+                        <i class="fas fa-lock me-1"></i>Cerrar Caja ({{ fecha_caja_abierta|date:"d-m-Y" }})
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalDesfasadaPos = new bootstrap.Modal(document.getElementById('modalCajaDesfasadaPos'));
+            modalDesfasadaPos.show();
         });
     </script>
     {% endif %}

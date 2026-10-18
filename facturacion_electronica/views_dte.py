@@ -505,30 +505,65 @@ def consultar_estado_dte(request, dte_id):
     return redirect_to_dte_list(request, anchor=f'row-{dte.id}', dte=dte)
 
 
+def _es_url_visor_o_transitoria(url):
+    """Detecta si una URL es un visor de impresión, redirección intermedia o modal de detalle DTE."""
+    if not url:
+        return True
+    path = str(url).split('?')[0].split('#')[0].lower()
+    patrones_transitorios = (
+        '/ver-factura/',
+        '/ver-notacredito/',
+        '/ver-notadebito/',
+        '/venta/detalle/',
+        '/imprimir',
+        '/enviar/',
+        '/enviar-email/',
+        '/consultar-estado/',
+        '/consultar-estados/',
+        '/sincronizar-pendientes/',
+        '/descargar-pdf/',
+        '/descargar-xml/',
+        '/regenerar-xml/',
+        '/pdf/',
+        '/xml/',
+        '/html/',
+        '/termica/',
+    )
+    if any(p in path for p in patrones_transitorios):
+        return True
+    if re.search(r'/facturacion[-_]electronica/dte/\d+/?$', path):
+        return True
+    return False
+
+
 def _safe_internal_url(url, fallback, request=None):
-    """Acepta solo rutas internas relativas o del mismo dominio para volver al origen."""
+    """Acepta solo rutas internas relativas o del mismo dominio que no sean visores ni redirecciones transitorias."""
     if not url:
         return fallback
     raw = str(url).strip()
+    candidate = None
     if raw.startswith('/') and not raw.startswith('//'):
-        return raw
-    try:
-        from urllib.parse import urlparse
-        parsed = urlparse(raw)
-        if parsed.path and parsed.path.startswith('/'):
-            if request and parsed.netloc:
-                host = request.get_host()
-                if parsed.netloc.split(':')[0] == host.split(':')[0]:
-                    path = parsed.path
-                    if parsed.query:
-                        path += '?' + parsed.query
-                    if parsed.fragment:
-                        path += '#' + parsed.fragment
-                    return path
-            elif not parsed.netloc:
-                return parsed.path
-    except Exception:
-        pass
+        candidate = raw
+    else:
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(raw)
+            if parsed.path and parsed.path.startswith('/'):
+                if request and parsed.netloc:
+                    host = request.get_host()
+                    if parsed.netloc.split(':')[0] == host.split(':')[0]:
+                        path = parsed.path
+                        if parsed.query:
+                            path += '?' + parsed.query
+                        if parsed.fragment:
+                            path += '#' + parsed.fragment
+                        candidate = path
+                elif not parsed.netloc:
+                    candidate = parsed.path
+        except Exception:
+            pass
+    if candidate and not _es_url_visor_o_transitoria(candidate):
+        return candidate
     return fallback
 
 
@@ -536,12 +571,12 @@ def _resolver_fallback_retorno_dte(dte, request=None):
     """
     Determina de manera inteligente y contextual a dónde debe volver el usuario
     al salir del visor o detalle de un DTE cuando no se especifica return_url.
-    Prioriza el origen real (Orden de Despacho, Transferencia, Venta, etc.).
+    Prioriza el origen real (Orden de Despacho, Transferencia, Facturar Guías, Libro de Ventas, etc.).
     """
     if not dte:
         return reverse('facturacion_electronica:dte_list')
 
-    # 1. Intentar HTTP_REFERER seguro de la misma app que no sea el mismo DTE
+    # 1. Intentar HTTP_REFERER seguro de la misma app que no sea visor ni detalle del DTE
     if request:
         referer = request.META.get('HTTP_REFERER')
         safe_ref = _safe_internal_url(referer, '', request=request)
@@ -552,7 +587,7 @@ def _resolver_fallback_retorno_dte(dte, request=None):
                 return safe_ref
 
     # 2. Origen contextual por documento vinculado:
-    # A. Orden de Despacho (detalles de despacho)
+    # A. Orden de Despacho (detalles de despacho de pedidos)
     try:
         orden = None
         for rel in ('detalles_despacho_guia', 'detalles_despacho_factura'):
@@ -583,10 +618,14 @@ def _resolver_fallback_retorno_dte(dte, request=None):
     except Exception:
         pass
 
-    # C. Venta directa
+    # C. Factura Consolidada de Guías
     try:
-        if getattr(dte, 'venta_id', None):
-            return reverse('ventas:venta_detail', args=[dte.venta_id])
+        if hasattr(dte, 'orden_despacho') and dte.orden_despacho.exists():
+            return reverse('ventas:facturar_guias_list')
+        venta_obj = getattr(dte, 'venta', None)
+        obs = (getattr(venta_obj, 'observaciones', '') or '').lower()
+        if 'factura consolidada' in obs:
+            return reverse('ventas:facturar_guias_list')
     except Exception:
         pass
 
@@ -599,9 +638,11 @@ def _resolver_fallback_retorno_dte(dte, request=None):
     except Exception:
         pass
 
-    # E. Fallback genérico por tipo DTE
+    # E. Venta o Fallback genérico por tipo DTE (sin pasar por venta_detail que reabre el visor)
     if str(getattr(dte, 'tipo_dte', '')) == '52':
         return reverse('ventas:libro_guias') + f'#row-dte-{dte.id}'
+    if getattr(dte, 'venta_id', None) or str(getattr(dte, 'tipo_dte', '')) in {'33', '34', '39', '41'}:
+        return reverse('ventas:libro_ventas')
     return reverse('facturacion_electronica:dte_list') + f'#row-dte-{dte.id}'
 
 
@@ -760,7 +801,11 @@ def _html_tributario_a_pdf(html, tipo_impresora):
     extra_css = (
         f'<style>{pagina}'
         '.no-print, .no-print * { display: none !important; }'
-        '.header, .header *, .document-meta, .company-name, .company-info { border: 0 !important; }'
+        'div.header, div.header *, .document-meta, .company-name, .company-info { border: 0 !important; }'
+        'table.fecha-box td, table.vcto-table td { border: 1px solid #cccccc !important; }'
+        'table.sii-box td, table.sii-box td.sii-content { padding: 18px 8px !important; }'
+        '.sii-rut, .sii-tipo-doc { margin-bottom: 8px !important; padding-bottom: 3px !important; line-height: 1.35 !important; }'
+        '.sii-folio { line-height: 1.3 !important; }'
         'table.sii-id-box, table.sii-id-box td { border-collapse: collapse; }'
         'table.sii-id-box { border: 2px solid #000 !important; }'
         'table.sii-id-box td { border: 0 !important; }'

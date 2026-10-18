@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 
 from core.decorators import requiere_empresa, requiere_permiso
+from core.fechas import caja_es_del_dia_actual, fecha_apertura_caja, mensaje_caja_desfasada
 from .models import Caja, AperturaCaja, MovimientoCaja, VentaProcesada
 from .forms import CajaForm, AperturaCajaForm, CierreCajaForm, ProcesarVentaForm, MovimientoCajaForm
 from ventas.models import Venta, VentaDetalle, FormaPago
@@ -617,9 +618,20 @@ def procesar_venta_buscar(request):
     if not apertura_activa:
         mostrar_modal_apertura = True
         form_apertura = AperturaCajaForm(empresa=request.empresa, sucursal=sucursal_caja)
+
+    caja_desfasada = bool(apertura_activa and not caja_es_del_dia_actual(apertura_activa))
+    fecha_caja_abierta = fecha_apertura_caja(apertura_activa) if apertura_activa else None
+    hoy_fecha = timezone.localdate()
     
     # Buscar ticket
     if request.method == 'POST':
+        if not apertura_activa:
+            messages.error(request, 'No hay una caja abierta en esta sucursal. Debe abrir una caja antes de procesar tickets.')
+            return redirect('caja:procesar_venta_buscar')
+        if caja_desfasada:
+            messages.error(request, mensaje_caja_desfasada(apertura_activa))
+            return redirect('caja:procesar_venta_buscar')
+
         numero_ticket = request.POST.get('numero_ticket', '').strip()
         
         if numero_ticket:
@@ -669,6 +681,10 @@ def procesar_venta_buscar(request):
     from caja.impresion_utils import agente_impresion_en_linea
     context = {
         'apertura_activa': apertura_activa,
+        'caja_desfasada': caja_desfasada,
+        'fecha_caja_abierta': fecha_caja_abierta,
+        'hoy_fecha': hoy_fecha,
+        'mensaje_caja_desfasada_texto': mensaje_caja_desfasada(apertura_activa) if caja_desfasada else '',
         'tickets_pendientes': tickets_pendientes,
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
@@ -1238,31 +1254,68 @@ def procesar_venta(request, ticket_id):
                         print(f"   - Tipo Documento: {tipo_doc_crear}")
                         print(f"   - Tipo Planeado: {tipo_doc_planeado_crear}")
                         
+                        # Resolver dirección de despacho/envío
+                        direccion_cliente_id = request.POST.get('direccion_cliente_id')
+                        direccion_cliente = getattr(ticket, 'direccion_cliente', None)
+                        direccion_despacho = getattr(ticket, 'direccion_despacho', None) or ''
+                        comuna_despacho = getattr(ticket, 'comuna_despacho', None) or ''
+                        ciudad_despacho = getattr(ticket, 'ciudad_despacho', None) or ''
+
+                        if direccion_cliente_id and ticket.cliente:
+                            if str(direccion_cliente_id).isdigit():
+                                from clientes.models import DireccionCliente
+                                dc = DireccionCliente.objects.filter(id=int(direccion_cliente_id), cliente=ticket.cliente).first()
+                                if dc:
+                                    direccion_cliente = dc
+                                    direccion_despacho = dc.direccion
+                                    comuna_despacho = dc.comuna or ''
+                                    ciudad_despacho = dc.ciudad or ''
+                            elif str(direccion_cliente_id) == 'base':
+                                direccion_cliente = None
+                                direccion_despacho = ticket.cliente.direccion or ''
+                                comuna_despacho = ticket.cliente.comuna or ''
+                                ciudad_despacho = getattr(ticket.cliente, 'ciudad', '') or ''
+                        elif not direccion_despacho and ticket.cliente:
+                            principal_dir = ticket.cliente.direcciones.filter(es_principal=True, activa=True).first()
+                            if principal_dir:
+                                direccion_cliente = principal_dir
+                                direccion_despacho = principal_dir.direccion
+                                comuna_despacho = principal_dir.comuna or ''
+                                ciudad_despacho = principal_dir.ciudad or ''
+                            else:
+                                direccion_despacho = ticket.cliente.direccion or ''
+                                comuna_despacho = ticket.cliente.comuna or ''
+                                ciudad_despacho = getattr(ticket.cliente, 'ciudad', '') or ''
+
                         fecha_cierre_caja = timezone.localdate()
                         venta_final = Venta.objects.create(
-                        empresa=request.empresa,
-                        sucursal=ticket.sucursal,
-                        numero_venta=numero_venta_temporal,  # Se actualizará con el folio CAF si se genera DTE
-                        fecha=fecha_cierre_caja,
-                        cliente=ticket.cliente,
-                        vendedor=vendedor_seleccionado,
-                        vehiculo=vehiculo_seleccionado,
-                        chofer=chofer_seleccionado,
-                        forma_pago=primera_forma_pago,
-                        estacion_trabajo=ticket.estacion_trabajo,
-                        tipo_documento=tipo_doc_crear,
-                        tipo_documento_planeado=tipo_doc_planeado_crear,
-                        tipo_despacho=(ticket.tipo_despacho or '1') if tipo_doc_crear == 'guia' else None,
-                        subtotal=ticket.subtotal,
-                        descuento=ticket.descuento,
-                        neto=ticket.neto,
-                        iva=ticket.iva,
-                        impuesto_especifico=ticket.impuesto_especifico,
-                        total=ticket.total,
-                        estado='confirmada',
-                        usuario_creacion=request.user,
-                        observaciones=f"Ticket #{ticket.numero_venta}. {observaciones}"
-                    )
+                            empresa=request.empresa,
+                            sucursal=ticket.sucursal,
+                            numero_venta=numero_venta_temporal,  # Se actualizará con el folio CAF si se genera DTE
+                            fecha=fecha_cierre_caja,
+                            cliente=ticket.cliente,
+                            direccion_cliente=direccion_cliente,
+                            direccion_despacho=direccion_despacho,
+                            comuna_despacho=comuna_despacho,
+                            ciudad_despacho=ciudad_despacho,
+                            vendedor=vendedor_seleccionado,
+                            vehiculo=vehiculo_seleccionado,
+                            chofer=chofer_seleccionado,
+                            forma_pago=primera_forma_pago,
+                            estacion_trabajo=ticket.estacion_trabajo,
+                            tipo_documento=tipo_doc_crear,
+                            tipo_documento_planeado=tipo_doc_planeado_crear,
+                            tipo_despacho=(ticket.tipo_despacho or '1') if tipo_doc_crear == 'guia' else None,
+                            subtotal=ticket.subtotal,
+                            descuento=ticket.descuento,
+                            neto=ticket.neto,
+                            iva=ticket.iva,
+                            impuesto_especifico=ticket.impuesto_especifico,
+                            total=ticket.total,
+                            estado='confirmada',
+                            usuario_creacion=request.user,
+                            observaciones=f"Ticket #{ticket.numero_venta}. {observaciones}"
+                        )
                         print(f"[CRÍTICO] Venta creada: ID={venta_final.id}, tipo_documento='{venta_final.tipo_documento}'")
                         
                         # Copiar detalles
@@ -1501,8 +1554,9 @@ def procesar_venta(request, ticket_id):
                                 rut_receptor=ticket.cliente.rut if ticket.cliente else '66666666-6',
                                 razon_social_receptor=ticket.cliente.nombre if ticket.cliente else 'Cliente Genérico',
                                 giro_receptor=getattr(ticket.cliente, 'giro', '') if ticket.cliente else '',
-                                direccion_receptor=ticket.cliente.direccion if ticket.cliente else '',
-                                comuna_receptor=ticket.cliente.comuna if ticket.cliente else '',
+                                direccion_receptor=venta_final.direccion_despacho or (ticket.cliente.direccion if ticket.cliente else ''),
+                                comuna_receptor=venta_final.comuna_despacho or (ticket.cliente.comuna if ticket.cliente else ''),
+                                ciudad_receptor=venta_final.ciudad_despacho or (getattr(ticket.cliente, 'ciudad', '') if ticket.cliente else ''),
                                 rut_emisor=request.empresa.rut,
                                 razon_social_emisor=request.empresa.razon_social,
                                 giro_emisor=getattr(request.empresa, 'giro', ''),

@@ -201,16 +201,17 @@ class Cliente(models.Model):
         }
         return colores.get(self.estado, 'secondary')
 
-    def get_direcciones_list(self):
+    def get_direcciones_list(self, incluir_inactivas=False):
         """
         Retorna la lista completa de direcciones utilizables para despacho/facturación.
-        Incluye la dirección fiscal base del cliente más cualquier DireccionCliente activa.
+        Incluye la dirección fiscal base del cliente más cualquier DireccionCliente.
         """
         direcciones = []
         base_dir = (self.direccion or '').strip()
         
-        extra_dirs = [d for d in self.direcciones.all() if d.activa]
-        tiene_principal_extra = any(d.es_principal for d in extra_dirs)
+        all_extra_dirs = list(self.direcciones.all())
+        extra_dirs = all_extra_dirs if incluir_inactivas else [d for d in all_extra_dirs if d.activa]
+        tiene_principal_extra = any(d.es_principal and d.activa for d in all_extra_dirs)
         
         if base_dir:
             direcciones.append({
@@ -221,11 +222,11 @@ class Cliente(models.Model):
                 'ciudad': self.ciudad or '',
                 'region': self.region or '',
                 'es_principal': not tiene_principal_extra,
+                'activa': True,
+                'observaciones': '',
             })
             
         for d in extra_dirs:
-            if base_dir and d.direccion.strip().lower() == base_dir.lower() and (d.comuna or '').strip().lower() == (self.comuna or '').strip().lower() and not d.alias:
-                continue
             direcciones.append({
                 'id': d.id,
                 'alias': d.alias or d.direccion,
@@ -234,6 +235,8 @@ class Cliente(models.Model):
                 'ciudad': d.ciudad or '',
                 'region': d.region or '',
                 'es_principal': d.es_principal,
+                'activa': d.activa,
+                'observaciones': d.observaciones or '',
             })
             
         return direcciones

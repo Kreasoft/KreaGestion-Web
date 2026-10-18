@@ -3,12 +3,8 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 
 
-def fecha_documento_caja(apertura=None):
-    """
-    Fecha del documento para todo efecto: el día de la apertura de caja.
-    No usa la hora de grabación en el sistema (fecha_creacion / registro).
-    Si no hay caja abierta, usa el día local de Chile.
-    """
+def fecha_apertura_caja(apertura=None):
+    """Retorna la fecha local (date) en que fue abierta la caja, o None."""
     if apertura is not None:
         fa = getattr(apertura, 'fecha_apertura', None)
         if fa is not None:
@@ -17,6 +13,41 @@ def fecha_documento_caja(apertura=None):
                     return timezone.localtime(fa).date()
                 return fa.date()
             return fa
+    return None
+
+
+def caja_es_del_dia_actual(apertura=None):
+    """Valida si la caja abierta corresponde a la fecha actual local de Chile."""
+    if apertura is None:
+        return False
+    if getattr(apertura, 'estado', 'abierta') != 'abierta':
+        return False
+    fecha_ap = fecha_apertura_caja(apertura)
+    if fecha_ap is None:
+        return False
+    return fecha_ap == timezone.localdate()
+
+
+def mensaje_caja_desfasada(apertura=None):
+    """Mensaje de error cuando la fecha de apertura de la caja no corresponde al día actual."""
+    hoy = timezone.localdate()
+    fecha_ap = fecha_apertura_caja(apertura)
+    nombre_caja = getattr(getattr(apertura, 'caja', None), 'nombre', None) or 'Caja'
+    if fecha_ap:
+        return (
+            f'La fecha de apertura de "{nombre_caja}" ({fecha_ap.strftime("%d-%m-%Y")}) '
+            f'no corresponde al día actual ({hoy.strftime("%d-%m-%Y")}). '
+            f'Debe cerrar la caja pendiente y abrir una nueva caja con fecha de hoy antes de procesar o imprimir.'
+        )
+    return 'La caja abierta no corresponde al día actual. Debe cerrarla y abrir una nueva caja con fecha de hoy.'
+
+
+def fecha_documento_caja(apertura=None):
+    """
+    Fecha del documento para todo efecto: usa siempre el día actual local de Chile.
+    Evita que cajas abiertas en días o meses anteriores asignen fechas pasadas
+    a ventas y DTEs recién emitidos (lo que los ocultaba del Libro de Ventas del mes actual).
+    """
     return timezone.localdate()
 
 

@@ -659,14 +659,17 @@ class DTEXMLGenerator:
                         direccion = self.empresa.direccion
                         comuna = self.empresa.comuna
         
-        # Si no hay datos en el DTE, intentar obtenerlos desde la relación 'cliente'
-        if not rut_receptor and hasattr(self.documento, 'cliente') and self.documento.cliente:
-            cliente = self.documento.cliente
-            rut_receptor = cliente.rut
-            razon_social = cliente.nombre
-            giro = getattr(cliente, 'giro', '')
-            direccion = cliente.direccion
-            comuna = cliente.comuna
+        # Si faltan datos en el DTE, intentar obtenerlos desde la relación 'cliente' o 'venta.cliente'
+        if not rut_receptor or not razon_social:
+            cliente = getattr(self.documento, 'cliente', None)
+            if not cliente and hasattr(self.documento, 'venta') and self.documento.venta:
+                cliente = getattr(self.documento.venta, 'cliente', None)
+            if cliente:
+                rut_receptor = rut_receptor or cliente.rut
+                razon_social = razon_social or cliente.nombre
+                giro = giro or getattr(cliente, 'giro', '')
+                direccion = direccion or cliente.direccion
+                comuna = comuna or cliente.comuna
 
         # Caso especial para boletas sin cliente: usar datos genéricos
         if self.tipo_dte in ['39', '41'] and not rut_receptor:

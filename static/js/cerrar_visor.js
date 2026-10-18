@@ -26,11 +26,38 @@
         }
     }
 
-    function isAuthUrl(url) {
-        if (!url) return false;
-        return url.indexOf('/accounts/login') >= 0 ||
-               url.indexOf('/accounts/logout') >= 0 ||
-               url.indexOf('/admin/login') >= 0;
+    function isInvalidReturnUrl(url) {
+        if (!url) return true;
+        var p = url.split('?')[0].split('#')[0].toLowerCase();
+        if (p.indexOf('/accounts/login') >= 0 ||
+            p.indexOf('/accounts/logout') >= 0 ||
+            p.indexOf('/admin/login') >= 0) {
+            return true;
+        }
+        var transient = [
+            '/ver-factura/',
+            '/ver-notacredito/',
+            '/ver-notadebito/',
+            '/venta/detalle/',
+            '/imprimir',
+            '/enviar/',
+            '/enviar-email/',
+            '/consultar-estado/',
+            '/consultar-estados/',
+            '/sincronizar-pendientes/',
+            '/descargar-pdf/',
+            '/descargar-xml/',
+            '/regenerar-xml/',
+            '/pdf/',
+            '/xml/',
+            '/html/',
+            '/termica/'
+        ];
+        for (var i = 0; i < transient.length; i++) {
+            if (p.indexOf(transient[i]) >= 0) return true;
+        }
+        if (/\/facturacion[-_]electronica\/dte\/\d+\/?$/.test(p)) return true;
+        return false;
     }
 
     function currentPath() {
@@ -41,17 +68,17 @@
         // 1. Prioridad 1: return_url explícito en la query string de la página actual
         var params = new URLSearchParams(window.location.search);
         var fromQuery = normalizeReturnUrl(params.get('return_url'));
-        if (fromQuery && !isAuthUrl(fromQuery)) return fromQuery;
+        if (fromQuery && !isInvalidReturnUrl(fromQuery)) return fromQuery;
 
-        // 2. Prioridad 2: Referrer de navegación directa si es del mismo origen y no es login/logout
+        // 2. Prioridad 2: Referrer de navegación directa si es del mismo origen y no es transitorio
         var fromReferrer = normalizeReturnUrl(document.referrer);
-        if (fromReferrer && fromReferrer !== currentPath() && !isAuthUrl(fromReferrer)) {
+        if (fromReferrer && fromReferrer !== currentPath() && !isInvalidReturnUrl(fromReferrer)) {
             return fromReferrer;
         }
 
-        // 3. Prioridad 3: Fallback contextual del backend (orden despacho, transferencia, venta, etc.)
+        // 3. Prioridad 3: Fallback contextual del backend (orden despacho, transferencia, facturar guías, etc.)
         var fallback = normalizeReturnUrl(fallbackUrl || global.GC_CERRAR_VISOR_FALLBACK);
-        if (fallback && fallback !== '/' && !isAuthUrl(fallback)) {
+        if (fallback && fallback !== '/' && !isInvalidReturnUrl(fallback)) {
             return fallback;
         }
 
@@ -66,9 +93,9 @@
             localStorage.removeItem('print_referer');
         } catch (e) {}
 
-        if (stored && !isAuthUrl(stored)) return stored;
+        if (stored && !isInvalidReturnUrl(stored)) return stored;
 
-        return fallback || '/';
+        return (fallback && !isInvalidReturnUrl(fallback)) ? fallback : '/';
     }
 
     function rememberCaller() {
@@ -78,18 +105,20 @@
 
         var params = new URLSearchParams(window.location.search);
         var fromQuery = normalizeReturnUrl(params.get('return_url'));
-        if (fromQuery && !isAuthUrl(fromQuery)) {
+        if (fromQuery && !isInvalidReturnUrl(fromQuery)) {
             sessionStorage.setItem('gc_visor_return', fromQuery);
             return;
         }
         var fromReferrer = normalizeReturnUrl(document.referrer);
-        if (fromReferrer && fromReferrer !== currentPath() && !isAuthUrl(fromReferrer)) {
+        if (fromReferrer && fromReferrer !== currentPath() && !isInvalidReturnUrl(fromReferrer)) {
             sessionStorage.setItem('gc_visor_return', fromReferrer);
             return;
         }
         var fallback = normalizeReturnUrl(global.GC_CERRAR_VISOR_FALLBACK);
-        if (fallback && fallback !== '/' && !isAuthUrl(fallback)) {
+        if (fallback && fallback !== '/' && !isInvalidReturnUrl(fallback)) {
             sessionStorage.setItem('gc_visor_return', fallback);
+        } else {
+            try { sessionStorage.removeItem('gc_visor_return'); } catch (e) {}
         }
     }
 

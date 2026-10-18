@@ -11,7 +11,13 @@ from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 
 from core.decorators import requiere_empresa, requiere_permiso
-from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
+from core.fechas import (
+    caja_es_del_dia_actual,
+    fecha_apertura_caja,
+    fecha_documento_caja,
+    mensaje_caja_desfasada,
+    resolver_fecha_vencimiento,
+)
 from ventas.models import Venta, VentaDetalle, FormaPago
 from clientes.models import Cliente
 from .models import Caja, AperturaCaja, VentaProcesada, MovimientoCaja
@@ -146,6 +152,10 @@ def procesar_venta_caja(request, ticket_id):
     if not apertura_activa:
         mostrar_modal_apertura = True
         form_apertura = AperturaCajaForm(empresa=request.empresa, sucursal=sucursal_caja)
+
+    caja_desfasada = bool(apertura_activa and not caja_es_del_dia_actual(apertura_activa))
+    fecha_caja_abierta = fecha_apertura_caja(apertura_activa) if apertura_activa else None
+    hoy_fecha = timezone.localdate()
     
     # Determinar tipo de documento
     tipo_doc_planeado = ticket.tipo_documento_planeado or 'boleta'
@@ -172,6 +182,12 @@ def procesar_venta_caja(request, ticket_id):
         )
         ctx = {
             'ticket': ticket,
+            'empresa': request.empresa,
+            'apertura_activa': apertura_activa,
+            'caja_desfasada': caja_desfasada,
+            'fecha_caja_abierta': fecha_caja_abierta,
+            'hoy_fecha': hoy_fecha,
+            'mensaje_caja_desfasada_texto': mensaje_caja_desfasada(apertura_activa) if caja_desfasada else '',
             'form': form or ProcesarVentaForm(empresa=request.empresa, ticket=ticket, initial={'ticket_id': ticket.id}),
             'formas_pago': FormaPago.objects.filter(empresa=request.empresa, activo=True).order_by('nombre'),
             'mostrar_formas_pago': mostrar_formas_pago,
@@ -193,6 +209,8 @@ def procesar_venta_caja(request, ticket_id):
     
     # GET: Mostrar formulario
     if request.method == 'GET':
+        if caja_desfasada:
+            messages.warning(request, mensaje_caja_desfasada(apertura_activa))
         return render(request, 'caja/procesar_venta.html', _contexto_formulario(es_pos_vale=False))
     
     # POST: Procesar venta
@@ -200,6 +218,22 @@ def procesar_venta_caja(request, ticket_id):
     print("[CAJA] POST RECIBIDO - Procesar Venta")
     print(f"  Ticket ID: {ticket_id}")
     print("=" * 50)
+
+    if not apertura_activa:
+        messages.error(request, 'No hay una caja abierta en esta sucursal. Debe abrir una caja con fecha de hoy antes de procesar o imprimir.')
+        return render(request, 'caja/procesar_venta.html', _contexto_formulario(
+            fecha_vencimiento=resolver_fecha_vencimiento(
+                fecha_documento, plazo_pago_cliente, request.POST.get('fecha_vencimiento')
+            )
+        ))
+
+    if caja_desfasada:
+        messages.error(request, mensaje_caja_desfasada(apertura_activa))
+        return render(request, 'caja/procesar_venta.html', _contexto_formulario(
+            fecha_vencimiento=resolver_fecha_vencimiento(
+                fecha_documento, plazo_pago_cliente, request.POST.get('fecha_vencimiento')
+            )
+        ))
     
     # Extraer formas de pago
     formas_pago_dict = {}
@@ -341,7 +375,7 @@ def procesar_venta_caja(request, ticket_id):
                         monto=monto_fp,
                         descripcion=f"{ticket.tipo_documento_planeado.title()} #{numero_venta_final}",
                         usuario=request.user,
-                        fecha=apertura_activa.fecha_apertura # Forzar fecha contable de la caja
+                        fecha=timezone.now()
                     )
 
                     # Guardar la primera forma de pago en el ticket (para trazabilidad y DTE)

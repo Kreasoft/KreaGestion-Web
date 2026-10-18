@@ -13,7 +13,13 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from decimal import Decimal
 from datetime import datetime, time, timedelta
 from core.decorators import requiere_empresa, requiere_permiso, requiere_empresa_json
-from core.fechas import fecha_documento_caja, resolver_fecha_vencimiento
+from core.fechas import (
+    caja_es_del_dia_actual,
+    fecha_apertura_caja,
+    fecha_documento_caja,
+    mensaje_caja_desfasada,
+    resolver_fecha_vencimiento,
+)
 from facturacion_electronica.ind_traslado import TIPO_DESPACHO_SII_CHOICES
 from .models import (
     Vendedor, FormaPago, Venta, VentaDetalle, EstacionTrabajo, TerminalPOS, TIPO_DOCUMENTO_CHOICES,
@@ -1265,6 +1271,9 @@ def pos_view(request):
     if not apertura_activa:
         mostrar_modal_apertura = True
         form_apertura = AperturaCajaForm(empresa=request.empresa, sucursal=sucursal_activa)
+    caja_desfasada = bool(apertura_activa and not caja_es_del_dia_actual(apertura_activa))
+    fecha_caja_abierta = fecha_apertura_caja(apertura_activa) if apertura_activa else None
+    hoy_fecha = timezone.localdate()
     
     def preparar_articulo_pos(articulo):
         precio_neto = float(articulo._string_to_decimal(articulo.precio_venta))
@@ -1412,6 +1421,9 @@ def pos_view(request):
         'estaciones': estaciones,
         'proximo_numero': proximo_numero,
         'apertura_activa': apertura_activa,
+        'caja_desfasada': caja_desfasada,
+        'fecha_caja_abierta': fecha_caja_abierta,
+        'hoy_fecha': hoy_fecha,
         'mostrar_modal_apertura': mostrar_modal_apertura,
         'form_apertura': form_apertura,
         'modo_pos': modo_pos,
@@ -1834,6 +1846,7 @@ def pos_buscar_cliente(request):
                     'email': cliente.email,
                     'forma_pago_defecto_id': cliente.forma_pago_defecto_id,
                     'plazo_pago': cliente.plazo_pago or 30,
+                    'direcciones': cliente.get_direcciones_list(),
                 })
 
             
@@ -2196,6 +2209,37 @@ def pos_procesar_preventa(request):
             if data.get('tipo_documento') == 'cotizacion':
                 es_facturado = True
 
+            # Resolver dirección de despacho/entrega
+            direccion_cliente_id = data.get('direccion_cliente_id')
+            direccion_cliente = None
+            direccion_despacho = (data.get('direccion_despacho') or '').strip()
+            comuna_despacho = (data.get('comuna_despacho') or '').strip()
+            ciudad_despacho = (data.get('ciudad_despacho') or '').strip()
+
+            if direccion_cliente_id and str(direccion_cliente_id).isdigit():
+                from clientes.models import DireccionCliente
+                direccion_cliente = DireccionCliente.objects.filter(id=int(direccion_cliente_id), cliente=cliente).first()
+                if direccion_cliente:
+                    direccion_despacho = direccion_despacho or direccion_cliente.direccion
+                    comuna_despacho = comuna_despacho or direccion_cliente.comuna or ''
+                    ciudad_despacho = ciudad_despacho or direccion_cliente.ciudad or ''
+            elif str(direccion_cliente_id) == 'base':
+                direccion_despacho = direccion_despacho or (cliente.direccion or '')
+                comuna_despacho = comuna_despacho or (cliente.comuna or '')
+                ciudad_despacho = ciudad_despacho or (getattr(cliente, 'ciudad', '') or '')
+
+            if not direccion_despacho and cliente:
+                principal_dir = cliente.direcciones.filter(es_principal=True, activa=True).first()
+                if principal_dir:
+                    direccion_cliente = principal_dir
+                    direccion_despacho = principal_dir.direccion
+                    comuna_despacho = principal_dir.comuna or ''
+                    ciudad_despacho = principal_dir.ciudad or ''
+                else:
+                    direccion_despacho = cliente.direccion or ''
+                    comuna_despacho = cliente.comuna or ''
+                    ciudad_despacho = getattr(cliente, 'ciudad', '') or ''
+
             preventa = Venta.objects.create(
                 empresa=request.empresa,
                 sucursal=sucursal_activa,
@@ -2208,6 +2252,10 @@ def pos_procesar_preventa(request):
                 tipo_documento=tipo_documento_preventa,
                 tipo_documento_planeado=tipo_doc_planeado,
                 tipo_despacho=tipo_despacho_final,
+                direccion_cliente=direccion_cliente,
+                direccion_despacho=direccion_despacho,
+                comuna_despacho=comuna_despacho,
+                ciudad_despacho=ciudad_despacho,
                 subtotal=subtotal,
                 descuento=descuento,
                 neto=neto,
@@ -2477,6 +2525,13 @@ def pos_procesar_preventa(request):
                             'success': False,
                             'error': 'sin_caja',
                             'message': 'Esta estación no tiene una caja abierta. Abra la caja asociada a esta estación.',
+                        }, status=400)
+                    if not caja_es_del_dia_actual(apertura_activa):
+                        return JsonResponse({
+                            'success': False,
+                            'error': 'caja_desfasada',
+                            'message': mensaje_caja_desfasada(apertura_activa),
+                            'cerrar_caja_url': reverse('caja:apertura_cerrar', args=[apertura_activa.pk]),
                         }, status=400)
                     
                     pagos, error_pago = _resolver_pagos_documento(
@@ -2979,6 +3034,13 @@ def pos_procesar_preventa(request):
                                 'success': False,
                                 'error': 'sin_caja',
                                 'message': 'Esta estación no tiene una caja abierta. Abra la caja asociada a esta estación.',
+                            }, status=400)
+                        if not caja_es_del_dia_actual(apertura_activa):
+                            return JsonResponse({
+                                'success': False,
+                                'error': 'caja_desfasada',
+                                'message': mensaje_caja_desfasada(apertura_activa),
+                                'cerrar_caja_url': reverse('caja:apertura_cerrar', args=[apertura_activa.pk]),
                             }, status=400)
                         
                         # Obtener forma de pago por defecto (Efectivo)
@@ -6518,43 +6580,19 @@ def mobile_sales_manifest(request):
 
 
 def mobile_sales_service_worker(request):
+    """Service worker de la app móvil."""
     js = """
+const CACHE_NAME = 'gc-mobile-v4';
+
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('fetch', (event) => {
-  const request = event.request;
-  if (request.method === 'GET') {
-    event.respondWith(fetch(request));
-  }
-});
-"""
-    response = HttpResponse(js, content_type="application/javascript")
-    response["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    return response
-
-    """Service worker de la app móvil."""
-    js = """
-const CACHE_NAME = 'gc-mobile-v3';
-const APP_SHELL = [
-  '/ventas/movil/manifest.webmanifest',
-  '/static/image/LogoCloud.png'
-];
-
-self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -6563,39 +6601,30 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-
   if (url.pathname.startsWith('/ventas/movil/api/')) {
-    event.respondWith(
-      fetch(request).catch(() => new Response(JSON.stringify({ success: false, offline: true }), {
-        headers: { 'Content-Type': 'application/json' }
-      }))
-    );
-    return;
-  }
-
-  const isMobilePage = request.mode === 'navigate' || url.pathname === '/ventas/movil/' || url.pathname.startsWith('/ventas/movil/');
-
-  if (isMobilePage) {
-    event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          const clone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return networkResponse;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match('/ventas/movil/')))
-    );
     return;
   }
 
   event.respondWith(
     fetch(request)
       .then((networkResponse) => {
-        const clone = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        if (networkResponse && networkResponse.ok && url.origin === self.location.origin) {
+          const clone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
+        }
         return networkResponse;
       })
-      .catch(() => caches.match(request))
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          if (request.mode === 'navigate') {
+            return caches.match('/ventas/movil/').then((navCached) =>
+              navCached || new Response('Sin conexión', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+            );
+          }
+          return new Response('', { status: 504 });
+        })
+      )
   );
 });
 """
@@ -6671,17 +6700,18 @@ def mobile_sales_gestion(request):
         fecha_desde = hoy
         fecha_hasta = hoy
 
-    # Convertir a datetime para filtros precisos si es necesario
-    dt_inicio = datetime.combine(fecha_desde, time.min)
-    dt_fin = datetime.combine(fecha_hasta, time.max)
+    # Convertir a datetime con zona horaria local para filtros precisos
+    dt_inicio = timezone.make_aware(datetime.combine(fecha_desde, time.min))
+    dt_fin = timezone.make_aware(datetime.combine(fecha_hasta, time.max))
     
-    # 1. Ventas Pendientes (Tickets/Vales móviles no facturados aún)
+    # 1. Ventas Pendientes (Tickets/Vales/Cotizaciones móviles no facturados aún)
     ventas_pendientes = Venta.objects.filter(
         empresa=request.empresa,
-        tipo_documento__in=['vale', 'ticket'],
+        tipo_documento__in=['vale', 'ticket', 'cotizacion'],
         facturado=False,
         observaciones__icontains='[MOVIL]',
-        fecha__range=[fecha_desde, fecha_hasta]
+    ).filter(
+        Q(fecha__range=[fecha_desde, fecha_hasta]) | Q(fecha_creacion__range=[dt_inicio, dt_fin])
     ).order_by('-fecha_creacion')
     
     # 2. Ventas Procesadas (Trazabilidad de lo facturado realmente)
@@ -7230,17 +7260,26 @@ def mobile_api_save_sale(request):
         cliente_rut = data.get('cliente_rut')
         cliente_nombre_movil = data.get('cliente_nombre', '').strip()
         
+        empresa_venta = request.empresa
+        raw_device_or_phone = str(data.get('telefono') or data.get('deviceId') or '').strip()
         vendedor_por_tel = None
+
         if telefono_venta:
             vendedor_por_tel = Vendedor.objects.filter(
-                empresa=request.empresa,
+                empresa=empresa_venta,
                 telefono_app=telefono_venta,
                 activo=True,
                 app_movil_activa=True,
             ).first()
+            if not vendedor_por_tel:
+                for v_cand in Vendedor.objects.filter(telefono_app=telefono_venta, activo=True, app_movil_activa=True).select_related('empresa'):
+                    if verificar_token_app(auth_token, v_cand.empresa_id, v_cand.id, telefono_venta):
+                        vendedor_por_tel = v_cand
+                        empresa_venta = v_cand.empresa
+                        break
             token_ok = bool(
                 vendedor_por_tel
-                and verificar_token_app(auth_token, request.empresa.id, vendedor_por_tel.id, telefono_venta)
+                and verificar_token_app(auth_token, empresa_venta.id, vendedor_por_tel.id, telefono_venta)
             )
             if not token_ok:
                 return JsonResponse({
@@ -7250,9 +7289,18 @@ def mobile_api_save_sale(request):
         else:
             from .models import DispositivoMovil
             dispositivo = DispositivoMovil.objects.filter(
-                empresa=request.empresa, unique_id=device_id, autorizado=True
+                empresa=empresa_venta, unique_id__iexact=raw_device_or_phone, autorizado=True
             ).first()
-            if not dispositivo:
+            vendedor_cod = None
+            if not dispositivo and raw_device_or_phone:
+                vendedor_cod = Vendedor.objects.filter(
+                    empresa=empresa_venta, codigo__iexact=raw_device_or_phone, activo=True
+                ).first()
+            if dispositivo and dispositivo.vendedor:
+                vendedor_por_tel = dispositivo.vendedor
+            elif vendedor_cod:
+                vendedor_por_tel = vendedor_cod
+            elif not dispositivo:
                 return JsonResponse({
                     'success': False,
                     'error': 'DISPOSITIVO NO AUTORIZADO. Contacte al administrador.',
@@ -7261,7 +7309,7 @@ def mobile_api_save_sale(request):
         if local_id:
             marca_local = f"[MOVIL-ID:{local_id}]"
             venta_existente = Venta.objects.filter(
-                empresa=request.empresa,
+                empresa=empresa_venta,
                 observaciones__icontains=marca_local
             ).first()
             if venta_existente:
@@ -7277,7 +7325,7 @@ def mobile_api_save_sale(request):
 
         vendedor = None
         if vendedor_id and str(vendedor_id).isdigit():
-            vendedor = Vendedor.objects.filter(id=vendedor_id, empresa=request.empresa).first()
+            vendedor = Vendedor.objects.filter(id=vendedor_id, empresa=empresa_venta).first()
         if not vendedor and vendedor_por_tel:
             vendedor = vendedor_por_tel
         
@@ -7287,7 +7335,7 @@ def mobile_api_save_sale(request):
             try:
                 # Si el ID es numérico, buscar por ID
                 if str(cliente_id).isdigit():
-                    cliente = Cliente.objects.filter(id=cliente_id, empresa=request.empresa).first()
+                    cliente = Cliente.objects.filter(id=cliente_id, empresa=empresa_venta).first()
             except:
                 pass
         
@@ -7298,11 +7346,11 @@ def mobile_api_save_sale(request):
                 rut_busqueda = cliente_rut.replace('.', '').replace('-', '').replace(' ', '').upper()
                 
                 # Búsqueda optimizada: Primero exacta
-                cliente = Cliente.objects.filter(rut=cliente_rut, empresa=request.empresa).first()
+                cliente = Cliente.objects.filter(rut=cliente_rut, empresa=empresa_venta).first()
                 
                 if not cliente:
                     # Búsqueda manual tolerante a formatos
-                    cands = Cliente.objects.filter(empresa=request.empresa).exclude(rut__isnull=True)
+                    cands = Cliente.objects.filter(empresa=empresa_venta).exclude(rut__isnull=True)
                     for cand in cands:
                         if cand.rut.replace('.', '').replace('-', '').replace(' ', '').upper() == rut_busqueda:
                             cliente = cand
@@ -7312,7 +7360,7 @@ def mobile_api_save_sale(request):
                 if not cliente and cliente_nombre_movil and len(rut_busqueda) > 5:
                     try:
                         cliente = Cliente.objects.create(
-                            empresa=request.empresa,
+                            empresa=empresa_venta,
                             nombre=cliente_nombre_movil,
                             rut=cliente_rut, # Usar el RUT enviado tal cual
                             vendedor=vendedor,
@@ -7331,16 +7379,38 @@ def mobile_api_save_sale(request):
 
         forma_pago = None
         if forma_pago_id and str(forma_pago_id).isdigit():
-            forma_pago = FormaPago.objects.filter(id=forma_pago_id, empresa=request.empresa).first()
+            forma_pago = FormaPago.objects.filter(id=forma_pago_id, empresa=empresa_venta).first()
 
         # 1.5 Validaciones base
         if not items:
             return JsonResponse({'success': False, 'error': 'Debe enviar al menos un articulo.'}, status=400)
 
-        permite_sin_stock = request.empresa.venta_movil_permite_sin_stock
+        permite_sin_stock = empresa_venta.venta_movil_permite_sin_stock
         articulos_cache = {}
         for item in items:
-            articulo = Articulo.objects.get(id=item['id'], empresa=request.empresa)
+            item_id = item.get('id')
+            articulo = None
+            if item_id is not None and str(item_id).isdigit():
+                articulo = Articulo.objects.filter(id=int(item_id), empresa=empresa_venta).first()
+            if not articulo and item.get('codigo'):
+                articulo = Articulo.objects.filter(codigo=str(item['codigo']).strip(), empresa=empresa_venta).first()
+            if not articulo and item.get('nombre'):
+                articulo = Articulo.objects.filter(nombre__iexact=str(item['nombre']).strip(), empresa=empresa_venta).first()
+            if not articulo and item_id is not None and str(item_id).isdigit():
+                art_otro = Articulo.objects.filter(id=int(item_id)).first()
+                if art_otro:
+                    articulo = (
+                        Articulo.objects.filter(codigo=art_otro.codigo, empresa=empresa_venta).first()
+                        or Articulo.objects.filter(nombre__iexact=art_otro.nombre, empresa=empresa_venta).first()
+                        or art_otro
+                    )
+            if not articulo:
+                nombre_ref = item.get('nombre') or item.get('codigo') or f"ID {item_id}"
+                return JsonResponse({
+                    'success': False,
+                    'error': f"El artículo '{nombre_ref}' no pertenece al catálogo activo ({empresa_venta.nombre}). Sincronice el catálogo en la app móvil."
+                }, status=400)
+
             articulos_cache[item['id']] = articulo
             cantidad = Decimal(str(item.get('cantidad', 0)))
             if cantidad <= 0:
@@ -7354,13 +7424,13 @@ def mobile_api_save_sale(request):
         # 2. Generar correlativo temporal de preventa
         from .models import EstacionTrabajo
         # Usamos una estación genérica para ventas móviles o la primera que encontremos
-        estacion = EstacionTrabajo.objects.filter(empresa=request.empresa, activo=True).first()
+        estacion = EstacionTrabajo.objects.filter(empresa=empresa_venta, activo=True).first()
         numero_ticket = 0
         if estacion:
             numero_ticket = estacion.incrementar_correlativo_ticket()
         else:
             # Fallback si no hay estación
-            numero_ticket = Venta.objects.filter(empresa=request.empresa).count() + 1
+            numero_ticket = Venta.objects.filter(empresa=empresa_venta).count() + 1
             
         numero_vale = f"M{numero_ticket:05d}"
         
@@ -7373,14 +7443,16 @@ def mobile_api_save_sale(request):
             tipo_final = 'cotizacion'
             estado_cot = 'pendiente'
 
-        # Intentar usar la fecha del móvil si es válida, sino usar hoy
+        # Intentar usar la fecha del móvil si es válida (convertida a zona horaria local), sino usar hoy
         fecha_final = timezone.localdate()
         if fecha_movil:
             try:
-                # El móvil envía ISO string completo o solo fecha
+                # El móvil envía ISO string completo (UTC) o solo fecha
                 from django.utils.dateparse import parse_datetime, parse_date
                 parsed_dt = parse_datetime(fecha_movil)
                 if parsed_dt:
+                    if timezone.is_aware(parsed_dt):
+                        parsed_dt = timezone.localtime(parsed_dt)
                     fecha_final = parsed_dt.date()
                 else:
                     parsed_d = parse_date(fecha_movil)
@@ -7400,7 +7472,7 @@ def mobile_api_save_sale(request):
             observaciones_lineas.append(f"[CIERRE] {comentario_cierre}")
 
         venta = Venta.objects.create(
-            empresa=request.empresa,
+            empresa=empresa_venta,
             numero_venta=numero_vale,
             fecha=fecha_final,
             cliente=cliente,
@@ -7462,18 +7534,21 @@ def mobile_api_sales_history(request):
         
     try:
         from django.utils.dateparse import parse_date
-        from datetime import date, timedelta
+        from datetime import date, datetime, time, timedelta
         
         # Por defecto hoy
         hoy = timezone.localdate()
         date_inicio = parse_date(fecha_inicio) if fecha_inicio else hoy
         date_fin = parse_date(fecha_fin) if fecha_fin else hoy
+        dt_inicio_hist = timezone.make_aware(datetime.combine(date_inicio, time.min))
+        dt_fin_hist = timezone.make_aware(datetime.combine(date_fin, time.max))
         
         # Filtrar ventas de la empresa y del vendedor logeado.
         ventas_qs = Venta.objects.filter(
             empresa=request.empresa,
             vendedor_id=vendedor_id,
-            fecha__range=[date_inicio, date_fin]
+        ).filter(
+            Q(fecha__range=[date_inicio, date_fin]) | Q(fecha_creacion__range=[dt_inicio_hist, dt_fin_hist])
         ).select_related('cliente')
 
         print(f"[DEBUG-MOBILE-HISTORY] Vendedor: {vendedor_id}, Rango: {date_inicio} - {date_fin}, Encontradas: {ventas_qs.count()}")
@@ -8564,9 +8639,16 @@ def facturar_directo(request):
                 ciudad_receptor = ciudad_receptor or direccion_cliente.ciudad or ''
 
         if not direccion_receptor:
-            direccion_receptor = cliente.direccion or ''
-            comuna_receptor = cliente.comuna or ''
-            ciudad_receptor = getattr(cliente, 'ciudad', '') or ''
+            principal_dir = cliente.direcciones.filter(es_principal=True, activa=True).first() if cliente else None
+            if principal_dir:
+                direccion_cliente = principal_dir
+                direccion_receptor = principal_dir.direccion
+                comuna_receptor = principal_dir.comuna or ''
+                ciudad_receptor = principal_dir.ciudad or ''
+            else:
+                direccion_receptor = cliente.direccion or '' if cliente else ''
+                comuna_receptor = cliente.comuna or '' if cliente else ''
+                ciudad_receptor = getattr(cliente, 'ciudad', '') or '' if cliente else ''
 
         with transaction.atomic():
             temp_numero = 'FD' + timezone.now().strftime('%y%m%d%H%M%S%f')[:18]
@@ -9150,10 +9232,12 @@ def api_procesar_factura_consolidada(request):
                 'print_url': reverse('facturacion_electronica:ver_factura_electronica', kwargs={'dte_id': dte.id}),
             })
         else:
-            return JsonResponse({'success': False, 'message': 'Se creó el registro pero el servicio DTE no pudo generar el documento.'})
+            transaction.set_rollback(True)
+            return JsonResponse({'success': False, 'message': 'El servicio DTE no pudo generar el documento.'})
 
     except Exception as e:
         import traceback
+        transaction.set_rollback(True)
         print(f"[ERROR CONSOLIDACION] {str(e)}")
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})

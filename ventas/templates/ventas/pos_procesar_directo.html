@@ -311,6 +311,41 @@
                 </div>
                 {% endif %}
 
+                <!-- Dirección de Envío / Despacho (si cliente tiene múltiples direcciones y documento es factura o guía) -->
+                {% if ticket.tipo_documento_planeado == 'factura' or ticket.tipo_documento_planeado == 'guia' %}
+                {% if ticket.cliente and ticket.cliente.get_direcciones_list|length > 1 %}
+                <div class="card card-terroso mb-3">
+                    <div class="card-header-terroso" style="padding: 10px 15px;">
+                        <h6 class="mb-0" style="font-size: 0.95rem;">
+                            <i class="fas fa-shipping-fast me-2"></i>Dirección de {% if ticket.tipo_documento_planeado == 'guia' %}Despacho{% else %}Envío{% endif %}
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="compact-form-group">
+                            <label for="direccion_cliente_id" class="form-label" style="font-weight: 600; font-size: 0.85rem; color: #5D4037;">
+                                Seleccione la dirección de entrega:
+                            </label>
+                            <select name="direccion_cliente_id" id="direccion_cliente_id" class="form-select form-select-sm">
+                                {% for d in ticket.cliente.get_direcciones_list %}
+                                <option value="{{ d.id }}"
+                                    {% if ticket.direccion_cliente and ticket.direccion_cliente.id == d.id %}selected
+                                    {% elif not ticket.direccion_cliente and ticket.tipo_documento_planeado == 'guia' and d.es_principal %}selected
+                                    {% elif not ticket.direccion_cliente and d.id == 'base' and not d.es_principal %}selected
+                                    {% elif not ticket.direccion_cliente and d.es_principal %}selected
+                                    {% endif %}>
+                                    {% if d.alias %}{{ d.alias }}: {% endif %}{{ d.direccion }}{% if d.comuna %} ({{ d.comuna }}){% endif %}{% if d.es_principal %} [Principal]{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">
+                                <i class="fas fa-info-circle me-1"></i>{% if ticket.tipo_documento_planeado == 'guia' %}Por defecto se usa la dirección principal.{% else %}Esta dirección se imprimirá en el documento tributario.{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% endif %}
+
                 <!-- Observaciones -->
                 <div class="card card-terroso mb-3">
                     <div class="card-body">

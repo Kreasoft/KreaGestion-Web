@@ -219,6 +219,7 @@ class DTEService:
                         direccion_emisor=self.empresa.direccion_casa_matriz or self.empresa.direccion,
                         comuna_emisor=self.empresa.comuna_casa_matriz or self.empresa.comuna,
                         rut_receptor=venta.cliente.rut if venta.cliente else '66666666-6',
+                        razon_social_receptor=venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') else (venta.cliente.nombre if venta.cliente else 'Cliente Genérico'),
                         direccion_receptor=(transport_data.get('direccion_receptor') or getattr(venta, 'direccion_despacho', None) or (venta.cliente.direccion if venta.cliente else ''))[:200],
                         comuna_receptor=(transport_data.get('comuna_receptor') or getattr(venta, 'comuna_despacho', None) or (venta.cliente.comuna if venta.cliente else ''))[:100],
                         ciudad_receptor=(transport_data.get('ciudad_receptor') or getattr(venta, 'ciudad_despacho', None) or (getattr(venta.cliente, 'ciudad', '') if venta.cliente else ''))[:100],
@@ -1323,6 +1324,7 @@ class DTEService:
         # Datos del receptor
         if venta.cliente:
             rut_receptor = venta.cliente.rut
+            razon_social_receptor = venta.get_cliente_nombre() if hasattr(venta, 'get_cliente_nombre') else (venta.cliente.nombre if venta.cliente else 'Cliente Genérico')
             direccion_receptor = (transport_data.get('direccion_receptor') or getattr(venta, 'direccion_despacho', None) or (venta.cliente.direccion if venta.cliente else ''))[:200]
             comuna_receptor = (transport_data.get('comuna_receptor') or getattr(venta, 'comuna_despacho', None) or (venta.cliente.comuna if venta.cliente else ''))[:100]
             ciudad_receptor = (transport_data.get('ciudad_receptor') or getattr(venta, 'ciudad_despacho', None) or (getattr(venta.cliente, 'ciudad', '') if venta.cliente else ''))[:100]

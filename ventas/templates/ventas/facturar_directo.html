@@ -1279,6 +1279,7 @@ function setDocType(nextType) {
         recalcRow(row);
     });
     updateItemSummary();
+    syncDireccionClienteSelector();
 }
 
 function selectedClient() {
@@ -1368,35 +1369,56 @@ function onClientChange() {
     }
     recalcVencimiento(true);
 
-    // Actualizar selector de direcciones si el cliente tiene más de una
-    const dirContainer = document.getElementById('contenedor_direccion_cliente');
-    const dirSelect = document.getElementById('direccion_cliente_select');
-    if (dirContainer && dirSelect) {
-        dirSelect.innerHTML = '';
-        if (client && client.direcciones && client.direcciones.length > 1) {
-            client.direcciones.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.id;
-                const comunaPart = d.comuna ? ` (${d.comuna})` : '';
-                opt.textContent = `${d.alias ? d.alias + ': ' : ''}${d.direccion}${comunaPart}`;
-                opt.dataset.direccion = d.direccion || '';
-                opt.dataset.comuna = d.comuna || '';
-                opt.dataset.ciudad = d.ciudad || '';
-                if (d.es_principal) {
-                    opt.selected = true;
-                }
-                dirSelect.appendChild(opt);
-            });
-            dirContainer.style.display = 'block';
-        } else {
-            dirContainer.style.display = 'none';
-        }
-    }
+    syncDireccionClienteSelector();
 
     const clienteId = client ? client.id : document.getElementById('cliente_id').value;
     cargarPreciosEspecialesCliente(clienteId, () => {
         actualizarPreciosFilasSegunCliente();
     });
+}
+
+function syncDireccionClienteSelector() {
+    const dirContainer = document.getElementById('contenedor_direccion_cliente');
+    const dirSelect = document.getElementById('direccion_cliente_select');
+    if (!dirContainer || !dirSelect) return;
+
+    const client = selectedClient();
+    const esFacturaOGuia = ['33', '34', '52'].includes(tipoDte);
+
+    if (esFacturaOGuia && client && client.direcciones && client.direcciones.length > 1) {
+        const currentVal = dirSelect.value;
+        dirSelect.innerHTML = '';
+        let principalVal = null;
+
+        client.direcciones.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            const comunaPart = d.comuna ? ` (${d.comuna})` : '';
+            const princPart = d.es_principal ? ' [Principal]' : '';
+            opt.textContent = `${d.alias ? d.alias + ': ' : ''}${d.direccion}${comunaPart}${princPart}`;
+            opt.dataset.direccion = d.direccion || '';
+            opt.dataset.comuna = d.comuna || '';
+            opt.dataset.ciudad = d.ciudad || '';
+            opt.dataset.esPrincipal = d.es_principal ? '1' : '0';
+            if (d.es_principal) {
+                principalVal = d.id;
+            }
+            dirSelect.appendChild(opt);
+        });
+
+        // En guias la direccion de despacho debe ser por defecto la principal
+        if (tipoDte === '52' && principalVal !== null) {
+            dirSelect.value = String(principalVal);
+        } else if (currentVal && dirSelect.querySelector(`option[value="${currentVal}"]`)) {
+            dirSelect.value = currentVal;
+        } else if (principalVal !== null) {
+            dirSelect.value = String(principalVal);
+        }
+
+        dirContainer.style.display = 'block';
+    } else {
+        dirContainer.style.display = 'none';
+    }
 }
 
 document.getElementById('cliente_id').addEventListener('change', onClientChange);

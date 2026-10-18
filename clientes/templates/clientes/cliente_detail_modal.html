@@ -193,6 +193,11 @@
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="det-direcciones-tab" data-bs-toggle="tab" data-bs-target="#det-direcciones" type="button" role="tab">
+                            <i class="fas fa-map-marker-alt me-2"></i>Direcciones
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
                         <button class="nav-link" id="det-comercial-tab" data-bs-toggle="tab" data-bs-target="#det-comercial" type="button" role="tab">
                             <i class="fas fa-briefcase me-2"></i>Comercial
                         </button>
@@ -241,6 +246,16 @@
                             </button>
                         </div>
                         <div id="det_lista_contactos"></div>
+                    </div>
+
+                    <div class="tab-pane fade" id="det-direcciones" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <p class="mb-0" style="color:#8B7355;font-size:0.78rem;">Direcciones y sucursales de entrega de este cliente.</p>
+                            <button type="button" class="btn btn-sm btn-detalle-editar" id="btn_gestionar_direcciones">
+                                <i class="fas fa-map-marker-alt me-1"></i>Gestionar direcciones
+                            </button>
+                        </div>
+                        <div id="det_lista_direcciones"></div>
                     </div>
 
                     <div class="tab-pane fade" id="det-comercial" role="tabpanel">
@@ -357,6 +372,8 @@
                 if (btnEditar) btnEditar.onclick = function () { irAEditar(); };
                 const btnContactos = document.getElementById('btn_gestionar_contactos');
                 if (btnContactos) btnContactos.onclick = function () { irAEditar('contactos'); };
+                const btnDirecciones = document.getElementById('btn_gestionar_direcciones');
+                if (btnDirecciones) btnDirecciones.onclick = function () { irAEditar('direcciones'); };
 
                 const lista = document.getElementById('det_lista_contactos');
                 if (lista) {
@@ -383,6 +400,45 @@
                             lista.innerHTML = html;
                         })
                         .catch(() => { lista.innerHTML = '<div class="small p-2" style="color:#C76F43;">No se pudieron cargar los contactos.</div>'; });
+                }
+
+                const listaDir = document.getElementById('det_lista_direcciones');
+                if (listaDir) {
+                    listaDir.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm" style="color:#8B7355;"></div></div>';
+                    fetch(`/clientes/ajax/${id}/direcciones/`)
+                        .then(r => r.json())
+                        .then(ddata => {
+                            const dirs = (ddata.success && ddata.direcciones) ? ddata.direcciones : [];
+                            if (!dirs.length) {
+                                listaDir.innerHTML = '<div class="text-center py-3" style="color:#8B7355;font-size:0.82rem;">No hay direcciones registradas.</div>';
+                                return;
+                            }
+                            let html = '';
+                            dirs.forEach(d => {
+                                const esBase = String(d.id) === 'base';
+                                const badgeTipo = esBase 
+                                    ? '<span class="badge ms-1" style="background:#8B7355;color:#fff;font-size:0.62rem;">Casa Matriz (Fiscal)</span>' 
+                                    : '<span class="badge ms-1" style="background:#A89F91;color:#fff;font-size:0.62rem;">Sucursal</span>';
+                                const badgePrincipal = d.es_principal 
+                                    ? '<span class="badge badge-principal ms-1">Principal</span>' 
+                                    : '';
+                                const ubicacion = [d.comuna, d.ciudad, d.region].filter(Boolean).join(', ');
+                                html += `<div class="mb-2 p-2" style="background:#fff;border:1px solid #E8DCC8;border-radius:8px;">
+                                    <div class="fw-bold" style="color:#5D4037;font-size:0.84rem;">
+                                        ${String(d.alias || d.direccion).replace(/</g,'')}
+                                        ${badgeTipo}
+                                        ${badgePrincipal}
+                                    </div>
+                                    <div style="color:#8B7355;font-size:0.74rem;">
+                                        <i class="fas fa-map-marker-alt me-1"></i>${String(d.direccion || '').replace(/</g,'')}
+                                        ${ubicacion ? ' · ' + String(ubicacion).replace(/</g,'') : ''}
+                                    </div>
+                                    ${d.observaciones ? '<div style="color:#5D4037;font-size:0.72rem;font-style:italic;" class="mt-1">' + String(d.observaciones).replace(/</g,'') + '</div>' : ''}
+                                </div>`;
+                            });
+                            listaDir.innerHTML = html;
+                        })
+                        .catch(() => { listaDir.innerHTML = '<div class="small p-2" style="color:#C76F43;">No se pudieron cargar las direcciones.</div>'; });
                 }
                 modal.show();
             })

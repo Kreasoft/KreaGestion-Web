@@ -16,13 +16,14 @@ def obtener_empresa_usuario(request):
     """Obtener la empresa del usuario con lÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³gica de sesiÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³n para superusuarios"""
     if request.user.is_superuser:
         # Para superusuarios, usar empresa de sesiÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³n o Kreasoft por defecto
-        empresa_id = request.session.get('empresa_activa')
-        if empresa_id:
+        empresa = getattr(request, 'empresa', None)
+        empresa_id = request.session.get('empresa_activa_id') or request.session.get('empresa_activa')
+        if not empresa and empresa_id:
             try:
                 empresa = Empresa.objects.get(id=empresa_id)
             except Empresa.DoesNotExist:
                 empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
-        else:
+        elif not empresa:
             empresa = Empresa.objects.filter(nombre__icontains='Kreasoft').first()
         
         if not empresa:
@@ -521,6 +522,87 @@ def _serialize_contacto(contacto):
     }
 
 
+def _obtener_cliente_ajax(request, pk, empresa):
+    if request.user.is_superuser:
+        return get_object_or_404(Cliente, id=pk)
+    return get_object_or_404(Cliente, id=pk, empresa=empresa)
+
+
+def _guardar_extras_modal_cliente(request, cliente):
+    """Si el usuario dejó abierto el formulario de Nueva Dirección o Nuevo Contacto y pulsó 'Guardar Cliente', persistirlo."""
+    extra_dir = (request.POST.get('extra_dir_direccion') or '').strip()
+    if extra_dir:
+        dir_id = (request.POST.get('extra_dir_id') or '').strip()
+        comuna = (request.POST.get('extra_dir_comuna') or '').strip() or (cliente.comuna or '')
+        alias = (request.POST.get('extra_dir_alias') or '').strip()
+        ciudad = (request.POST.get('extra_dir_ciudad') or '').strip() or (cliente.ciudad or '')
+        region = (request.POST.get('extra_dir_region') or '').strip() or (cliente.region or '')
+        obs = (request.POST.get('extra_dir_observaciones') or '').strip()
+        es_principal = request.POST.get('extra_dir_es_principal') == 'on'
+        activa = request.POST.get('extra_dir_activa', 'on') == 'on'
+
+        if dir_id and dir_id.isdigit():
+            dir_obj = DireccionCliente.objects.filter(id=int(dir_id), cliente=cliente).first()
+            if dir_obj:
+                dir_obj.alias = alias
+                dir_obj.direccion = extra_dir
+                dir_obj.comuna = comuna
+                dir_obj.ciudad = ciudad
+                dir_obj.region = region
+                dir_obj.observaciones = obs
+                dir_obj.es_principal = es_principal
+                dir_obj.activa = activa
+                dir_obj.save()
+        else:
+            DireccionCliente.objects.create(
+                cliente=cliente,
+                alias=alias,
+                direccion=extra_dir,
+                comuna=comuna,
+                ciudad=ciudad,
+                region=region,
+                observaciones=obs,
+                es_principal=es_principal,
+                activa=activa,
+            )
+
+    extra_contacto = (request.POST.get('extra_contacto_nombre') or '').strip()
+    if len(extra_contacto) >= 2:
+        c_id = (request.POST.get('extra_contacto_id') or '').strip()
+        cargo = (request.POST.get('extra_contacto_cargo') or '').strip()
+        tipo_c = (request.POST.get('extra_contacto_tipo') or 'otro').strip()
+        tel = (request.POST.get('extra_contacto_telefono') or '').strip()
+        cel = (request.POST.get('extra_contacto_celular') or '').strip()
+        email = (request.POST.get('extra_contacto_email') or '').strip() or None
+        obs_c = (request.POST.get('extra_contacto_obs') or '').strip()
+        es_princ_c = request.POST.get('extra_contacto_principal') == 'on'
+
+        if c_id and c_id.isdigit():
+            c_obj = ContactoCliente.objects.filter(id=int(c_id), cliente=cliente).first()
+            if c_obj:
+                c_obj.nombre = extra_contacto
+                c_obj.cargo = cargo
+                c_obj.tipo_contacto = tipo_c
+                c_obj.telefono = tel
+                c_obj.celular = cel
+                c_obj.email = email
+                c_obj.observaciones = obs_c
+                c_obj.es_contacto_principal = es_princ_c
+                c_obj.save()
+        else:
+            ContactoCliente.objects.create(
+                cliente=cliente,
+                nombre=extra_contacto,
+                cargo=cargo,
+                tipo_contacto=tipo_c,
+                telefono=tel,
+                celular=cel,
+                email=email,
+                observaciones=obs_c,
+                es_contacto_principal=es_princ_c,
+            )
+
+
 @login_required
 def ajax_cliente_contactos(request, pk):
     """Obtener lista de contactos de un cliente"""
@@ -529,7 +611,7 @@ def ajax_cliente_contactos(request, pk):
     empresa, error = obtener_empresa_usuario(request)
     if error:
         return JsonResponse({'success': False, 'message': error}, status=400)
-    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    cliente = _obtener_cliente_ajax(request, pk, empresa)
     contactos = [_serialize_contacto(c) for c in cliente.contactos.all().order_by('-es_contacto_principal', 'nombre')]
     return JsonResponse({'success': True, 'contactos': contactos})
 
@@ -544,7 +626,7 @@ def ajax_contacto_save(request, pk, contacto_id=None):
     if error:
         return JsonResponse({'success': False, 'message': error}, status=400)
 
-    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    cliente = _obtener_cliente_ajax(request, pk, empresa)
     if contacto_id:
         if not request.user.has_perm('clientes.change_contactocliente'):
             return JsonResponse({'success': False, 'message': 'No tiene permiso para editar contactos.'}, status=403)
@@ -585,7 +667,7 @@ def ajax_contacto_delete(request, pk, contacto_id):
     if error:
         return JsonResponse({'success': False, 'message': error}, status=400)
 
-    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    cliente = _obtener_cliente_ajax(request, pk, empresa)
     contacto = get_object_or_404(ContactoCliente, id=contacto_id, cliente=cliente)
     nombre = contacto.nombre
     contacto.delete()
@@ -612,8 +694,9 @@ def ajax_cliente_direcciones(request, pk):
     empresa, error = obtener_empresa_usuario(request)
     if error:
         return JsonResponse({'success': False, 'message': error}, status=400)
-    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
-    direcciones = cliente.get_direcciones_list()
+    cliente = _obtener_cliente_ajax(request, pk, empresa)
+    incluir_inactivas = request.GET.get('all') == '1'
+    direcciones = cliente.get_direcciones_list(incluir_inactivas=incluir_inactivas)
     return JsonResponse({
         'success': True,
         'direcciones': direcciones,
@@ -629,7 +712,7 @@ def ajax_direccion_save(request, pk, direccion_id=None):
     empresa, error = obtener_empresa_usuario(request)
     if error:
         return JsonResponse({'success': False, 'message': error}, status=400)
-    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    cliente = _obtener_cliente_ajax(request, pk, empresa)
     
     if direccion_id:
         direccion_obj = get_object_or_404(DireccionCliente, id=direccion_id, cliente=cliente)
@@ -646,7 +729,7 @@ def ajax_direccion_save(request, pk, direccion_id=None):
             'success': True,
             'message': 'Dirección actualizada.' if direccion_id else 'Dirección agregada.',
             'direccion': _serialize_direccion(direccion_obj),
-            'direcciones': cliente.get_direcciones_list(),
+            'direcciones': cliente.get_direcciones_list(incluir_inactivas=True),
         })
     errores = []
     for field, field_errors in form.errors.items():
@@ -663,14 +746,14 @@ def ajax_direccion_delete(request, pk, direccion_id):
     empresa, error = obtener_empresa_usuario(request)
     if error:
         return JsonResponse({'success': False, 'message': error}, status=400)
-    cliente = get_object_or_404(Cliente, id=pk, empresa=empresa)
+    cliente = _obtener_cliente_ajax(request, pk, empresa)
     direccion_obj = get_object_or_404(DireccionCliente, id=direccion_id, cliente=cliente)
     direccion_str = str(direccion_obj)
     direccion_obj.delete()
     return JsonResponse({
         'success': True,
         'message': f'Dirección "{direccion_str}" eliminada.',
-        'direcciones': cliente.get_direcciones_list(),
+        'direcciones': cliente.get_direcciones_list(incluir_inactivas=True),
     })
 
 
@@ -691,6 +774,7 @@ def ajax_cliente_create(request):
                 cliente = form.save(commit=False)
                 cliente.empresa = empresa
                 cliente.save()
+                _guardar_extras_modal_cliente(request, cliente)
                 return JsonResponse({'success': True, 'message': 'Cliente creado correctamente', 'id': cliente.id, 'nombre': cliente.nombre, 'rut': cliente.get_rut_formateado()})
             except Exception as e:
                 return JsonResponse({'success': False, 'message': str(e)}, status=500)
@@ -750,10 +834,11 @@ def ajax_cliente_update(request, pk):
             return JsonResponse({'success': False, 'message': error}, status=400)
             
         cliente = get_object_or_404(Cliente, id=pk)
-        form = ClienteForm(request.POST, instance=cliente, empresa=empresa)
+        form = ClienteForm(request.POST, instance=cliente, empresa=cliente.empresa or empresa)
         if form.is_valid():
             try:
                 cliente = form.save()
+                _guardar_extras_modal_cliente(request, cliente)
                 return JsonResponse({'success': True, 'message': 'Cliente actualizado correctamente', 'id': cliente.id, 'nombre': cliente.nombre})
             except Exception as e:
                 return JsonResponse({'success': False, 'message': str(e)}, status=500)
