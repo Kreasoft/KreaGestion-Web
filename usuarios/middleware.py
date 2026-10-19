@@ -98,6 +98,10 @@ class EmpresaMiddleware:
 		if request.user.is_authenticated:
 			from ventas.aislamiento import asegurar_sesion_pos_de_empresa
 			asegurar_sesion_pos_de_empresa(request)
+			try:
+				request.user.empresa_activa = getattr(request, 'empresa', None)
+			except Exception:
+				pass
 
 		response = self.get_response(request)
 		

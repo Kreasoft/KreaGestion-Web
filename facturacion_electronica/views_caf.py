@@ -83,6 +83,7 @@ def listar_cafs(request):
     sucursales = Sucursal.objects.filter(empresa=empresa)
     
     context = {
+        'empresa': empresa,
         'cafs_vigentes': cafs_vigentes,
         'cafs_historico': cafs_historico,
         'vigentes_por_ambiente': vigentes_por_ambiente,
@@ -225,6 +226,7 @@ def cargar_caf(request):
         form = CargarCAFForm(empresa=request.empresa)
     
     context = {
+        'empresa': request.empresa,
         'form': form,
         'titulo': 'Cargar Archivo CAF',
         'ambiente_actual_empresa': getattr(request.empresa, 'ambiente_sii', 'certificacion'),
